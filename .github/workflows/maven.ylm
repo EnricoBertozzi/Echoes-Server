@@ -1,0 +1,52 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "main", "develop", "git-actions", "feature/git-actions" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Sobe os containers do MySQL e Redis para os testes de integração
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: echoes_db_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:7.0
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Run Tests with Maven
+      # Mapeia as variáveis que o teu spring-dotenv / application.properties esperam
+      env:
+        SERVER_PORT: 8080
+        DATABASE_URL: jdbc:mysql://localhost:3306/echoes_db_test?createDatabaseIfNotExist=true&serverTimezone=UTC
+        DATABASE_USER: root
+        DATABASE_PASSWORD: root_password
+        JWT_SECRET: ${{ secrets.JWT_SECRET || 'uma_chave_secreta_dummy_com_mais_de_32_caracteres_para_testes' }}
+        USE_SSL: false
+        SPRING_MAIL_HOST: localhost
+        SPRING_MAIL_PORT: 587
+      run: ./mvnw clean test

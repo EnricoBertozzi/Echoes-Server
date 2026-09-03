@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+
+<html th:replace="fragments/layout :: layout('Dashboard', ~{::body})">
+<body>
+
+  <div class="flex h-full">
+
+    <!-- Sidebar -->
+
+    <div th:replace="fragments/sidebar :: sidebar"></div>
+
+
+    <main class="flex-1 p-10 overflow-y-auto">
+
+      <h1 class="text-3xl font-bold text-gray-800">
+        Bem-vindo ao Dashboard
+      </h1>
+
+      <p class="mt-4 text-gray-600">
+        Área principal do sistema.
+      </p>
+
+    </main>
+
+  </div>
+
+</body>
+</html>

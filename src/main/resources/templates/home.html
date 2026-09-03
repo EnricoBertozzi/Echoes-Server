@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html th:replace="fragments/layout :: layout('Login', ~{::body})">
+
+<body>
+
+  <main class="flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md w-96">
+
+      <h1 class="text-2xl text-primary font-bold text-center mb-6">
+        Login
+      </h1>
+
+      <!-- LOGIN FORM -->
+      <form id="login-form">
+
+        <input id="email"
+        class="w-full border p-2 rounded mb-3"
+        placeholder="Email"
+        type="email">
+
+        <input id="password"
+        class="w-full border p-2 rounded mb-4"
+        placeholder="Senha"
+        type="password">
+
+        <div id="login-loading" class="hidden flex justify-center mt-4">
+          <div class="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-primary"></div>
+        </div>
+        <br>
+
+        <button
+          type="submit"
+          class="bg-primary w-full text-white p-2 rounded">
+          Entrar
+        </button>
+
+      </form>
+
+      <!-- 2FA FORM -->
+      <form id="mfa-form" class="hidden">
+
+        <p class="text-sm text-gray-600 mb-3">
+        Digite o código enviado para seu email
+        </p>
+
+        <input id="code"
+        class="w-full border p-2 rounded mb-4"
+        placeholder="Código de verificação"
+        type="text"
+        minlength="6"
+        >
+
+        <div id="mfa-loading" class="hidden flex justify-center mt-4">
+          <div class="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-primary"></div>
+        </div>
+        <br>
+
+        <button
+          class="bg-primary w-full text-white p-2 rounded"
+          type="submit"
+          >
+          Verificar
+        </button>
+
+      </form>
+
+      <p class="text-center text-sm text-gray-600 mt-4">
+      Esqueceu a senha?
+      <a href="/recover" class="text-primary font-medium hover:underline">
+        Recuperar sua conta
+      </a>
+      </p>
+      <p class="text-center text-sm text-gray-600 mt-4">
+      Não possui conta?
+      <a href="/register" class="text-primary font-medium hover:underline">
+        Registrar-se
+      </a>
+      </p>
+      <p class="text-center text-sm text-gray-600 mt-4">
+      Conta desativada?
+      <a href="/reactivate" class="text-primary font-medium hover:underline">
+        Reative sua conta
+      </a>
+      </p>
+    </div>
+    <script th:src="@{/js/login.js}"> </script>
+  </main>
+
+</body>
+</html>
