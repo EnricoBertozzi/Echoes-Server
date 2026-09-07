@@ -163,6 +163,7 @@
 	</dependencies>
 
 	<build>
+    <finalName>echoes-server</finalName>
     <plugins>
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
@@ -190,7 +191,7 @@
                     </exclude>
                 </excludes>
             </configuration>
-        </plugin>
+          </plugin>
     </plugins>
   </build>
 </project>
