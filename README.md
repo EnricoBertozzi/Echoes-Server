@@ -73,4 +73,4 @@ docker run -di --name echoes-container -p 8080:8080 echoes-image
 docker-compose up -d
 ```
 
-5. Acesse a documentação dos endpoints do projeto pelo endereço [https://localhost/swagger-ui/](https://localhost/swagger-ui/)
+5. Acesse a documentação dos endpoints do projeto pelo endereço [https://localhost/swagger-ui/index.html](https://localhost/swagger-ui/index.html)
