@@ -2,6 +2,7 @@ package com.n0hana.echoes_server.animal.model;
 
 import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -28,7 +29,7 @@ public class ScenarioModel {
 
   private String audioUrl;
 
-  @ManyToOne
+  @ManyToOne(cascade = CascadeType.REMOVE)
   @JoinColumn(name = "auscultation_point")
   private AuscultationPointModel auscultationPoint;
 

@@ -29,7 +29,7 @@ public class AuscultationPointModel {
 
   private String position;
 
-  @ManyToOne
+  @ManyToOne(cascade = CascadeType.REMOVE)
   @JoinColumn(name = "animal")
   private AnimalModel animal;
 
