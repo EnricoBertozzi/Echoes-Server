@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.animal.model;
+package com.n0hana.echoes_server.animal;
 
 import java.util.UUID;
 

@@ -1,6 +1,8 @@
-package com.n0hana.echoes_server.animal.model;
+package com.n0hana.echoes_server.scenario;
 
 import java.util.UUID;
+
+import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;

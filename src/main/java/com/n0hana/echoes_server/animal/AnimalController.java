@@ -15,9 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.n0hana.echoes_server.animal.dto.AnimalDTO;
-import com.n0hana.echoes_server.animal.dto.AnimalDTO.Info;
-import com.n0hana.echoes_server.animal.model.AnimalModel;
+import com.n0hana.echoes_server.animal.AnimalDTO.Info;
 
 /**
  * AnimalController
@@ -33,7 +31,7 @@ public class AnimalController {
    * Criar um novo animal
    */
   @PostMapping
-  public ResponseEntity<Void> saveAnimal(@RequestBody AnimalDTO.Register dto) {
+  public ResponseEntity<Void> newAnimal(@RequestBody AnimalDTO.Register dto) {
     animalService.save(dto.toModel());
     return ResponseEntity.ok().build();
   }
@@ -42,18 +40,29 @@ public class AnimalController {
    * Busca todos os animais
    */
   @GetMapping
-  public ResponseEntity<List<AnimalModel>> findAllAnimals(@RequestParam int page, @RequestParam int size) {
-    return ResponseEntity.ok(animalService.findAllAnimals(page, size));
+  public ResponseEntity<List<AnimalDTO.Info>> findAllAnimals(@RequestParam int page, @RequestParam int size) {
+    List<AnimalDTO.Info> list = animalService
+        .findAllAnimals(page, size)
+        .stream()
+        .map(AnimalDTO.Info::from)
+        .toList();
+
+    return ResponseEntity.ok(list);
   }
 
   /**
    * Busca por animais com mesmo nome
    */
   @GetMapping("/search")
-  public ResponseEntity<List<AnimalModel>> findAnimalsByName(@RequestParam String name, @RequestParam int page,
+  public ResponseEntity<List<AnimalDTO.Info>> findAnimalsByName(@RequestParam String name, @RequestParam int page,
       @RequestParam int size) {
-    return ResponseEntity.ok(
-        animalService.findAnimalsByName(name, page, size));
+    List<AnimalDTO.Info> list = animalService
+        .findAnimalsByName(name, page, size)
+        .stream()
+        .map(AnimalDTO.Info::from)
+        .toList();
+
+    return ResponseEntity.ok(list);
   }
 
   /**

@@ -1,6 +1,4 @@
-package com.n0hana.echoes_server.animal.dto;
-
-import com.n0hana.echoes_server.animal.model.ScenarioModel;
+package com.n0hana.echoes_server.scenario;
 
 /**
  * ScenarioDTO

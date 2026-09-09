@@ -1,18 +1,16 @@
-package com.n0hana.echoes_server.animal.model;
+package com.n0hana.echoes_server.auscultation;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
+
+import com.n0hana.echoes_server.animal.AnimalModel;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,12 +27,9 @@ public class AuscultationPointModel {
 
   private String position;
 
-  @ManyToOne(cascade = CascadeType.REMOVE)
+  @ManyToOne
   @JoinColumn(name = "animal")
   private AnimalModel animal;
-
-  @OneToMany(mappedBy = "auscultationPoint", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  private List<ScenarioModel> scenarios;
 
   public static AuscultationPointModelBuilder builder() {
     return new AuscultationPointModelBuilder();
@@ -44,7 +39,6 @@ public class AuscultationPointModel {
     private UUID id;
     private String position;
     private AnimalModel animal;
-    private List<ScenarioModel> scenarios;
 
     public AuscultationPointModelBuilder id(UUID id) {
       this.id = id;
@@ -61,19 +55,12 @@ public class AuscultationPointModel {
       return this;
     }
 
-    public AuscultationPointModelBuilder scenarios(List<ScenarioModel> scenarios) {
-      this.scenarios = scenarios;
-      return this;
-    }
-
     public AuscultationPointModel build() {
       AuscultationPointModel point = new AuscultationPointModel();
       point.setId(this.id);
       point.setPosition(this.position);
-      point.setAnimal(animal);
-      point.setScenarios(new ArrayList<>(this.scenarios));
+      point.setAnimal(this.animal);
 
-      point.getScenarios().forEach(scenario -> scenario.setAuscultationPoint(point));
       return point;
     }
   }

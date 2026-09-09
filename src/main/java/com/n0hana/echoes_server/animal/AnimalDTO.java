@@ -1,8 +1,6 @@
-package com.n0hana.echoes_server.animal.dto;
+package com.n0hana.echoes_server.animal;
 
 import java.util.UUID;
-
-import com.n0hana.echoes_server.animal.model.AnimalModel;
 
 /**
  * AnimalDTO
