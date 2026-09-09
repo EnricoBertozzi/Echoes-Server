@@ -1,10 +1,10 @@
 package com.n0hana.echoes_server.animal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,10 +12,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.n0hana.echoes_server.animal.model.AnimalModel;
-import com.n0hana.echoes_server.animal.model.AuscultationPointModel;
-import com.n0hana.echoes_server.animal.model.ScenarioModel;
 
 @ExtendWith(MockitoExtension.class)
 public class AnimalServiceTests {
@@ -31,48 +34,10 @@ public class AnimalServiceTests {
   public void saveNewAnimalInDatabase() {
     // Arrange
 
-    ScenarioModel scenario1 = ScenarioModel.builder()
-        .name("Sopro Cardiaco")
-        .description("Sopro no coração")
-        .audioUrl("http://localhost:8080")
-        .build();
-
-    ScenarioModel scenario2 = ScenarioModel.builder()
-        .name("Palpitação")
-        .description("Palpitação cardiaca")
-        .audioUrl("http://localhost:8080")
-        .build();
-
-    ScenarioModel scenario3 = ScenarioModel.builder()
-        .name("Tuberculose")
-        .description("Tuberculose")
-        .audioUrl("http://localhost:8080")
-        .build();
-
-    ScenarioModel scenario4 = ScenarioModel.builder()
-        .name("Crepitação")
-        .description("Crepitação")
-        .audioUrl("http://localhost:8080")
-        .build();
-
-    AuscultationPointModel point1 = AuscultationPointModel.builder()
-        .position("Coração")
-        .scenarios(List.of(
-            scenario1, scenario2))
-        .build();
-
-    AuscultationPointModel point2 = AuscultationPointModel.builder()
-        .position("Pulmonar")
-        .scenarios(List.of(
-            scenario3, scenario4))
-        .build();
-
     AnimalModel animal = AnimalModel.builder()
         .name("Labrador")
         .description("Cão labrador para ausculta pulmonar e cardiaca")
-        .imageUrl("")
-        .auscultationPoints(List.of(
-            point1, point2))
+        .model("Tches")
         .build();
 
     when(animalRepository.save(animal)).thenReturn(animal);
@@ -85,69 +50,51 @@ public class AnimalServiceTests {
   }
 
   @Test
-  @DisplayName("Cria um animal e adiciona pontos e cenários")
-  public void createNewAnimalWithAuscultationPointsAndScenarios() {
+  @DisplayName("Busca todos os animais cadastrados")
+  public void findAnimalByPages() {
     // Arrange
-    ScenarioModel scenario1 = ScenarioModel.builder()
-        .name("Sopro Cardiaco")
-        .description("Sopro no coração")
-        .audioUrl("http://localhost:8080")
+    AnimalModel animal1 = AnimalModel.builder()
+        .name("Cachorro Juvenil")
+        .description("Modelo Canino Juvenil")
+        .model("Snoop")
         .build();
 
-    ScenarioModel scenario2 = ScenarioModel.builder()
-        .name("Palpitação")
-        .description("Palpitação cardiaca")
-        .audioUrl("http://localhost:8080")
+    AnimalModel animal2 = AnimalModel.builder()
+        .name("Cachorro Adulto")
+        .description("Modelo Canino Adulto")
+        .model("Tches")
         .build();
 
-    ScenarioModel scenario3 = ScenarioModel.builder()
-        .name("Tuberculose")
-        .description("Tuberculose")
-        .audioUrl("http://localhost:8080")
-        .build();
+    List<AnimalModel> expectedAnimals = List.of(animal1, animal2);
 
-    ScenarioModel scenario4 = ScenarioModel.builder()
-        .name("Crepitação")
-        .description("Crepitação")
-        .audioUrl("http://localhost:8080")
-        .build();
+    int size = 2;
+    int page = 0;
+    String name = "Cachorro";
 
-    AuscultationPointModel point1 = AuscultationPointModel.builder()
-        .position("Coração")
-        .scenarios(List.of(
-            scenario1, scenario2))
-        .build();
+    Page<AnimalModel> mockPage = new PageImpl<>(
+        expectedAnimals,
+        PageRequest.of(page, size),
+        3);
 
-    AuscultationPointModel point2 = AuscultationPointModel.builder()
-        .position("Pulmonar")
-        .scenarios(List.of(
-            scenario3, scenario4))
-        .build();
+    when(animalRepository.findByNameContaining(
+        name,
+        PageRequest.of(
+            page,
+            size,
+            Sort.by("name"))))
+        .thenReturn(mockPage);
 
-    AnimalModel animal = AnimalModel.builder()
-        .name("Labrador")
-        .description("Cão labrador para ausculta pulmonar e cardiaca")
-        .imageUrl("")
-        .auscultationPoints(List.of(
-            point1, point2))
-        .build();
+    // Act
+    List<AnimalModel> list = animalService.findAnimalsByName(name, page, size);
 
     // Assert
+    assertNotNull(list);
 
-    assertEquals(2, animal.getAuscultationPoints().size());
-    assertEquals(
-        2,
-        animal.getAuscultationPoints()
-            .get(0)
-            .getScenarios()
-            .size());
+    // Verifica se a pagina retornada possui os dois elementos
+    assertEquals(2, list.size());
 
-    assertEquals(
-        2,
-        animal.getAuscultationPoints()
-            .get(1)
-            .getScenarios()
-            .size());
+    // Verifica se todos os elementos foram retornados
+    assertEquals(expectedAnimals, list);
   }
 
 }

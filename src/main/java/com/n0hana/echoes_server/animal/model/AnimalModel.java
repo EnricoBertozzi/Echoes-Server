@@ -1,16 +1,11 @@
 package com.n0hana.echoes_server.animal.model;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,10 +23,7 @@ public class AnimalModel {
 
   private String description;
 
-  private String imageUrl;
-
-  @OneToMany(mappedBy = "animal", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  private List<AuscultationPointModel> auscultationPoints;
+  private String model;
 
   public static AnimalModelBuilder builder() {
     return new AnimalModelBuilder();
@@ -41,8 +33,7 @@ public class AnimalModel {
     private UUID id;
     private String name;
     private String description;
-    private String imageUrl;
-    private List<AuscultationPointModel> auscultationPoints;
+    private String model;
 
     public AnimalModelBuilder id(UUID id) {
       this.id = id;
@@ -59,13 +50,8 @@ public class AnimalModel {
       return this;
     }
 
-    public AnimalModelBuilder imageUrl(String imageUrl) {
-      this.imageUrl = imageUrl;
-      return this;
-    }
-
-    public AnimalModelBuilder auscultationPoints(List<AuscultationPointModel> auscultationPoints) {
-      this.auscultationPoints = auscultationPoints;
+    public AnimalModelBuilder model(String model) {
+      this.model = model;
       return this;
     }
 
@@ -74,10 +60,7 @@ public class AnimalModel {
       animal.setId(this.id);
       animal.setDescription(this.description);
       animal.setName(this.name);
-      animal.setImageUrl(this.imageUrl);
-      animal.setAuscultationPoints(new ArrayList<>(this.auscultationPoints));
-
-      animal.getAuscultationPoints().forEach(point -> point.setAnimal(animal));
+      animal.setModel(this.model);
       return animal;
     }
   }
