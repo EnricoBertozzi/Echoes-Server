@@ -1,0 +1,50 @@
+package com.n0hana.echoes_server.animal;
+
+import java.util.UUID;
+
+/**
+ * AnimalDTO
+ */
+public class AnimalDTO {
+  public record Register(
+      String name,
+      String description,
+      String model) {
+
+    public AnimalModel toModel() {
+      return AnimalModel.builder()
+          .name(name)
+          .description(description)
+          .model(model)
+          .build();
+    }
+  }
+
+  public record Update(
+      String name,
+      String description,
+      String model) {
+
+    public AnimalModel toModel() {
+      return AnimalModel.builder()
+          .name(name)
+          .description(description)
+          .model(model)
+          .build();
+    }
+  }
+
+  public record Info(
+      UUID id,
+      String name,
+      String description,
+      String model) {
+    public static Info from(AnimalModel animal) {
+      return new Info(
+          animal.getId(),
+          animal.getName(),
+          animal.getDescription(),
+          animal.getModel());
+    }
+  }
+}
