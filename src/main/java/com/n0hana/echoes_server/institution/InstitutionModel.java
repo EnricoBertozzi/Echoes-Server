@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.institution.model;
+package com.n0hana.echoes_server.institution;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -53,4 +53,4 @@ public class InstitutionModel {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    }
+}

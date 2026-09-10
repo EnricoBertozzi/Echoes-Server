@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.institution.dto;
+package com.n0hana.echoes_server.institution;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
