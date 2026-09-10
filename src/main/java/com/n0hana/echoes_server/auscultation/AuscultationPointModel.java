@@ -4,7 +4,6 @@ import java.util.UUID;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;

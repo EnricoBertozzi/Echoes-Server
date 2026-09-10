@@ -4,7 +4,6 @@ import java.util.UUID;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,7 +30,7 @@ public class ScenarioModel {
 
   private String audioUrl;
 
-  @ManyToOne(cascade = CascadeType.REMOVE)
+  @ManyToOne
   @JoinColumn(name = "auscultation_point")
   private AuscultationPointModel auscultationPoint;
 
