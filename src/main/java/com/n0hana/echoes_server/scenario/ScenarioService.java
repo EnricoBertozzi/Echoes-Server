@@ -1,15 +1,19 @@
 package com.n0hana.echoes_server.scenario;
 
-import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 import com.n0hana.echoes_server.auscultation.AuscultationPointService;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
+import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
 @Service
 public class ScenarioService {
@@ -23,16 +27,37 @@ public class ScenarioService {
   @Autowired
   private AuscultationPointService auscultationPointService;
 
-  public Path newScenario(ScenarioModel model, MultipartFile file) {
+  public void newScenario(ScenarioModel model, MultipartFile file) {
     String newName = this.renameFile(model, file);
-    Path audioPath = fileService.saveFile(file, newName);
-    model.setAudioUrl(audioPath.toString());
+    String audioPath = fileService.saveFile(file, newName);
+    model.setAudioUrl(audioPath);
 
     AuscultationPointModel point = auscultationPointService.findPointById(model.getAuscultationPoint().getId());
 
     model.setAuscultationPoint(point);
     scenarioRepository.save(model);
-    return audioPath;
+  }
+
+  public List<ScenarioModel> findScenariosByPoint(UUID id, int page, int size) {
+    return scenarioRepository
+        .findAllScenariosByAuscultationPointId(
+            id,
+            PageRequest.of(page, size, Sort.by("name")))
+        .toList();
+  }
+
+  public List<ScenarioModel> findScenariosByName(@RequestParam int page, @RequestParam int size,
+      @RequestParam String name) {
+    return scenarioRepository
+        .findAllScenariosByNameContaining(
+            name,
+            PageRequest.of(page, size, Sort.by("name")))
+        .toList();
+  }
+
+  public ScenarioModel findScenarioById(UUID id) {
+    return scenarioRepository.findById(id)
+        .orElseThrow(() -> new ScenarioNotFoundException());
   }
 
   // Métodos auxiliares
@@ -48,4 +73,8 @@ public class ScenarioService {
     return newName;
   }
 
+  public void scenarioExists(UUID id) {
+    scenarioRepository.findById(id)
+        .orElseThrow(() -> new ScenarioNotFoundException());
+  }
 }

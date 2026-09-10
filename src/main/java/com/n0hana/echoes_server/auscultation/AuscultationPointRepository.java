@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AuscultationPointRepository extends JpaRepository<AuscultationPointModel, UUID>{
   
-  Page<AuscultationPointModel> findPointsByAnimalId(UUID animalId, Pageable pageable);
+  Page<AuscultationPointModel> findAuscultationPointsByAnimalId(UUID animalId, Pageable pageable);
 }

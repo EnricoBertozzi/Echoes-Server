@@ -21,4 +21,18 @@ public class ScenarioDTO {
           .build();
     }
   }
+
+  public record Info(
+      UUID id,
+      String name,
+      String description,
+      String audioPath) {
+    public static Info from(ScenarioModel model) {
+      return new Info(
+          model.getId(),
+          model.getName(),
+          model.getDescription(),
+          model.getAudioUrl());
+    }
+  }
 }
