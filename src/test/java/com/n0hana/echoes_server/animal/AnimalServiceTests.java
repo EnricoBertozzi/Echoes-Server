@@ -21,7 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
-import com.n0hana.echoes_server.animal.model.AnimalModel;
+import com.n0hana.echoes_server.animal.AnimalModel;
 
 @ExtendWith(MockitoExtension.class)
 public class AnimalServiceTests {
