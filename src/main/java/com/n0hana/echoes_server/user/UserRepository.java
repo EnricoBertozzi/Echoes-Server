@@ -1,6 +1,5 @@
 package com.n0hana.echoes_server.user;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -12,8 +11,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
-
-    Optional<User> findUserByEmail(String email);
 
     boolean existsByEmail(String email);
 

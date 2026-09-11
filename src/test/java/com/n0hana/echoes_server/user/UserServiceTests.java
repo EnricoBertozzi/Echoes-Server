@@ -31,13 +31,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.n0hana.echoes_server.mfa.InMemoryTwoFactorRepository;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
+import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
@@ -51,7 +51,7 @@ import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTests {
 
-    private static final String RAW_PASSWORD = "senha12345";
+    private static final String RAW_PASSWORD = "SenhaForte123!";
     private static final String ENCODED_PASSWORD = "$2a$10$fixedhash";
     private static final String GENERATED_CODE = "123456";
 
@@ -62,7 +62,7 @@ class UserServiceTests {
     private TwoFactorService twoFactorService;
 
     @Mock
-    private InMemoryTwoFactorRepository twoFactorRepository;
+    private PendingRegistrationRepository pendingRegistrationRepository;
 
     @Mock
     private TwoFactorNotifier notifier;
@@ -76,154 +76,235 @@ class UserServiceTests {
     private final Pageable pageable = PageRequest.of(0, 10);
 
     @Test
-    @DisplayName("Criação de Admin: persiste sem senha, cadastro incompleto, ativo, e-mail normalizado e envia código 2FA")
-    void createAdminPersistsNormalizedUserWithoutPasswordAndSendsCode() {
+    @DisplayName("Convite de Admin: nada persiste no banco; pendência no Redis com código e e-mail normalizado")
+    void createAdminSavesPendingRegistrationWithoutTouchingDatabase() {
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
-        when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.createAdmin(new CreateUserDTO("João", "  JOAO@EXAMPLE.COM  "));
+        PendingRegistrationDTO dto = userService.createAdmin(
+                new CreateUserDTO("João", "  JOAO@EXAMPLE.COM  "));
 
-        ArgumentCaptor<Admin> userCaptor = ArgumentCaptor.forClass(Admin.class);
-        verify(userRepository).save(userCaptor.capture());
-        Admin saved = userCaptor.getValue();
-        assertEquals("joao@example.com", saved.getEmail());
-        assertPendingRegistration(saved);
-        assertRegistrationCodeSentFor("joao@example.com");
+        verify(userRepository, never()).save(any());
+        PendingRegistration pending = captureSavedPending();
+        assertEquals("João", pending.name());
+        assertEquals("joao@example.com", pending.email());
+        assertEquals("ADMIN", pending.role());
+        assertNull(pending.institutionId());
+        assertEquals(GENERATED_CODE, pending.code());
+        assertEquals(0, pending.attempts());
+        assertCodeValidFor5Minutes(pending);
+        assertCodeSentFor("joao@example.com");
 
         assertEquals("João", dto.name());
         assertEquals("joao@example.com", dto.email());
-        assertNull(dto.institutionId());
         assertEquals(UserRole.ADMIN, dto.role());
+        assertNull(dto.institutionId());
     }
 
     @Test
-    @DisplayName("Criação de Manager: persiste com institutionId, sem senha, cadastro incompleto, ativo e envia código 2FA")
-    void createManagerPersistsInstitutionIdAndSendsCode() {
+    @DisplayName("Convite de Manager: pendência no Redis com institutionId, sem tocar no banco")
+    void createManagerSavesPendingRegistrationWithInstitutionId() {
         UUID institutionId = UUID.randomUUID();
         when(userRepository.existsByEmail("gestor@example.com")).thenReturn(false);
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
-        when(userRepository.save(any(Manager.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.createManager(
+        PendingRegistrationDTO dto = userService.createManager(
                 new CreateInstitutionUserDTO("Gestor", "gestor@example.com", institutionId));
 
-        ArgumentCaptor<Manager> userCaptor = ArgumentCaptor.forClass(Manager.class);
-        verify(userRepository).save(userCaptor.capture());
-        Manager saved = userCaptor.getValue();
-        assertEquals(institutionId, saved.getInstitutionId());
-        assertEquals("gestor@example.com", saved.getEmail());
-        assertPendingRegistration(saved);
-        assertRegistrationCodeSentFor("gestor@example.com");
+        verify(userRepository, never()).save(any());
+        PendingRegistration pending = captureSavedPending();
+        assertEquals("MANAGER", pending.role());
+        assertEquals(institutionId, pending.institutionId());
+        assertEquals("gestor@example.com", pending.email());
+        assertCodeSentFor("gestor@example.com");
 
         assertEquals(UserRole.MANAGER, dto.role());
         assertEquals(institutionId, dto.institutionId());
     }
 
     @Test
-    @DisplayName("Criação de Teacher: persiste com institutionId, sem senha, cadastro incompleto, ativo e envia código 2FA")
-    void createTeacherPersistsInstitutionIdAndSendsCode() {
+    @DisplayName("Convite de Teacher: pendência no Redis com institutionId, sem tocar no banco")
+    void createTeacherSavesPendingRegistrationWithInstitutionId() {
         UUID institutionId = UUID.randomUUID();
         when(userRepository.existsByEmail("professor@example.com")).thenReturn(false);
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
-        when(userRepository.save(any(Teacher.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.createTeacher(
+        PendingRegistrationDTO dto = userService.createTeacher(
                 new CreateInstitutionUserDTO("Professor", "professor@example.com", institutionId));
 
-        ArgumentCaptor<Teacher> userCaptor = ArgumentCaptor.forClass(Teacher.class);
-        verify(userRepository).save(userCaptor.capture());
-        Teacher saved = userCaptor.getValue();
-        assertEquals(institutionId, saved.getInstitutionId());
-        assertEquals("professor@example.com", saved.getEmail());
-        assertPendingRegistration(saved);
-        assertRegistrationCodeSentFor("professor@example.com");
+        verify(userRepository, never()).save(any());
+        PendingRegistration pending = captureSavedPending();
+        assertEquals("TEACHER", pending.role());
+        assertEquals(institutionId, pending.institutionId());
+        assertCodeSentFor("professor@example.com");
 
         assertEquals(UserRole.TEACHER, dto.role());
         assertEquals(institutionId, dto.institutionId());
     }
 
     @Test
-    @DisplayName("Criação de Student: persiste com institutionId, sem senha, cadastro incompleto, ativo e envia código 2FA")
-    void createStudentPersistsInstitutionIdAndSendsCode() {
+    @DisplayName("Convite de Student: pendência no Redis com institutionId, sem tocar no banco")
+    void createStudentSavesPendingRegistrationWithInstitutionId() {
         UUID institutionId = UUID.randomUUID();
         when(userRepository.existsByEmail("aluno@example.com")).thenReturn(false);
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
-        when(userRepository.save(any(Student.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.createStudent(
+        PendingRegistrationDTO dto = userService.createStudent(
                 new CreateInstitutionUserDTO("Aluno", "aluno@example.com", institutionId));
 
-        ArgumentCaptor<Student> userCaptor = ArgumentCaptor.forClass(Student.class);
-        verify(userRepository).save(userCaptor.capture());
-        Student saved = userCaptor.getValue();
-        assertEquals(institutionId, saved.getInstitutionId());
-        assertEquals("aluno@example.com", saved.getEmail());
-        assertPendingRegistration(saved);
-        assertRegistrationCodeSentFor("aluno@example.com");
+        verify(userRepository, never()).save(any());
+        PendingRegistration pending = captureSavedPending();
+        assertEquals("STUDENT", pending.role());
+        assertEquals(institutionId, pending.institutionId());
+        assertCodeSentFor("aluno@example.com");
 
         assertEquals(UserRole.STUDENT, dto.role());
         assertEquals(institutionId, dto.institutionId());
     }
 
     @Test
-    @DisplayName("E-mail duplicado na criação lança EmailAlreadyInUseException sem salvar nem enviar código")
-    void duplicateEmailOnCreateThrowsAndNeverSaves() {
+    @DisplayName("E-mail duplicado na criação lança EmailAlreadyInUseException sem salvar pendência nem enviar código")
+    void duplicateEmailOnCreateThrowsAndNeverSavesPending() {
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(true);
 
         assertThrows(EmailAlreadyInUseException.class, () -> userService.createAdmin(
                 new CreateUserDTO("João", "JOAO@example.com")));
 
-        verify(userRepository, never()).save(any());
-        verify(twoFactorRepository, never()).save(any());
+        verify(pendingRegistrationRepository, never()).save(any());
         verify(notifier, never()).send(any());
     }
 
     @Test
-    @DisplayName("completeRegistration normaliza o e-mail antes de buscar usuário e código")
-    void completeRegistrationNormalizesEmailBeforeLookups() {
-        Student student = newStudent("João", "joao@example.com", null);
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.of(student));
-        when(twoFactorRepository.findByEmail("joao@example.com"))
-                .thenReturn(Optional.of(validToken("joao@example.com")));
+    @DisplayName("Reconvite de e-mail pendente sobrescreve a pendência e reenvia o código (reenvio)")
+    void reinviteOverwritesPendingRegistrationWithNewCode() {
+        when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
+        when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
+
+        userService.createAdmin(new CreateUserDTO("João", "joao@example.com"));
+        userService.createAdmin(new CreateUserDTO("João Silva", "joao@example.com"));
+
+        verify(pendingRegistrationRepository, times(2)).save(any(PendingRegistration.class));
+        verify(notifier, times(2)).send(any(TwoFactorDTO.class));
+    }
+
+    @Test
+    @DisplayName("Código válido: cria o usuário só agora, com senha codificada, e consome o convite")
+    void validCodeCreatesUserWithEncodedPasswordAndConsumesInvite() {
+        UUID institutionId = UUID.randomUUID();
+        when(pendingRegistrationRepository.findByEmail("joao@example.com"))
+                .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", institutionId, 0)));
+        when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
         when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
+        when(userRepository.save(any(Student.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UserDTO dto = userService.completeRegistration(
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE));
+
+        ArgumentCaptor<Student> userCaptor = ArgumentCaptor.forClass(Student.class);
+        verify(userRepository).save(userCaptor.capture());
+        Student saved = userCaptor.getValue();
+        assertEquals("João", saved.getName());
+        assertEquals("joao@example.com", saved.getEmail());
+        assertEquals(ENCODED_PASSWORD, saved.getPassword());
+        assertNotEquals(RAW_PASSWORD, saved.getPassword());
+        assertEquals(institutionId, saved.getInstitutionId());
+        assertTrue(saved.isActive());
+
+        verify(pendingRegistrationRepository).deleteByEmail("joao@example.com");
+        assertEquals("joao@example.com", dto.email());
+        assertEquals(UserRole.STUDENT, dto.role());
+        assertEquals(institutionId, dto.institutionId());
+    }
+
+    @Test
+    @DisplayName("completeRegistration normaliza o e-mail antes de buscar a pendência")
+    void completeRegistrationNormalizesEmailBeforeLookups() {
+        when(pendingRegistrationRepository.findByEmail("joao@example.com"))
+                .thenReturn(Optional.of(pendingFor("joao@example.com", "ADMIN", null, 0)));
+        when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
+        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
+        when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UserDTO dto = userService.completeRegistration(
                 new CompleteRegistrationDTO("  JOAO@Example.COM ", RAW_PASSWORD, GENERATED_CODE));
 
-        verify(userRepository).findUserByEmail("joao@example.com");
-        verify(twoFactorRepository).findByEmail("joao@example.com");
-        verify(twoFactorRepository).deleteByEmail("joao@example.com");
+        verify(pendingRegistrationRepository).findByEmail("joao@example.com");
+        verify(pendingRegistrationRepository).deleteByEmail("joao@example.com");
         assertEquals("joao@example.com", dto.email());
     }
 
     @Test
-    @DisplayName("completeRegistration codifica a senha com BCrypt e nunca a armazena em texto puro")
-    void completeRegistrationEncodesPasswordAndNeverStoresPlainText() {
-        Student student = newStudent("João", "joao@example.com", null);
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.of(student));
-        when(twoFactorRepository.findByEmail("joao@example.com"))
-                .thenReturn(Optional.of(validToken("joao@example.com")));
-        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
+    @DisplayName("Sem pendência e e-mail desconhecido → UserNotFoundException (404)")
+    void unknownEmailWithNoPendingThrowsUserNotFound() {
+        when(pendingRegistrationRepository.findByEmail("joao@example.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
 
-        userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE));
-
-        verify(passwordEncoder).encode(RAW_PASSWORD);
-        assertEquals(ENCODED_PASSWORD, student.getPassword());
-        assertNotEquals(RAW_PASSWORD, student.getPassword());
+        assertThrows(UserNotFoundException.class, () -> userService.completeRegistration(
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
     }
 
     @Test
-    @DisplayName("Usuário inexistente: findXById e completeRegistration lançam UserNotFoundException")
-    void unknownUserThrowsUserNotFoundException() {
-        UUID id = UUID.randomUUID();
-        when(userRepository.findById(id)).thenReturn(Optional.empty());
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.empty());
+    @DisplayName("Sem pendência e e-mail já registrado → RegistrationAlreadyCompletedException (409)")
+    void alreadyRegisteredEmailWithNoPendingThrowsRegistrationAlreadyCompleted() {
+        when(pendingRegistrationRepository.findByEmail("joao@example.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmail("joao@example.com")).thenReturn(true);
 
-        assertThrows(UserNotFoundException.class, () -> userService.findAdminById(id));
-        assertThrows(UserNotFoundException.class, () -> userService.completeRegistration(
+        assertThrows(RegistrationAlreadyCompletedException.class, () -> userService.completeRegistration(
                 new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
+    }
+
+    @Test
+    @DisplayName("Código errado → InvalidTwoFactorCodeException e a tentativa é contada na pendência")
+    void wrongCodeThrowsInvalidAndCountsAttempt() {
+        when(pendingRegistrationRepository.findByEmail("joao@example.com"))
+                .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", null, 1)));
+
+        assertThrows(InvalidTwoFactorCodeException.class, () -> userService.completeRegistration(
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, "999999")));
+
+        ArgumentCaptor<PendingRegistration> captor = ArgumentCaptor.forClass(PendingRegistration.class);
+        verify(pendingRegistrationRepository).savePreservingTtl(captor.capture());
+        assertEquals(2, captor.getValue().attempts());
+        verify(pendingRegistrationRepository, never()).deleteByEmail(anyString());
+    }
+
+    @Test
+    @DisplayName("Quinta tentativa errada invalida o convite inteiro (proteção contra força bruta)")
+    void fifthWrongAttemptInvalidatesInvite() {
+        when(pendingRegistrationRepository.findByEmail("joao@example.com"))
+                .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", null,
+                        UserService.MAX_VERIFICATION_ATTEMPTS - 1)));
+
+        assertThrows(InvalidTwoFactorCodeException.class, () -> userService.completeRegistration(
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, "999999")));
+
+        verify(pendingRegistrationRepository).deleteByEmail("joao@example.com");
+        verify(pendingRegistrationRepository, never()).savePreservingTtl(any());
+    }
+
+    @Test
+    @DisplayName("Código correto porém expirado → ExpiredTwoFactorCodeException")
+    void expiredCodeThrowsExpiredException() {
+        PendingRegistration expired = new PendingRegistration("João", "joao@example.com", "STUDENT", null,
+                GENERATED_CODE, Instant.now().minusSeconds(60), 0, Instant.now().minusSeconds(360));
+        when(pendingRegistrationRepository.findByEmail("joao@example.com")).thenReturn(Optional.of(expired));
+
+        assertThrows(ExpiredTwoFactorCodeException.class, () -> userService.completeRegistration(
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
+    }
+
+    @Test
+    @DisplayName("E-mail registrado entre convite e confirmação → EmailAlreadyInUseException sem criar usuário")
+    void emailTakenBetweenInviteAndConfirmationThrowsConflict() {
+        when(pendingRegistrationRepository.findByEmail("joao@example.com"))
+                .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", null, 0)));
+        when(userRepository.existsByEmail("joao@example.com")).thenReturn(true);
+
+        assertThrows(EmailAlreadyInUseException.class, () -> userService.completeRegistration(
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
+
+        verify(userRepository, never()).save(any());
+        verify(pendingRegistrationRepository, never()).deleteByEmail(anyString());
     }
 
     @Test
@@ -319,87 +400,6 @@ class UserServiceTests {
     }
 
     @Test
-    @DisplayName("Código 2FA válido: completa o cadastro, invalida o código (uso único) e retorna UserDTO")
-    void validTwoFactorCodeCompletesRegistrationAndInvalidatesCode() {
-        Student student = newStudent("João", "joao@example.com", UUID.randomUUID());
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.of(student));
-        when(twoFactorRepository.findByEmail("joao@example.com"))
-                .thenReturn(Optional.of(validToken("joao@example.com")));
-        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
-
-        UserDTO dto = userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE));
-
-        assertTrue(student.isRegistrationCompleted());
-        assertEquals(ENCODED_PASSWORD, student.getPassword());
-        verify(userRepository).save(student);
-        verify(twoFactorRepository).deleteByEmail("joao@example.com");
-        assertEquals(student.getId(), dto.id());
-        assertEquals(UserRole.STUDENT, dto.role());
-        assertEquals(student.getInstitutionId(), dto.institutionId());
-    }
-
-    @Test
-    @DisplayName("Código 2FA inválido: divergência ou código inexistente lançam InvalidTwoFactorCodeException")
-    void invalidOrMissingTwoFactorCodeThrowsInvalidTwoFactorCodeException() {
-        Student student = newStudent("João", "joao@example.com", null);
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.of(student));
-        when(twoFactorRepository.findByEmail("joao@example.com"))
-                .thenReturn(Optional.of(validToken("joao@example.com")));
-
-        assertThrows(InvalidTwoFactorCodeException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, "999999")));
-
-        when(twoFactorRepository.findByEmail("joao@example.com")).thenReturn(Optional.empty());
-        assertThrows(InvalidTwoFactorCodeException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
-    }
-
-    @Test
-    @DisplayName("Código 2FA expirado lança ExpiredTwoFactorCodeException")
-    void expiredTwoFactorCodeThrowsExpiredTwoFactorCodeException() {
-        Student student = newStudent("João", "joao@example.com", null);
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.of(student));
-        when(twoFactorRepository.findByEmail("joao@example.com"))
-                .thenReturn(Optional.of(new TwoFactorDTO("joao@example.com", GENERATED_CODE,
-                        Instant.now().minusSeconds(60))));
-
-        assertThrows(ExpiredTwoFactorCodeException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
-    }
-
-    @Test
-    @DisplayName("Código 2FA é de uso único: após a conclusão é consumido e a reutilização lança InvalidTwoFactorCodeException")
-    void twoFactorCodeIsSingleUse() {
-        Student student = newStudent("João", "joao@example.com", null);
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.of(student));
-        when(twoFactorRepository.findByEmail("joao@example.com"))
-                .thenReturn(Optional.of(validToken("joao@example.com")));
-        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
-
-        userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE));
-        verify(twoFactorRepository).deleteByEmail("joao@example.com");
-
-        when(twoFactorRepository.findByEmail("joao@example.com")).thenReturn(Optional.empty());
-        assertThrows(InvalidTwoFactorCodeException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
-    }
-
-    @Test
-    @DisplayName("Cadastro já finalizado lança RegistrationAlreadyCompletedException")
-    void alreadyCompletedRegistrationThrowsException() {
-        Student student = newStudent("João", "joao@example.com", null);
-        student.setRegistrationCompleted(true);
-        when(userRepository.findUserByEmail("joao@example.com")).thenReturn(Optional.of(student));
-        when(twoFactorRepository.findByEmail("joao@example.com"))
-                .thenReturn(Optional.of(validToken("joao@example.com")));
-
-        assertThrows(RegistrationAlreadyCompletedException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
-    }
-
-    @Test
     @DisplayName("Tipo errado: buscar Manager que é Admin, ou Student que é Teacher, lança InvalidUserTypeException")
     void wrongUserTypeThrowsInvalidUserTypeException() {
         UUID id = UUID.randomUUID();
@@ -446,25 +446,29 @@ class UserServiceTests {
         verify(userRepository, never()).existsByEmail("joao@example.com");
     }
 
-    private TwoFactorDTO validToken(String email) {
-        return new TwoFactorDTO(email, GENERATED_CODE, Instant.now().plusSeconds(300));
+    private PendingRegistration pendingFor(String email, String role, UUID institutionId, int attempts) {
+        return new PendingRegistration("João", email, role, institutionId,
+                GENERATED_CODE, Instant.now().plusSeconds(300), attempts, Instant.now());
     }
 
-    private void assertPendingRegistration(User user) {
-        assertNull(user.getPassword());
-        assertFalse(user.isRegistrationCompleted());
-        assertTrue(user.isActive());
+    private PendingRegistration captureSavedPending() {
+        ArgumentCaptor<PendingRegistration> captor = ArgumentCaptor.forClass(PendingRegistration.class);
+        verify(pendingRegistrationRepository).save(captor.capture());
+        return captor.getValue();
     }
 
-    private void assertRegistrationCodeSentFor(String email) {
+    private void assertCodeSentFor(String email) {
         ArgumentCaptor<TwoFactorDTO> tokenCaptor = ArgumentCaptor.forClass(TwoFactorDTO.class);
-        verify(twoFactorRepository).save(tokenCaptor.capture());
+        verify(notifier).send(tokenCaptor.capture());
         TwoFactorDTO token = tokenCaptor.getValue();
         assertEquals(email, token.email());
         assertEquals(GENERATED_CODE, token.code());
         assertTrue(token.expiresAt().isAfter(Instant.now().plusSeconds(290)));
-        assertTrue(token.expiresAt().isBefore(Instant.now().plusSeconds(310)));
-        verify(notifier).send(token);
+    }
+
+    private void assertCodeValidFor5Minutes(PendingRegistration pending) {
+        assertTrue(pending.expiresAt().isAfter(Instant.now().plusSeconds(290)));
+        assertTrue(pending.expiresAt().isBefore(Instant.now().plusSeconds(310)));
     }
 
     private Admin newAdmin(String name, String email) {

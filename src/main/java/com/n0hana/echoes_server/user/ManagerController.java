@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
+import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 
@@ -31,8 +32,8 @@ public class ManagerController {
     private final UserService service;
 
     @PostMapping
-    public ResponseEntity<UserDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.createManager(dto));
+    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createManager(dto));
     }
 
     @GetMapping

@@ -31,6 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
+import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
@@ -50,21 +51,21 @@ class AdminControllerTest {
     private final UUID id = UUID.randomUUID();
 
     @Test
-    @DisplayName("POST /users/admin com dados válidos → 201 + UserDTO sem senha")
-    void createValidReturns201WithoutPassword() throws Exception {
+    @DisplayName("POST /users/admin com dados válidos → 202 + pendência sem id e sem código")
+    void createValidReturns202PendingRegistration() throws Exception {
         when(service.createAdmin(any(CreateUserDTO.class)))
-                .thenReturn(new UserDTO(id, "Joao", "joao@example.com", null, UserRole.ADMIN));
+                .thenReturn(new PendingRegistrationDTO("Joao", "joao@example.com", UserRole.ADMIN, null));
 
         mockMvc.perform(post("/users/admin")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Joao\",\"email\":\"joao@example.com\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(id.toString()))
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.name").value("Joao"))
                 .andExpect(jsonPath("$.email").value("joao@example.com"))
                 .andExpect(jsonPath("$.institutionId").value(nullValue()))
                 .andExpect(jsonPath("$.role").value("ADMIN"))
-                .andExpect(jsonPath("$.password").doesNotExist());
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.code").doesNotExist());
     }
 
     @Test
@@ -134,6 +135,17 @@ class AdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Joao Silva"))
                 .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("PATCH /users/admin/{id} com nome/e-mail em branco → 400 de validação")
+    void patchWithBlankFieldsReturns400() throws Exception {
+        mockMvc.perform(patch("/users/admin/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"\",\"email\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.name").value("O nome não pode ficar em branco"))
+                .andExpect(jsonPath("$.email").value("O e-mail não pode ficar em branco"));
     }
 
     @Test

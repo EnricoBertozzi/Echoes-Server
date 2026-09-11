@@ -2,7 +2,7 @@ package com.n0hana.echoes_server.user.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 public record CompleteRegistrationDTO(
     @NotBlank(message = "O e-mail é obrigatório")
@@ -10,7 +10,11 @@ public record CompleteRegistrationDTO(
     String email,
 
     @NotBlank(message = "A senha é obrigatória")
-    @Size(min = 8, message = "A senha deve ter no mínimo 8 caracteres")
+    // "^$|" deixa a string vazia passar para o @NotBlank reportar a mensagem correta.
+    @Pattern(
+        regexp = "^$|^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@#$%^&+=!]).{8,}$",
+        message = "Senha fraca"
+    )
     String password,
 
     @NotBlank(message = "O código é obrigatório")

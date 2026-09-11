@@ -9,13 +9,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.n0hana.echoes_server.mfa.InMemoryTwoFactorRepository;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
+import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
@@ -32,69 +32,28 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserService {
 
+    static final int MAX_VERIFICATION_ATTEMPTS = 5;
+
     private final UserRepository userRepository;
     private final TwoFactorService twoFactorService;
-    private final InMemoryTwoFactorRepository twoFactorRepository;
+    private final PendingRegistrationRepository pendingRegistrationRepository;
     private final TwoFactorNotifier notifier;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional
-    public UserDTO createAdmin(CreateUserDTO dto) {
-        String email = normalizeEmail(dto.email());
-        assertEmailAvailable(email);
-
-        Admin admin = new Admin();
-        admin.setName(dto.name());
-        admin.setEmail(email);
-
-        Admin saved = userRepository.save(admin);
-        sendRegistrationCode(email);
-        return toDTO(saved);
+    public PendingRegistrationDTO createAdmin(CreateUserDTO dto) {
+        return invite(dto.name(), dto.email(), UserRole.ADMIN, null);
     }
 
-    @Transactional
-    public UserDTO createManager(CreateInstitutionUserDTO dto) {
-        String email = normalizeEmail(dto.email());
-        assertEmailAvailable(email);
-
-        Manager manager = new Manager();
-        manager.setName(dto.name());
-        manager.setEmail(email);
-        manager.setInstitutionId(dto.institutionId());
-
-        Manager saved = userRepository.save(manager);
-        sendRegistrationCode(email);
-        return toDTO(saved);
+    public PendingRegistrationDTO createManager(CreateInstitutionUserDTO dto) {
+        return invite(dto.name(), dto.email(), UserRole.MANAGER, dto.institutionId());
     }
 
-    @Transactional
-    public UserDTO createTeacher(CreateInstitutionUserDTO dto) {
-        String email = normalizeEmail(dto.email());
-        assertEmailAvailable(email);
-
-        Teacher teacher = new Teacher();
-        teacher.setName(dto.name());
-        teacher.setEmail(email);
-        teacher.setInstitutionId(dto.institutionId());
-
-        Teacher saved = userRepository.save(teacher);
-        sendRegistrationCode(email);
-        return toDTO(saved);
+    public PendingRegistrationDTO createTeacher(CreateInstitutionUserDTO dto) {
+        return invite(dto.name(), dto.email(), UserRole.TEACHER, dto.institutionId());
     }
 
-    @Transactional
-    public UserDTO createStudent(CreateInstitutionUserDTO dto) {
-        String email = normalizeEmail(dto.email());
-        assertEmailAvailable(email);
-
-        Student student = new Student();
-        student.setName(dto.name());
-        student.setEmail(email);
-        student.setInstitutionId(dto.institutionId());
-
-        Student saved = userRepository.save(student);
-        sendRegistrationCode(email);
-        return toDTO(saved);
+    public PendingRegistrationDTO createStudent(CreateInstitutionUserDTO dto) {
+        return invite(dto.name(), dto.email(), UserRole.STUDENT, dto.institutionId());
     }
 
     public UserDTO findAdminById(UUID id) {
@@ -190,48 +149,101 @@ public class UserService {
     public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
         String email = normalizeEmail(dto.email());
 
-        User user = userRepository.findUserByEmail(email)
-                .orElseThrow(UserNotFoundException::new);
+        PendingRegistration pending = pendingRegistrationRepository.findByEmail(email)
+                .orElseThrow(() -> noPendingRegistrationFor(email));
 
-        TwoFactorDTO token = twoFactorRepository.findByEmail(email)
-                .orElseThrow(InvalidTwoFactorCodeException::new);
-
-        if (!token.code().equals(dto.code())) {
+        if (!pending.code().equals(dto.code())) {
+            registerFailedAttempt(pending);
             throw new InvalidTwoFactorCodeException();
         }
 
-        if (token.expiresAt().isBefore(Instant.now())) {
+        if (pending.expiresAt().isBefore(Instant.now())) {
             throw new ExpiredTwoFactorCodeException();
         }
 
-        if (user.isRegistrationCompleted()) {
-            throw new RegistrationAlreadyCompletedException();
-        }
+        assertEmailAvailable(email);
 
-        user.setPassword(passwordEncoder.encode(dto.password()));
-        user.setRegistrationCompleted(true);
-        userRepository.save(user);
+        User user = newUserFrom(pending, passwordEncoder.encode(dto.password()));
+        User saved = userRepository.save(user);
 
-        twoFactorRepository.deleteByEmail(email);
+        // Se o commit falhar após o delete, um novo POST reconvita (reenvio)
+        // e o TTL do Redis limpa resíduos sozinho: o fluxo se auto-cura.
+        pendingRegistrationRepository.deleteByEmail(email);
 
-        return toDTO(user);
+        return toDTO(saved);
     }
 
-    private void sendRegistrationCode(String email) {
-        String code = twoFactorService.generateCode();
+    private PendingRegistrationDTO invite(String name, String rawEmail, UserRole role, UUID institutionId) {
+        String email = normalizeEmail(rawEmail);
+        assertEmailAvailable(email);
 
-        TwoFactorDTO token = new TwoFactorDTO(
+        PendingRegistration pending = new PendingRegistration(
+                name,
                 email,
-                code,
-                Instant.now().plusSeconds(300)
-        );
+                role.getName(),
+                institutionId,
+                twoFactorService.generateCode(),
+                Instant.now().plusSeconds(300),
+                0,
+                Instant.now());
 
-        twoFactorRepository.save(token);
+        // Reconvites de um mesmo e-mail pendente sobrescrevem o registro:
+        // este é o caminho de reenvio para código perdido ou expirado.
+        pendingRegistrationRepository.save(pending);
 
-        // notifier.send é síncrono dentro da transação e SEGURO porque
-        // EmailNotifier/LoggerNotifier engolem todas as exceções (verificado):
-        // uma falha externa de e-mail não pode deixar o banco inconsistente.
-        notifier.send(token);
+        // notifier.send é síncrono e SEGURO porque EmailNotifier/LoggerNotifier
+        // engolem todas as exceções (verificado): uma falha externa de e-mail
+        // não deixa nada inconsistente — o convite expira via TTL e um novo
+        // POST reenvia o código.
+        notifier.send(new TwoFactorDTO(email, pending.code(), pending.expiresAt()));
+
+        return new PendingRegistrationDTO(name, email, role, institutionId);
+    }
+
+    private RuntimeException noPendingRegistrationFor(String email) {
+        if (userRepository.existsByEmail(email)) {
+            return new RegistrationAlreadyCompletedException();
+        }
+        return new UserNotFoundException();
+    }
+
+    private void registerFailedAttempt(PendingRegistration pending) {
+        int attempts = pending.attempts() + 1;
+        if (attempts >= MAX_VERIFICATION_ATTEMPTS) {
+            // Esgotou as tentativas: invalida o convite inteiro para impedir
+            // força bruta do código de 6 dígitos; um novo POST reenvia.
+            pendingRegistrationRepository.deleteByEmail(pending.email());
+            return;
+        }
+        pendingRegistrationRepository.savePreservingTtl(new PendingRegistration(
+                pending.name(),
+                pending.email(),
+                pending.role(),
+                pending.institutionId(),
+                pending.code(),
+                pending.expiresAt(),
+                attempts,
+                pending.createdAt()));
+    }
+
+    private User newUserFrom(PendingRegistration pending, String encodedPassword) {
+        User user = switch (UserRole.valueOf(pending.role())) {
+            case ADMIN -> new Admin();
+            case MANAGER -> new Manager();
+            case TEACHER -> new Teacher();
+            case STUDENT -> new Student();
+        };
+        user.setName(pending.name());
+        user.setEmail(pending.email());
+        user.setPassword(encodedPassword);
+        if (user instanceof Manager manager) {
+            manager.setInstitutionId(pending.institutionId());
+        } else if (user instanceof Teacher teacher) {
+            teacher.setInstitutionId(pending.institutionId());
+        } else if (user instanceof Student student) {
+            student.setInstitutionId(pending.institutionId());
+        }
+        return user;
     }
 
     private void assertEmailAvailable(String email) {

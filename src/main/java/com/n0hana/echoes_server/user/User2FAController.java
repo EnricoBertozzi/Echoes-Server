@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.user;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,6 +22,6 @@ public class User2FAController {
 
     @PostMapping("/2fa")
     public ResponseEntity<UserDTO> completeRegistration(@RequestBody @Valid CompleteRegistrationDTO dto) {
-        return ResponseEntity.ok(service.completeRegistration(dto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.completeRegistration(dto));
     }
 }

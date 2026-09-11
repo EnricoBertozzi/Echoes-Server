@@ -7,8 +7,10 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @Configuration
@@ -24,6 +26,15 @@ public class RedisConfig {
 
         // Serializa datas como timestamp
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        // Embute o tipo (@class) no JSON: sem default typing a desserialização
+        // devolve LinkedHashMap e o cast do repositório falha em tempo de
+        // execução. EVERYTHING é necessário porque records são finais
+        // (NON_FINAL não os tiparia).
+        mapper.activateDefaultTyping(
+                BasicPolymorphicTypeValidator.builder().allowIfBaseType(Object.class).build(),
+                ObjectMapper.DefaultTyping.EVERYTHING,
+                JsonTypeInfo.As.PROPERTY);
 
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(mapper);
 

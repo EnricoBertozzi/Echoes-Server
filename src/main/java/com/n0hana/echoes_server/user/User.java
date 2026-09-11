@@ -44,8 +44,6 @@ public abstract class User implements UserDetails {
 
     private String password;
 
-    private boolean registrationCompleted = false;
-
     private int loginAttempts;
 
     private LocalDateTime lockUntil;

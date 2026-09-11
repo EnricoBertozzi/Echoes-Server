@@ -31,6 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
+import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
@@ -51,22 +52,22 @@ class StudentControllerTest {
     private final UUID institutionId = UUID.randomUUID();
 
     @Test
-    @DisplayName("POST /users/student com dados válidos → 201 + UserDTO com institutionId e sem senha")
-    void createValidReturns201WithoutPassword() throws Exception {
+    @DisplayName("POST /users/student com dados válidos → 202 + pendência com institutionId, sem id e sem código")
+    void createValidReturns202PendingRegistration() throws Exception {
         when(service.createStudent(any(CreateInstitutionUserDTO.class)))
-                .thenReturn(new UserDTO(id, "Aluno", "aluno@example.com", institutionId, UserRole.STUDENT));
+                .thenReturn(new PendingRegistrationDTO("Aluno", "aluno@example.com", UserRole.STUDENT, institutionId));
 
         mockMvc.perform(post("/users/student")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Aluno\",\"email\":\"aluno@example.com\","
                                 + "\"institutionId\":\"" + institutionId + "\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(id.toString()))
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.name").value("Aluno"))
                 .andExpect(jsonPath("$.email").value("aluno@example.com"))
                 .andExpect(jsonPath("$.institutionId").value(institutionId.toString()))
                 .andExpect(jsonPath("$.role").value("STUDENT"))
-                .andExpect(jsonPath("$.password").doesNotExist());
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.code").doesNotExist());
     }
 
     @Test

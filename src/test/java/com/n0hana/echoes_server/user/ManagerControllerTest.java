@@ -1,6 +1,5 @@
 package com.n0hana.echoes_server.user;
 
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -32,6 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
+import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
@@ -52,22 +52,22 @@ class ManagerControllerTest {
     private final UUID institutionId = UUID.randomUUID();
 
     @Test
-    @DisplayName("POST /users/manager com dados válidos → 201 + UserDTO com institutionId e sem senha")
-    void createValidReturns201WithoutPassword() throws Exception {
+    @DisplayName("POST /users/manager com dados válidos → 202 + pendência com institutionId, sem id e sem código")
+    void createValidReturns202PendingRegistration() throws Exception {
         when(service.createManager(any(CreateInstitutionUserDTO.class)))
-                .thenReturn(new UserDTO(id, "Gestor", "gestor@example.com", institutionId, UserRole.MANAGER));
+                .thenReturn(new PendingRegistrationDTO("Gestor", "gestor@example.com", UserRole.MANAGER, institutionId));
 
         mockMvc.perform(post("/users/manager")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Gestor\",\"email\":\"gestor@example.com\","
                                 + "\"institutionId\":\"" + institutionId + "\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(id.toString()))
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.name").value("Gestor"))
                 .andExpect(jsonPath("$.email").value("gestor@example.com"))
                 .andExpect(jsonPath("$.institutionId").value(institutionId.toString()))
                 .andExpect(jsonPath("$.role").value("MANAGER"))
-                .andExpect(jsonPath("$.password").doesNotExist());
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.code").doesNotExist());
     }
 
     @Test
@@ -154,6 +154,17 @@ class ManagerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Gestor Silva"))
                 .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("PATCH /users/manager/{id} com nome/e-mail em branco → 400 de validação")
+    void patchWithBlankFieldsReturns400() throws Exception {
+        mockMvc.perform(patch("/users/manager/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"\",\"email\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.name").value("O nome não pode ficar em branco"))
+                .andExpect(jsonPath("$.email").value("O e-mail não pode ficar em branco"));
     }
 
     @Test

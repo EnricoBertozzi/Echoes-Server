@@ -1,8 +1,10 @@
 package com.n0hana.echoes_server.exception;
 
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -42,6 +44,29 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleEmailAlreadyInUse(
             EmailAlreadyInUseException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
+    }
+
+    /**
+     * Corrida de concorrência no e-mail único: a constraint do banco rejeita
+     * o insert depois que a checagem de disponibilidade já tinha passado.
+     * Só duplicidade (MySQL 1062 / SQLState 23505) vira 409 — outras
+     * violações são re-lançadas para o 500 expor a causa real no log.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex) {
+        if (isEmailDuplicate(ex)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "E-mail já cadastrado"));
+        }
+        throw ex;
+    }
+
+    private boolean isEmailDuplicate(DataIntegrityViolationException ex) {
+        if (ex.getMostSpecificCause() instanceof SQLIntegrityConstraintViolationException sqlEx) {
+            return sqlEx.getErrorCode() == 1062 || "23505".equals(sqlEx.getSQLState());
+        }
+        return false;
     }
 
     @ExceptionHandler(RegistrationAlreadyCompletedException.class)
