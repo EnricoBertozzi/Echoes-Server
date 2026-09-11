@@ -47,9 +47,16 @@ public class AnimalService {
 
   @Transactional
   public void updateAnimal(UUID id, AnimalModel animal) {
-    this.animalExists(id);
+    AnimalModel savedAnimal = this.findAnimalById(id);
 
-    animal.setId(id);
+    if (!savedAnimal.getName().equals(animal.getName()))
+      savedAnimal.setName(animal.getName());
+
+    if (!savedAnimal.getDescription().equals(animal.getDescription()))
+      savedAnimal.setDescription(animal.getDescription());
+
+    if (!savedAnimal.getModel().equals(animal.getModel()))
+      savedAnimal.setModel(animal.getModel());
 
     animalRepository.save(animal);
   }

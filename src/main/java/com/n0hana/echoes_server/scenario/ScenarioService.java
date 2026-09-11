@@ -15,6 +15,8 @@ import com.n0hana.echoes_server.auscultation.AuscultationPointService;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
 import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
+import jakarta.transaction.Transactional;
+
 @Service
 public class ScenarioService {
 
@@ -27,6 +29,7 @@ public class ScenarioService {
   @Autowired
   private AuscultationPointService auscultationPointService;
 
+  @Transactional
   public void newScenario(ScenarioModel model, MultipartFile file) {
     String newName = this.renameFile(model, file);
     String audioPath = fileService.saveFile(file, newName);
@@ -58,6 +61,26 @@ public class ScenarioService {
   public ScenarioModel findScenarioById(UUID id) {
     return scenarioRepository.findById(id)
         .orElseThrow(() -> new ScenarioNotFoundException());
+  }
+
+  @Transactional
+  public void updateScenario(UUID id, ScenarioModel scenario) {
+    ScenarioModel savedScenario = this.findScenarioById(id);
+
+    if (!savedScenario.getName().equals(scenario.getName()))
+      savedScenario.setName(scenario.getName());
+
+    if (!savedScenario.getDescription().equals(scenario.getDescription()))
+      savedScenario.setDescription(scenario.getDescription());
+
+    scenarioRepository.save(savedScenario);
+  }
+
+  @Transactional
+  public void deleteScenario(UUID id) {
+    this.scenarioExists(id);
+
+    scenarioRepository.deleteById(id);
   }
 
   // Métodos auxiliares
