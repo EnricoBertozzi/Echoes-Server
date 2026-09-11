@@ -16,8 +16,12 @@ public class InMemoryTwoFactorRepository {
     private final String PREFIX = "twofactor:";
 
     public TwoFactorDTO save(TwoFactorDTO token) {
+        // TTL de retenção (15 min) é maior que a validade do código (5 min,
+        // definida pelo chamador via expiresAt): códigos expirados continuam
+        // recuperáveis para que a verificação distinga "expirado" de
+        // "inexistente" em vez de o Redis evadir silenciosamente a entrada.
         redisTemplate.opsForValue()
-          .set(PREFIX + token.email(), token, 5, TimeUnit.MINUTES);
+          .set(PREFIX + token.email(), token, 15, TimeUnit.MINUTES);
         return token;
     }
 
@@ -33,7 +37,7 @@ public class InMemoryTwoFactorRepository {
     }
 
     public boolean existsByEmail(String email) {
-      Object cache = redisTemplate.opsForValue().get(email);
+      Object cache = redisTemplate.opsForValue().get(PREFIX + email);
       return cache != null;
     }
 }

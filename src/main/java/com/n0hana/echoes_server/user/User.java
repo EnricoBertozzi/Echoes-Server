@@ -10,12 +10,13 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,26 +24,27 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table
-@Setter
+@Table(name = "users")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "role")
 @Getter
-@AllArgsConstructor
+@Setter
 @NoArgsConstructor
-public class UserModel implements UserDetails {
-    
+@AllArgsConstructor
+public abstract class User implements UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     private String name;
 
-    @Column(unique = true)
+    @Column(nullable = false, unique = true)
     private String email;
 
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    private UserRole role;
+    private boolean registrationCompleted = false;
 
     private int loginAttempts;
 
@@ -50,29 +52,17 @@ public class UserModel implements UserDetails {
 
     private boolean active = true;
 
-    public User(String name, String email, String password, UserRole role) {
-        this.name = name;
-        this.email = email;
-        this.password = password;
-        this.role = role;
-    }
+    /**
+     * Papel do usuário, implementado por cada subclass; define a autoridade
+     * derivada em {@link #getAuthorities()}.
+     */
+    public abstract UserRole getUserRole();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if (role.compare(UserRole.ADMIN)) {
-            return List.of(
-                new SimpleGrantedAuthority("ROLE_" + UserRole.ADMIN.getName())
-            );
-        } else if (role.compare(UserRole.TEACHER)) {
-            return List.of(
-                new SimpleGrantedAuthority("ROLE_" + UserRole.TEACHER.getName()) 
-            );
-        } else if (role.compare(UserRole.STUDENT)) {
-            return List.of(
-                new SimpleGrantedAuthority("ROLE_" + UserRole.STUDENT.getName()) 
-            );
-        }
-        return List.of();
+        return List.of(
+            new SimpleGrantedAuthority("ROLE_" + getUserRole().getName())
+        );
     }
 
     @Override
@@ -91,8 +81,17 @@ public class UserModel implements UserDetails {
     }
 
     @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
     public boolean isEnabled() {
         return active;
     }
-
 }
