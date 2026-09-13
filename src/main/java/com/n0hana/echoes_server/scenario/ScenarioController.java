@@ -71,7 +71,7 @@ public class ScenarioController {
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteScenario(@PathVariable("id") UUID id) {
-
+    scenarioService.deleteScenario(id);
     return ResponseEntity.ok().build();
   }
 }

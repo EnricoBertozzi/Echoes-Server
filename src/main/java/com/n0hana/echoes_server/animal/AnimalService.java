@@ -58,7 +58,7 @@ public class AnimalService {
     if (!savedAnimal.getModel().equals(animal.getModel()))
       savedAnimal.setModel(animal.getModel());
 
-    animalRepository.save(animal);
+    animalRepository.save(savedAnimal);
   }
 
   @Transactional
