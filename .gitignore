@@ -77,3 +77,6 @@ combinado.txt
 *.swo
 *~
 .netrwhist
+
+# Project
+uploads/
