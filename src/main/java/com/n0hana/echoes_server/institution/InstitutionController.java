@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.UUID;
 
@@ -26,9 +28,25 @@ public class InstitutionController {
 
     @GetMapping
     public ResponseEntity<Page<InstitutionDTO>> findAll(
-            @RequestParam(required = false) String name, Pageable pageable) {
-        return ResponseEntity.ok(service.findAll(name, pageable));
+        @RequestParam(required = false) String name,
+        @RequestParam(defaultValue = "0")       int page,
+        @RequestParam(defaultValue = "10")      int size,
+        @RequestParam(defaultValue = "name,asc") String sort) {
+
+    Sort sortSpec = parseSort(sort);
+    Pageable pageable = PageRequest.of(page, size, sortSpec);
+
+    return ResponseEntity.ok(service.findAll(name, pageable));
     }
+
+    private Sort parseSort(String sort) {
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        Sort.Direction direction = (parts.length > 1 && parts[1].equalsIgnoreCase("desc"))
+            ? Sort.Direction.DESC
+            : Sort.Direction.ASC;
+    return Sort.by(direction, field);
+    }     
 
     @GetMapping("/{id}")
     public ResponseEntity<InstitutionDTO> findById(@PathVariable UUID id) {
