@@ -6,7 +6,7 @@ import java.util.UUID;
  * AnimalDTO
  */
 public class AnimalDTO {
-  public record Register(
+  public record AnimalRegister(
       String name,
       String description,
       String model) {
@@ -20,7 +20,7 @@ public class AnimalDTO {
     }
   }
 
-  public record Update(
+  public record AnimalUpdate(
       String name,
       String description,
       String model) {
@@ -34,13 +34,13 @@ public class AnimalDTO {
     }
   }
 
-  public record Info(
+  public record AnimalInfo(
       UUID id,
       String name,
       String description,
       String model) {
-    public static Info from(AnimalModel animal) {
-      return new Info(
+    public static AnimalInfo from(AnimalModel animal) {
+      return new AnimalInfo(
           animal.getId(),
           animal.getName(),
           animal.getDescription(),

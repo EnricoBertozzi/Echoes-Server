@@ -19,14 +19,14 @@ public class FileStorageService {
         .normalize();
   }
 
-  public Path saveFile(MultipartFile file, String newName) {
+  public String saveFile(MultipartFile file, String newName) {
     String fileName = StringUtils.cleanPath(newName);
 
     try {
       Path targetLocation = fileStorageLocation.resolve(fileName);
 
       file.transferTo(targetLocation);
-      return targetLocation;
+      return targetLocation.getFileName().toString();
     } catch (IOException e) {
       throw new RuntimeException("Erro ao salvar o arquivo");
     }

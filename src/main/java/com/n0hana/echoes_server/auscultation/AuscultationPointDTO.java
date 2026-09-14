@@ -9,7 +9,7 @@ import com.n0hana.echoes_server.animal.AnimalModel;
  */
 public class AuscultationPointDTO {
 
-  public record Register(
+  public record PointRegister(
       String position,
       UUID animalId) {
 
@@ -21,7 +21,7 @@ public class AuscultationPointDTO {
     }
   }
 
-  public record Update(String position) {
+  public record PointUpdate(String position) {
 
     public AuscultationPointModel toModel() {
       return AuscultationPointModel.builder()
@@ -30,12 +30,12 @@ public class AuscultationPointDTO {
     }
   }
 
-  public record Info(
+  public record PointInfo(
       UUID id,
       String position,
       UUID animalId) {
-    public static Info from(AuscultationPointModel point) {
-      return new Info(
+    public static PointInfo from(AuscultationPointModel point) {
+      return new PointInfo(
           point.getId(),
           point.getPosition(),
           point.getAnimal().getId());

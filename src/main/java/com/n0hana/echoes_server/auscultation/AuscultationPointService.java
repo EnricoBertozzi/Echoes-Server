@@ -25,7 +25,7 @@ public class AuscultationPointService {
 
   public List<AuscultationPointModel> findAllPointsByAnimal(int page, int size, UUID animalId) {
     return pointRepository
-        .findPointsByAnimalId(
+        .findAuscultationPointsByAnimalId(
           animalId,
           PageRequest.of(
             page,
