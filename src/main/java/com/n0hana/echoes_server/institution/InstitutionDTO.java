@@ -8,21 +8,11 @@ import java.util.UUID;
 
 public record InstitutionDTO(
     UUID id,
-
-    @NotBlank(message = "O nome é obrigatório")
-    String name,
-
-    @NotBlank(message = "A sigla é obrigatória")
-    String acronym,
-
-    @NotBlank(message = "O CNPJ é obrigatório")
-    @CNPJ(message = "CNPJ inválido")
-    String cnpj,
-
-    @NotBlank(message = "O e-mail é obrigatório")
-    @Email(message = "E-mail inválido")
-    String email,
-
+    @NotBlank(message = "O nome é obrigatório") String name,
+    @NotBlank(message = "A sigla é obrigatória") String acronym,
+    @NotBlank(message = "O CNPJ é obrigatório") @CNPJ(message = "CNPJ inválido") String cnpj,
+    @NotBlank(message = "O e-mail é obrigatório") @Email(message = "E-mail inválido") String email,
     String phone,
+    String address,         
     Boolean active
 ) {}

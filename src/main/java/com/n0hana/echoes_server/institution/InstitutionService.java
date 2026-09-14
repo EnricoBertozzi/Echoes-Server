@@ -31,6 +31,7 @@ public class InstitutionService {
                 .cnpj(cleanCnpj)
                 .email(dto.email())
                 .phone(dto.phone())
+                .address(dto.address()) 
                 .build();
 
         return toDTO(repository.save(model));
@@ -56,6 +57,7 @@ public class InstitutionService {
         model.setName(dto.name());
         model.setAcronym(dto.acronym());
         model.setPhone(dto.phone());
+        model.setAddress(dto.address());
 
         return toDTO(model);
     }
@@ -85,6 +87,7 @@ public class InstitutionService {
                 model.getCnpj(),
                 model.getEmail(),
                 model.getPhone(),
+                model.getAddress(),
                 model.isActive()
         );
     }
