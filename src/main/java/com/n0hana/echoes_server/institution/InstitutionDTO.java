@@ -6,13 +6,25 @@ import org.hibernate.validator.constraints.br.CNPJ;
 
 import java.util.UUID;
 
+/**
+ * DTO para consumo de endpoints relacionados as instituições
+ * @param id Id da instituição
+ * @param name Nome da instituição
+ * @param acronym
+ * @param cnpj
+ * @param email
+ * @param phone
+ * @param address
+ * @param active
+*/
 public record InstitutionDTO(
     UUID id,
     @NotBlank(message = "O nome é obrigatório") String name,
     @NotBlank(message = "A sigla é obrigatória") String acronym,
-    @NotBlank(message = "O CNPJ é obrigatório") @CNPJ(message = "CNPJ inválido") String cnpj,
+    @NotBlank(message = "O CNPJ é obrigatório") 
+    @CNPJ(message = "CNPJ inválido") String cnpj,
     @NotBlank(message = "O e-mail é obrigatório") @Email(message = "E-mail inválido") String email,
     String phone,
-    String address,         
+    String address,
     Boolean active
 ) {}

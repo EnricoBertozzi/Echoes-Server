@@ -9,6 +9,13 @@ import org.hibernate.annotations.SQLRestriction;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+
+/** 
+ * Entidade representante das instituições do sistema.
+ * 
+ * @since 0.1.0
+ * @author Miguel Santana da Costa
+*/
 @Entity
 @Table(name = "institutions")
 @Getter
