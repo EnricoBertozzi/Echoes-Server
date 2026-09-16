@@ -2,7 +2,7 @@ package com.n0hana.echoes_server.user.dto;
 
 import java.util.UUID;
 
-import com.n0hana.echoes_server.user.UserRole;
+import com.n0hana.echoes_server.user.model.UserRole;
 
 /**
  * Resposta do passo 1 do registro: eco do convite aceito, aguardando a

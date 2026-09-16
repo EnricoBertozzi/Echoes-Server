@@ -25,6 +25,12 @@ import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
 import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
+import com.n0hana.echoes_server.user.model.Admin;
+import com.n0hana.echoes_server.user.model.Manager;
+import com.n0hana.echoes_server.user.model.Student;
+import com.n0hana.echoes_server.user.model.Teacher;
+import com.n0hana.echoes_server.user.model.User;
+import com.n0hana.echoes_server.user.model.UserRole;
 
 import lombok.RequiredArgsConstructor;
 

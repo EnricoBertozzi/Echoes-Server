@@ -1,20 +1,26 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.model;
+
+import java.util.UUID;
 
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@DiscriminatorValue("ADMIN")
+@DiscriminatorValue("MANAGER")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Admin extends User {
+@AllArgsConstructor
+public class Manager extends User {
+
+    private UUID institutionId;
 
     @Override
     public UserRole getUserRole() {
-        return UserRole.ADMIN;
+        return UserRole.MANAGER;
     }
 }

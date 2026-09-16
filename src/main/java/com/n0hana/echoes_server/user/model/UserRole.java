@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.model;
 
 public enum UserRole {
     STUDENT("STUDENT"),

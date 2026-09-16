@@ -9,6 +9,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.n0hana.echoes_server.user.model.Admin;
+import com.n0hana.echoes_server.user.model.Manager;
+import com.n0hana.echoes_server.user.model.Student;
+import com.n0hana.echoes_server.user.model.Teacher;
+import com.n0hana.echoes_server.user.model.User;
+
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 

@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.controller;
 
 import java.util.UUID;
 
@@ -13,46 +13,49 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.n0hana.echoes_server.user.dto.CreateUserDTO;
+import com.n0hana.echoes_server.user.UserService;
+import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
-import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
+import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/users/admin")
+@RequestMapping("/users/teacher")
 @RequiredArgsConstructor
-public class AdminController {
+public class TeacherController {
 
     private final UserService service;
 
     @PostMapping
-    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createAdmin(dto));
+    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createTeacher(dto));
     }
 
     @GetMapping
-    public ResponseEntity<Page<UserDTO>> findAll(Pageable pageable) {
-        return ResponseEntity.ok(service.findAdmins(pageable));
+    public ResponseEntity<Page<UserDTO>> findAll(
+            @RequestParam(required = false) UUID institutionId, Pageable pageable) {
+        return ResponseEntity.ok(service.findTeachers(institutionId, pageable));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(service.findAdminById(id));
+        return ResponseEntity.ok(service.findTeacherById(id));
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserDTO dto) {
-        return ResponseEntity.ok(service.updateAdmin(id, dto));
+    public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
+        return ResponseEntity.ok(service.updateTeacher(id, dto));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.deleteAdmin(id);
+        service.deleteTeacher(id);
         return ResponseEntity.noContent().build();
     }
 }

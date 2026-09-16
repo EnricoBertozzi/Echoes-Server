@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.model;
 
 import java.util.UUID;
 
@@ -10,17 +10,17 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@DiscriminatorValue("MANAGER")
+@DiscriminatorValue("TEACHER")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Manager extends User {
+public class Teacher extends User {
 
     private UUID institutionId;
 
     @Override
     public UserRole getUserRole() {
-        return UserRole.MANAGER;
+        return UserRole.TEACHER;
     }
 }

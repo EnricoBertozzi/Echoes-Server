@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.controller;
 
 import java.util.UUID;
 
@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.user.UserService;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
@@ -25,36 +26,36 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/users/teacher")
+@RequestMapping("/users/manager")
 @RequiredArgsConstructor
-public class TeacherController {
+public class ManagerController {
 
     private final UserService service;
 
     @PostMapping
     public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createTeacher(dto));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createManager(dto));
     }
 
     @GetMapping
     public ResponseEntity<Page<UserDTO>> findAll(
             @RequestParam(required = false) UUID institutionId, Pageable pageable) {
-        return ResponseEntity.ok(service.findTeachers(institutionId, pageable));
+        return ResponseEntity.ok(service.findManagers(institutionId, pageable));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(service.findTeacherById(id));
+        return ResponseEntity.ok(service.findManagerById(id));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
-        return ResponseEntity.ok(service.updateTeacher(id, dto));
+        return ResponseEntity.ok(service.updateManager(id, dto));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.deleteTeacher(id);
+        service.deleteManager(id);
         return ResponseEntity.noContent().build();
     }
 }

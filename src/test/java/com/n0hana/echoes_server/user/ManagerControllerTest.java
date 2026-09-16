@@ -30,11 +30,13 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.n0hana.echoes_server.user.controller.ManagerController;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
+import com.n0hana.echoes_server.user.model.UserRole;
 
 @WebMvcTest(ManagerController.class)
 @AutoConfigureMockMvc(addFilters = false)

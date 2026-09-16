@@ -28,6 +28,7 @@ import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
+import com.n0hana.echoes_server.user.model.UserRole;
 
 @WebMvcTest(User2FAController.class)
 @AutoConfigureMockMvc(addFilters = false)
