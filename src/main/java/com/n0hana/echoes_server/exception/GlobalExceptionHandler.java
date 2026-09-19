@@ -5,12 +5,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
 import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
@@ -91,6 +93,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleInvalidUserType(
             InvalidUserTypeException ex) {
         return ResponseEntity.badRequest().body(message(ex));
+    }
+
+    @ExceptionHandler(InstitutionNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleInstitutionNotFoundException(InstitutionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(this.message(ex));
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateKeyException(DuplicateKeyException ex) {
+        return ResponseEntity.badRequest().body(this.message(ex));
     }
 
     private Map<String, String> message(RuntimeException ex) {

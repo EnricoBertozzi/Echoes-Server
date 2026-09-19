@@ -3,11 +3,16 @@ package com.n0hana.echoes_server.institution;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Sort;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,33 +35,25 @@ public class InstitutionService {
      * <p>
      * O método valida o cnpj enviado para cadastro verificando se não existe
      * instituição com ele cadastrado, caso existe envia uma exceção
-     * {@link IllegalArgumentException}.
+     * {@link DuplicateKeyException}.
      * Do contrário, os dados da instituição são armazenados no banco de dados.
      * </p>
      * 
-     * @throws IllegalArgumentException
+     * @throws DuplicateKeyException
      * 
-     * @param dto Objeto com dados para cadastro de uma instituição.
+     * @param model Instituição a ser cadastrada no sistema.
      * @return {@link InstitutionModel} cadastrado no banco de dados.
      */
     @Transactional
-    public InstitutionDTO create(InstitutionDTO dto) {
-        String cleanCnpj = dto.cnpj().replaceAll("\\D", "");
+    public InstitutionModel create(InstitutionModel model) {
+        String cleanCnpj = model.getCnpj().replaceAll("\\D", "");
 
-        if (repository.existsByCnpjOrEmail(cleanCnpj, dto.email())) {
-            throw new IllegalArgumentException("Instituição já cadastrada com este CNPJ ou E-mail.");
+        if (repository.existsByCnpjOrEmail(cleanCnpj, model.getEmail())) {
+            throw new DuplicateKeyException("Instituição já cadastrada com este CNPJ ou E-mail.");
         }
+        model.setCnpj(cleanCnpj);
 
-        InstitutionModel model = InstitutionModel.builder()
-                .name(dto.name())
-                .acronym(dto.acronym())
-                .cnpj(cleanCnpj)
-                .email(dto.email())
-                .phone(dto.phone())
-                .address(dto.address())
-                .build();
-
-        return toDTO(repository.save(model));
+        return repository.save(model);
     }
 
     /***
@@ -72,11 +69,18 @@ public class InstitutionService {
      * @return {@link Page} Contêm às instituições que atendem aos parâmetros.
      */
     @Transactional(readOnly = true)
-    public Page<InstitutionDTO> findAll(String name, Pageable pageable) {
-        Page<InstitutionModel> page = (name != null && !name.isBlank())
-                ? repository.findByNameContainingIgnoreCase(name, pageable)
-                : repository.findAll(pageable);
-        return page.map(this::toDTO);
+    public List<InstitutionModel> findAll(String name, int size, int pageNumber, String sort) {
+        Page<InstitutionModel> page;
+
+        Sort sortSpec = this.parseSort(sort);
+        Pageable pageable = PageRequest.of(pageNumber, size, sortSpec);
+
+        if (name != null && !name.isBlank())
+            page = repository.findByNameContainingIgnoreCase(name, pageable);
+        else
+            page = repository.findAll(pageable);
+
+        return page.toList();
     }
 
     /**
@@ -86,27 +90,34 @@ public class InstitutionService {
      * @return {@link InstituitionModel} encontrada pela busca.
      */
     @Transactional(readOnly = true)
-    public InstitutionDTO findById(UUID id) {
-        return toDTO(getInstitutionOrThrow(id));
+    public InstitutionModel findById(UUID id) {
+        return getInstitutionOrThrow(id);
     }
 
     /**
      * Atualiza os dados de uma instituição.
      * 
-     * @param id  Id da instituição a ser atualizada.
-     * @param dto Objeto com dados a serem atualizados.
+     * @param id    Id da instituição a ser atualizada.
+     * @param model Instituição com dados a serem atualizados.
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
-    public InstitutionDTO update(UUID id, InstitutionDTO dto) {
-        InstitutionModel model = getInstitutionOrThrow(id);
+    public InstitutionModel update(UUID id, InstitutionModel model) {
+        InstitutionModel savedModel = getInstitutionOrThrow(id);
 
-        model.setName(dto.name());
-        model.setAcronym(dto.acronym());
-        model.setPhone(dto.phone());
-        model.setAddress(dto.address());
+        if (!savedModel.getName().equals(model.getName()))
+            savedModel.setName(model.getName());
 
-        return toDTO(model);
+        if (!savedModel.getAcronym().equals(model.getAcronym()))
+            savedModel.setAcronym((model.getAcronym()));
+
+        if (!savedModel.getPhone().equals(model.getPhone()))
+            savedModel.setPhone((model.getPhone()));
+
+        if (!savedModel.getAddress().equals(model.getAddress()))
+            savedModel.setAddress((model.getAddress()));
+
+        return repository.save(savedModel);
     }
 
     /**
@@ -118,6 +129,8 @@ public class InstitutionService {
     public void toggleStatus(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setActive(!model.isActive());
+
+        repository.save(model);
     }
 
     /**
@@ -129,6 +142,8 @@ public class InstitutionService {
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
+
+        repository.save(model);
     }
 
     /**
@@ -146,21 +161,18 @@ public class InstitutionService {
     }
 
     /**
-     * Transforma um objeto da classe {@link InstituitionModel} em um objeto
-     * {@link InstitutionDTO} para respostas de requisições HTTP.
+     * Método auxiliar para criar ordenação.
+     *
+     * @param sort String com os parâmetros de ordenação.
      * 
-     * @param model
-     * @return
+     * @return {@link Sort} Objeto de ordenação configurado.
      */
-    private InstitutionDTO toDTO(InstitutionModel model) {
-        return new InstitutionDTO(
-                model.getId(),
-                model.getName(),
-                model.getAcronym(),
-                model.getCnpj(),
-                model.getEmail(),
-                model.getPhone(),
-                model.getAddress(),
-                model.isActive());
+    private Sort parseSort(String sort) {
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        Sort.Direction direction = (parts.length > 1 && parts[1].equalsIgnoreCase("desc"))
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+        return Sort.by(direction, field);
     }
 }
