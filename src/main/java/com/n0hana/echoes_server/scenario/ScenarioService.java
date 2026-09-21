@@ -17,6 +17,13 @@ import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
 import jakarta.transaction.Transactional;
 
+/**
+ * Service para gerenciamento dde cenários clínicos
+ * 
+ * @author Enrico Bertozzi
+ * @since 0.1.0
+ * @see {@link ScenarioModel}
+ */
 @Service
 public class ScenarioService {
 
@@ -29,18 +36,32 @@ public class ScenarioService {
   @Autowired
   private AuscultationPointService auscultationPointService;
 
+  /**
+   * Salva um novo cenário no sistema
+   * 
+   * @param model Objeto com dados para armazenamento
+   * @param file  Arquivo de áudio enviado.
+   */
   @Transactional
-  public void newScenario(ScenarioModel model, MultipartFile file) {
-    String newName = this.renameFile(model, file);
-    String audioPath = fileService.saveFile(file, newName);
+  public ScenarioModel create(ScenarioModel model, MultipartFile file) {
+    String audioPath = fileService.store(file, model.getName());
+
     model.setAudioUrl(audioPath);
 
     AuscultationPointModel point = auscultationPointService.findPointById(model.getAuscultationPoint().getId());
 
     model.setAuscultationPoint(point);
-    scenarioRepository.save(model);
+    return scenarioRepository.save(model);
   }
 
+  /**
+   * Busca todos os cenários de um ponto de ausculta
+   * 
+   * @param id   Identificador do ponto de ausculta.
+   * @param page Página retorna na paginação.
+   * @param size Quantidade de elementos na paginação.
+   * @return {@link List} contendo todos os cenários do ponto
+   */
   public List<ScenarioModel> findScenariosByPoint(UUID id, int page, int size) {
     return scenarioRepository
         .findAllScenariosByAuscultationPointId(
@@ -49,6 +70,14 @@ public class ScenarioService {
         .toList();
   }
 
+  /**
+   * Filtra cenários cadastrados por nome
+   * 
+   * @param page Número da página retornado pela paginação.
+   * @param size Quantidade de elementos por página.
+   * @param name Nome utilizado para filtro.
+   * @return
+   */
   public List<ScenarioModel> findScenariosByName(@RequestParam int page, @RequestParam int size,
       @RequestParam String name) {
     return scenarioRepository
@@ -58,46 +87,82 @@ public class ScenarioService {
         .toList();
   }
 
+  /**
+   * Busca um cenário pelo id
+   * 
+   * @param id Identificador do cenário
+   * @return {@link ScenarioModel} encontrado na busca,
+   */
   public ScenarioModel findScenarioById(UUID id) {
     return scenarioRepository.findById(id)
         .orElseThrow(() -> new ScenarioNotFoundException());
   }
 
+  /**
+   * Atualiza os dados de um cenário
+   * 
+   * @param id       Identificador do cenário.
+   * @param scenario Objeto com dados a serem atualizados
+   */
   @Transactional
-  public void updateScenario(UUID id, ScenarioModel scenario) {
+  public ScenarioModel updateScenario(UUID id, ScenarioModel scenario) {
     ScenarioModel savedScenario = this.findScenarioById(id);
 
-    if (!savedScenario.getName().equals(scenario.getName()))
+    if (!savedScenario.getName().equals(scenario.getName())) {
+      fileService.rename(savedScenario.getAudioUrl(), scenario.getName());
       savedScenario.setName(scenario.getName());
+    }
 
     if (!savedScenario.getDescription().equals(scenario.getDescription()))
       savedScenario.setDescription(scenario.getDescription());
 
-    scenarioRepository.save(savedScenario);
+    return scenarioRepository.save(savedScenario);
   }
 
+  /**
+   * Exclui um cenário do sistema
+   * 
+   * @param id Identificador do cenário a ser exclúido.
+   */
   @Transactional
   public void deleteScenario(UUID id) {
-    this.scenarioExists(id);
+    ScenarioModel model = this.findScenarioById(id);
 
-    scenarioRepository.deleteById(id);
+    fileService.delete(model.getAudioUrl());
+    scenarioRepository.deleteById(model.getId());
   }
 
-  // Métodos auxiliares
-  private String renameFile(ScenarioModel model, MultipartFile file) {
-    String scenarioName = model.getName().replaceAll(" ", "_");
-    String originalName = file.getOriginalFilename();
-    String extension = "";
-
-    if (originalName != null && originalName.contains("."))
-      extension = originalName.substring(originalName.lastIndexOf("."));
-
-    String newName = scenarioName + extension;
-    return newName;
-  }
-
+  /**
+   * Verifica se o cenário existe.
+   * 
+   * <p>
+   * Busca no banco de dados por um cenário registrado com o identificador
+   * fornecido. Caso não encontre, a exceção {@link ScenarioNotFoundException} é
+   * lançada.
+   * </p>
+   * 
+   * @throw ScenarioNotFoundException
+   * 
+   * @param id Identificador do cenário.
+   */
   public void scenarioExists(UUID id) {
     scenarioRepository.findById(id)
         .orElseThrow(() -> new ScenarioNotFoundException());
+  }
+
+  /**
+   * Reupload de novo arquivo para um cenário existente
+   * 
+   * @param id   Identificador do cenário
+   * @param file Arquivo de áudio enviado.
+   */
+  public void reuploadFile(UUID id, MultipartFile file) {
+    ScenarioModel model = this.findScenarioById(id);
+    fileService.delete(model.getAudioUrl());
+
+    String audioUrl = fileService.store(file, model.getName());
+    model.setAudioUrl(audioUrl);
+
+    scenarioRepository.save(model);
   }
 }

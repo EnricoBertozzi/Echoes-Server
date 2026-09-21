@@ -14,6 +14,12 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Entidade representante dos cenários clínicos mantidos pelo sistema.
+ * 
+ * @author Enrico Bertozzi
+ * @since 0.1.0
+ */
 @Getter
 @Setter
 @Entity
