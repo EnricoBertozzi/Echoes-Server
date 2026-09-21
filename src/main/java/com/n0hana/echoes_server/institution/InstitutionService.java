@@ -64,8 +64,9 @@ public class InstitutionService {
      * as instituições pelo seu nome.
      * </p>
      * 
-     * @param name     Nome da instituição a ser filtrada.
-     * @param pageable Configuração para paginação dos resultados.
+     * @param name Nome da instituição a ser filtrada.
+     * @param size Quantidade de elementos por paginação.
+     * @param page Número da página acessado na paginação.
      * @return {@link Page} Contêm às instituições que atendem aos parâmetros.
      */
     @Transactional(readOnly = true)

@@ -49,7 +49,8 @@ public class InstitutionController {
      * @param page Número da página para consulta no banco de dados.
      * @param size Número de resultados por página.
      * @param sort Ordenação dos elementos.
-     * @return {@link ResponseEntity} contendo as instituições cadastradas.
+     * @return {@link ResponseEntity} contendo as instituições cadastradas e o
+     *         status HTTP 200 (SUCCESS).
      */
     @GetMapping
     public ResponseEntity<List<InstitutionDTO>> findAll(
