@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JwtBlackListRepository {
 
-    private final String PREFIX = "blacklist:token";
+    private final String PREFIX = "blacklist:token:";
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
