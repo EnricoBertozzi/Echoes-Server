@@ -50,7 +50,7 @@ public class FileStorageService {
         try {
             Files.createDirectories(fileStorageLocation);
         } catch (IOException ex) {
-            // TODO
+            // TODO adicionar erro de inicialização
         }
     }
 

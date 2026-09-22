@@ -16,8 +16,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.infra.security.SecurityConfig;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
 @RestController
 @RequestMapping("/points")
+@SecurityRequirement(name = SecurityConfig.SECURITY)
 public class AuscultationPointController {
 
   @Autowired

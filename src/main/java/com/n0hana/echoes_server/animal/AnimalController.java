@@ -16,24 +16,37 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.animal.AnimalDTO.AnimalInfo;
+import com.n0hana.echoes_server.infra.security.SecurityConfig;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 /**
- * AnimalController
+ * Controller REST responsável pelo gerenciamento de animais
+ * 
+ * @author Enrico Bertozzi
+ * @since 0.1.0
+ * @see {@link AnimalModel}
+ * @see {@link AnimalService}
  */
 @RestController
 @RequestMapping("/animals")
+@SecurityRequirement(name = SecurityConfig.SECURITY)
 public class AnimalController {
 
   @Autowired
   private AnimalService animalService;
 
   /**
-   * Criar um novo animal
+   * Registra um novo animal no sistema.
+   * 
+   * @param dto Objeto contendo os dados de cadastro de um animal.
+   * @return {@link AnimalInfo} contendo os dados do novo animal.
    */
   @PostMapping
-  public ResponseEntity<Void> newAnimal(@RequestBody AnimalDTO.AnimalRegister dto) {
-    animalService.save(dto.toModel());
-    return ResponseEntity.ok().build();
+  public ResponseEntity<AnimalInfo> save(@RequestBody AnimalDTO.AnimalRegister dto) {
+    AnimalInfo animal = AnimalInfo.from(animalService.save(dto.toModel()));
+
+    return ResponseEntity.ok(animal);
   }
 
   /**

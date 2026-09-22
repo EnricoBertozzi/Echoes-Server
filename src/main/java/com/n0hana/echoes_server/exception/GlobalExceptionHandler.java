@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
 import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
@@ -102,6 +103,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateKeyException(DuplicateKeyException ex) {
+        return ResponseEntity.badRequest().body(this.message(ex));
+    }
+
+    @ExceptionHandler(AuthFailedException.class)
+    public ResponseEntity<Map<String, String>> handleAuthFailedException(AuthFailedException ex) {
         return ResponseEntity.badRequest().body(this.message(ex));
     }
 

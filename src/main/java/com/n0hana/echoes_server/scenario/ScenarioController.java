@@ -19,12 +19,14 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioInfo;
 import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioRegister;
 import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioUpdate;
 
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 /**
  * Controlador REST responsável pelo gerenciamento de cenários.
@@ -35,6 +37,7 @@ import io.swagger.v3.oas.annotations.media.Encoding;
  */
 @RestController
 @RequestMapping("/api/v1/scenarios")
+@SecurityRequirement(name = SecurityConfig.SECURITY)
 public class ScenarioController {
 
   @Autowired
