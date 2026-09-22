@@ -23,7 +23,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "terms")
-public class Terms {
+public class TermModel {
   @Id
   @GeneratedValue(strategy = GenerationType.SEQUENCE)
   private long id;
