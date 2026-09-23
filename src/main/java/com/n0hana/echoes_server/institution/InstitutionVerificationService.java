@@ -11,8 +11,8 @@ import com.n0hana.echoes_server.cnpj.CnpjDTO;
 import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
-import com.n0hana.echoes_server.institution.notifier.InstitutionNotificationData;
-import com.n0hana.echoes_server.institution.notifier.InstitutionNotifier;
+import com.n0hana.echoes_server.notifier.InstitutionNotificationData;
+import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

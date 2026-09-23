@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.institution.notifier;
+package com.n0hana.echoes_server.notifier;
 
 import java.util.UUID;
 import com.n0hana.echoes_server.institution.InstitutionModel;

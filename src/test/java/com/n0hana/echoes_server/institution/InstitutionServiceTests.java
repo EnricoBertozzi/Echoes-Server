@@ -30,7 +30,7 @@ import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.institution.notifier.InstitutionNotifier;
+import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 
 @ExtendWith(MockitoExtension.class)
 public class InstitutionServiceTests {

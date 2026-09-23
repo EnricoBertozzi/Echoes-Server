@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.institution.notifier;
+package com.n0hana.echoes_server.notifier;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;

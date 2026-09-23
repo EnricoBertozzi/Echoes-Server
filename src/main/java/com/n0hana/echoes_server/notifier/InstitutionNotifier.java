@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.institution.notifier;
+package com.n0hana.echoes_server.notifier;
 
 public interface InstitutionNotifier {
     void notifyPendingVerification(InstitutionNotificationData data, String reason);
