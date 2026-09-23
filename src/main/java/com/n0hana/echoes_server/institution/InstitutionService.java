@@ -8,10 +8,12 @@ import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundExcepti
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
 import com.n0hana.echoes_server.institution.notifier.InstitutionNotificationData;
 import com.n0hana.echoes_server.institution.notifier.InstitutionNotifier;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -132,19 +134,16 @@ public class InstitutionService {
      * @return {@link Page} Contêm as instituições que atendem aos parâmetros.
      */
     @Transactional(readOnly = true)
-    public List<InstitutionModel> findAll(String name, int size, int pageNumber, String sort) {
-        Page<InstitutionModel> page;
-
+    public Page<InstitutionModel> findAll(String name, int size, int pageNumber, String sort) {
         Sort sortSpec = this.parseSort(sort);
         Pageable pageable = PageRequest.of(pageNumber, size, sortSpec);
 
-        if (name != null && !name.isBlank())
-            page = repository.findByNameContainingIgnoreCase(name, pageable);
-        else
-            page = repository.findAll(pageable);
-
-        return page.toList();
+    if (name != null && !name.isBlank()) {
+        return repository.findByNameContainingIgnoreCase(name, pageable);
     }
+    return repository.findAll(pageable);
+    }
+
 
     /**
      * Busca uma instituição por id.
