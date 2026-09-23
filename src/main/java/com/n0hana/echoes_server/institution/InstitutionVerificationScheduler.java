@@ -24,8 +24,8 @@ public class InstitutionVerificationScheduler {
     private final InstitutionService institutionService;
 
     @Scheduled(
-        fixedDelayString = "${institution.verification.retry-interval-ms:1800000}",
-        initialDelayString = "${institution.verification.initial-delay-ms:60000}"
+        fixedDelayString = "${institution.verification.retry-interval-ms:5000}",
+        initialDelayString = "${institution.verification.initial-delay-ms:5000}"
     )
     public void retryPendingVerifications() {
         try {

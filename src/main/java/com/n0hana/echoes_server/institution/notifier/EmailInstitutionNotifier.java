@@ -91,6 +91,7 @@ public class EmailInstitutionNotifier implements InstitutionNotifier {
         }
         return recipients;
     }
+    
 
     private void sendEmail(List<String> recipients, String subject, String htmlBody) {
         if (recipients.isEmpty()) {
