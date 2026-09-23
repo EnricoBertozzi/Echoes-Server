@@ -7,12 +7,14 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.n0hana.echoes_server.infra.file.FileStorageProperties;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
 
 @SpringBootApplication
 @EnableAsync
+@EnableScheduling
 @EnableConfigurationProperties(FileStorageProperties.class)
 public class EchoesServerApplication {
 

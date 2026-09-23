@@ -12,7 +12,11 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.n0hana.echoes_server.cnpj.exception.CnpjInvalidoException;
+import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
+import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
+import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
 import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
@@ -100,9 +104,32 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(this.message(ex));
     }
 
+    @ExceptionHandler(InstitutionPendingVerificationException.class)
+    public ResponseEntity<Map<String, String>> handleInstitutionPendingVerification(
+            InstitutionPendingVerificationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
+    }
+
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateKeyException(DuplicateKeyException ex) {
         return ResponseEntity.badRequest().body(this.message(ex));
+    }
+
+    // ---- Módulo CNPJ -----------------------------------------------------
+
+    @ExceptionHandler(CnpjInvalidoException.class)
+    public ResponseEntity<Map<String, String>> handleCnpjInvalido(CnpjInvalidoException ex) {
+        return ResponseEntity.badRequest().body(message(ex));
+    }
+
+    @ExceptionHandler(CnpjNaoEncontradoException.class)
+    public ResponseEntity<Map<String, String>> handleCnpjNaoEncontrado(CnpjNaoEncontradoException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message(ex));
+    }
+
+    @ExceptionHandler(CnpjProviderIndisponivelException.class)
+    public ResponseEntity<Map<String, String>> handleCnpjProviderIndisponivel(CnpjProviderIndisponivelException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(message(ex));
     }
 
     private Map<String, String> message(RuntimeException ex) {
