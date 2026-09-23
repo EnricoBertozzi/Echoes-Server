@@ -20,5 +20,6 @@ public record CnpjDTO(
     String bairro,
     String municipio,
     String uf,
-    String cep
+    String cep,
+    @JsonAlias("add_telefone_1") String telefone
 ) {}

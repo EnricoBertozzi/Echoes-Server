@@ -84,6 +84,9 @@ public class InstitutionVerificationService {
     inst.setNomeFantasia(dados.nomeFantasia());
     inst.setCep(dados.cep());
     inst.setAddress(formatEndereco(dados));
+    if dados.telefone() != null && !dados.telefone().isBlank()) {
+        inst.setPhone(dados.telefone());
+        }
     }
 
     private String formatEndereco(CnpjDTO d) {
