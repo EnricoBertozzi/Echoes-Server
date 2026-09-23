@@ -33,7 +33,8 @@ class CnpjControllerTest {
     @DisplayName("GET /api/v1/cnpj/{cnpj} válido → 200 + DTO em camelCase")
     void consultaValidaRetorna200() throws Exception {
         CnpjDTO dto = new CnpjDTO(CNPJ, "Empresa X", "Fantasia",
-            "Rua X", "100", null, "Centro", "São Paulo", "SP", "01001000");
+            "Rua X", "100", null, "Centro", "São Paulo", "SP", "01001000" ,
+            null);
 
         when(service.consultar(eq(CNPJ))).thenReturn(dto);
 

@@ -37,8 +37,11 @@ class CnpjServiceTest {
     }
 
     private CnpjDTO dto() {
-        return new CnpjDTO(CNPJ, "Empresa Teste", null, null, null, null, null, null, null, null);
+    return new CnpjDTO(CNPJ, "Empresa Teste", null, null, null, null, null, null, null, null, null);
+    //                cnpj   razaoSocial   fantasia logradouro num comp bairro municipio uf cep telefone
     }
+
+
 
     @Test
     @DisplayName("Cache hit → retorna do cache sem chamar Brasil API")

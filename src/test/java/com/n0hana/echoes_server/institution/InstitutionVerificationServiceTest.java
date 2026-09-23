@@ -56,7 +56,8 @@ class InstitutionVerificationServiceTest {
             "Centro",
             "São Paulo",
             "SP",
-            "01001000");
+            "01001000",
+             null;
     }
 
     @Test

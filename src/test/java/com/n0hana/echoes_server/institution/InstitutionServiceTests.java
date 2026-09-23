@@ -57,19 +57,22 @@ public class InstitutionServiceTests {
         .build();
   }
 
-  private CnpjDTO cnpjDTO() {
+
+   private CnpjDTO cnpjDTO() {
     return new CnpjDTO(
-        "12345678000190",
-        "Instituição Teste LTDA",
-        "IT",
-        "Rua Teste",
-        "123",
-        null,
-        "Centro",
-        "São Paulo",
-        "SP",
-        "01001000");
-  }
+        "12345678000190",           // cnpj
+        "Instituição Teste LTDA",   // razaoSocial
+        "IT",                       // nomeFantasia
+        "Rua Teste",                // logradouro
+        "123",                      // numero
+        null,                       // complemento
+        "Centro",                   // bairro
+        "São Paulo",                // municipio
+        "SP",                       // uf
+        "01001000",                 // cep
+        null);                      //telefone
+} 
+
 
   @Test
   @DisplayName("Create com Brasil API OK → VERIFIED, dados aplicados, sem notificação")
