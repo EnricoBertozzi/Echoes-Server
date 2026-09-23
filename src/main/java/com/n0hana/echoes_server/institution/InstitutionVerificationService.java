@@ -73,6 +73,7 @@ public class InstitutionVerificationService {
             return VerificationOutcome.REJECTED;
         }
     }
+        
 
     public void applyDadosReceita(InstitutionModel inst, CnpjDTO dados) {
     if (inst.getName() != null && !inst.getName().equals(dados.razaoSocial())) {
@@ -84,10 +85,12 @@ public class InstitutionVerificationService {
     inst.setNomeFantasia(dados.nomeFantasia());
     inst.setCep(dados.cep());
     inst.setAddress(formatEndereco(dados));
-    if dados.telefone() != null && !dados.telefone().isBlank()) {
+
+    if (dados.telefone() != null && !dados.telefone().isBlank()) {
         inst.setPhone(dados.telefone());
-        }
     }
+}
+
 
     private String formatEndereco(CnpjDTO d) {
         StringBuilder endereco = new StringBuilder();
