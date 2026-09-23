@@ -9,7 +9,7 @@ public enum TermStatus {
 
     private String name;
 
-    private DocumentType(String name) {
+    private TermStatus(String name) {
       this.name = name;
     }
 
