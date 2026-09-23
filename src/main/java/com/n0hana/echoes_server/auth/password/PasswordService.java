@@ -49,7 +49,8 @@ public class PasswordService {
             throw new UserNotFoundException();
 
         String code = twoFactorService.generateCode();
-        codeRepository.save(email, code);
+        PasswordCodeModel model = new PasswordCodeModel(code);
+        codeRepository.save(email, model);
         notifier.send(new TwoFactorDTO(email, code, null));
     }
 
@@ -57,16 +58,15 @@ public class PasswordService {
      * Redefine a senha do usuário
      * 
      * @param email       Email do usuário
-     * @param code        Código enviado pelo usuário
      * @param newPassword Nova senha do usuário
      */
     @Transactional
     public void reset(String email, String code, String newPassword) {
         // TODO alterar exceção
-        String savedCode = codeRepository.findByEmail(email)
+        PasswordCodeModel savedCode = (PasswordCodeModel) codeRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthFailedException());
 
-        if (!savedCode.equals(code))
+        if (!savedCode.isValidated() || !savedCode.getCode().equals(code))
             throw new AuthFailedException();
 
         codeRepository.delete(email);
@@ -74,4 +74,21 @@ public class PasswordService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
+
+    /**
+     * Validação do código multifator de redefinição de senha
+     * 
+     * @param code Código para verificação
+     */
+    public void validate(String email, String code) {
+        PasswordCodeModel savedCode = (PasswordCodeModel) codeRepository.findByEmail(email)
+                .orElseThrow(() -> new AuthFailedException());
+
+        if (!savedCode.getCode().equals(code))
+            throw new AuthFailedException();
+
+        savedCode.setValidated(true);
+        codeRepository.save(email, savedCode);
+    }
+
 }

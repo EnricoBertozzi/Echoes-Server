@@ -20,7 +20,7 @@ public class PasswordCodeRepository {
     private final String PREFIX = "password:code:";
 
     @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
 
     /**
      * Salva o codigo de redefinição de senha de um usuário
@@ -28,18 +28,18 @@ public class PasswordCodeRepository {
      * @param email Email do usuário
      * @param code  Código de redefinição
      */
-    public void save(String email, String code) {
-        redisTemplate.opsForValue().set(key(email), code);
+    public void save(String email, PasswordCodeModel model) {
+        redisTemplate.opsForValue().set(key(email), model);
     }
 
     /**
      * Busca um código armazenado no banco em memória
      * 
-     * @param email Email do usuário 
+     * @param email Email do usuário
      * 
      * @return {@link Optional} com o código de redefinição de senha
      */
-    public Optional<String> findByEmail(String email) {
+    public Optional<Object> findByEmail(String email) {
         return Optional
                 .ofNullable(redisTemplate.opsForValue().get(key(email)));
     }

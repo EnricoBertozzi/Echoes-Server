@@ -2,6 +2,8 @@ package com.n0hana.echoes_server.auth.password;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 
 /**
  * Conjunto de DTOs para consumo de endpoints relacionados a redefinação de
@@ -18,7 +20,7 @@ public class PasswordDTO {
      * 
      * @param email Email do usuário
      */
-    public record RequestReset(
+    public record RequestForgot(
             @NotBlank @Email String email) {
     }
 
@@ -29,9 +31,19 @@ public class PasswordDTO {
      * @param code        Código multifator enviado pelo usuário
      * @param newPassword Nova senha do usuário
      */
-    public record RequestPassword(
+    public record RequestReset(
             @NotBlank @Email String email,
             @NotBlank String code,
             @NotBlank String newPassword) {
+    }
+
+    /**
+     * DTO para validação de código de redefinição de senha
+     * 
+     * @param code Código de redefinição
+     */
+    public record ValidadeCode(
+            @NotBlank @Email String email,
+            @NotEmpty @Size(min = 6, max = 6) String code) {
     }
 }
