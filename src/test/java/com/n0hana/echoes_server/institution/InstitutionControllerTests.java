@@ -21,6 +21,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -114,46 +118,64 @@ public class InstitutionControllerTests {
     }
 
     @Test
-    @DisplayName("GET /api/v1/institutions com lista de todas as instituições (200 OK)")
+    @DisplayName("GET /api/v1/institutions retorna envelope paginado (200 OK)")
     void shouldFindAllInstitutions() throws Exception {
         UUID uuid = UUID.randomUUID();
         InstitutionModel model = createTestModel(uuid);
 
+        Page<InstitutionModel> page = new PageImpl<>(
+                List.of(model),
+                PageRequest.of(0, 10, Sort.by("name")),
+                1);
+
         when(service.findAll(any(), any(Integer.class), any(Integer.class), any(String.class)))
-                .thenReturn(List.of(model));
+                .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/institutions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].name").value(model.getName()));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].id").value(uuid.toString()))
+                .andExpect(jsonPath("$.content[0].name").value(model.getName()))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.number").value(0));
     }
 
     @Test
-    @DisplayName("GET /api/v1/institutions lista com as instituições filtradas por nome (200 OK)")
+    @DisplayName("GET /api/v1/institutions filtrado por nome (200 OK paginado)")
     void shouldFindInstitutionsByName() throws Exception {
         UUID uuid = UUID.randomUUID();
         String searchName = "Teste";
         InstitutionModel model = createTestModel(uuid);
 
+        Page<InstitutionModel> page = new PageImpl<>(
+                List.of(model),
+                PageRequest.of(0, 10, Sort.by("name")),
+                1);
+
         when(service.findAll(eq(searchName), any(Integer.class), any(Integer.class), any(String.class)))
-                .thenReturn(List.of(model));
+                .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/institutions").param("name", searchName))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].name").value(model.getName()));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].name").value(model.getName()))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
-    @DisplayName("GET /api/v1/institutions não encontra instituições pelo nome (200 OK vazio)")
+    @DisplayName("GET /api/v1/institutions sem resultados (200 OK vazio paginado)")
     void shouldNotFindInstitutionsByName() throws Exception {
+        Page<InstitutionModel> empty = Page.empty();
+
         when(service.findAll(any(), any(Integer.class), any(Integer.class), any(String.class)))
-                .thenReturn(List.of());
+                .thenReturn(empty);
 
         mockMvc.perform(get("/api/v1/institutions").param("name", "Inexistente"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
