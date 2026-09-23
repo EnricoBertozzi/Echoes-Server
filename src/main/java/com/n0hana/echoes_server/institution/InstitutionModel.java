@@ -41,6 +41,9 @@ public class InstitutionModel {
     @Column(unique = true, nullable = false, length = 14)
     private String cnpj;
 
+    @Column(name = "nome_fantasia", length = 200)
+    private String nomeFantasia;
+
     @Column(unique = true, nullable = false)
     private String email;
 

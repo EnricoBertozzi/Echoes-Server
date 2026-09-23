@@ -28,17 +28,12 @@ public class BrasilApiClient {
     private final RestClient restClient;
 
     public BrasilApiClient(RestClient.Builder builder, CnpjProperties properties) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout((int) Duration.ofSeconds(properties.getTimeoutSeconds()).toMillis());
-        factory.setReadTimeout((int) Duration.ofSeconds(properties.getTimeoutSeconds()).toMillis());
-
-        this.restClient = builder
-            .clone()
-            .baseUrl(properties.getBrasilApi().getUrl())
-            .requestFactory(factory)
-            .defaultHeader("User-Agent", "Echoes-Server/1.0")
-            .build();
-    }
+    this.restClient = builder
+        .clone()
+        .baseUrl(properties.getBrasilApi().getUrl())
+        .defaultHeader("User-Agent", "Echoes-Server/1.0")
+        .build();
+}
 
     /**
      * Consulta um CNPJ na Brasil API.

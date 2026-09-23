@@ -8,15 +8,13 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
 
 import com.n0hana.echoes_server.cnpj.client.BrasilApiClient;
 import com.n0hana.echoes_server.cnpj.config.CnpjProperties;
@@ -24,19 +22,24 @@ import com.n0hana.echoes_server.cnpj.exception.CnpjInvalidoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 
-@RestClientTest(BrasilApiClient.class)
-@EnableConfigurationProperties(CnpjProperties.class)
-@TestPropertySource(properties = {
-    "cnpj.brasil-api.url=https://brasilapi.com.br",
-    "cnpj.timeout-seconds=2"
-})
 class BrasilApiClientTest {
 
     private static final String CNPJ = "19131243000197";
     private static final String URL = "https://brasilapi.com.br/api/cnpj/v1/" + CNPJ;
 
-    @Autowired private BrasilApiClient client;
-    @Autowired private MockRestServiceServer server;
+    private BrasilApiClient client;
+    private MockRestServiceServer server;
+
+    @BeforeEach
+    void setUp() {
+        CnpjProperties props = new CnpjProperties();
+        props.getBrasilApi().setUrl("https://brasilapi.com.br");
+        props.setTimeoutSeconds(2);
+
+        RestClient.Builder builder = RestClient.builder();
+        server = MockRestServiceServer.bindTo(builder).build();
+        client = new BrasilApiClient(builder, props);
+    }
 
     @Test
     @DisplayName("200 mapeia snake_case da API para camelCase do DTO")
@@ -56,36 +59,28 @@ class BrasilApiClientTest {
     @Test
     @DisplayName("404 lança CnpjNaoEncontradoException")
     void lancaCnpjNaoEncontradoNo404() {
-        server.expect(requestTo(URL))
-            .andRespond(withStatus(HttpStatus.NOT_FOUND));
-
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.NOT_FOUND));
         assertThrows(CnpjNaoEncontradoException.class, () -> client.consultar(CNPJ));
     }
 
     @Test
     @DisplayName("400 lança CnpjInvalidoException")
     void lancaCnpjInvalidoNo400() {
-        server.expect(requestTo(URL))
-            .andRespond(withStatus(HttpStatus.BAD_REQUEST));
-
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.BAD_REQUEST));
         assertThrows(CnpjInvalidoException.class, () -> client.consultar(CNPJ));
     }
 
     @Test
     @DisplayName("500 lança CnpjProviderIndisponivelException")
     void lancaIndisponivelNo500() {
-        server.expect(requestTo(URL))
-            .andRespond(withServerError());
-
+        server.expect(requestTo(URL)).andRespond(withServerError());
         assertThrows(CnpjProviderIndisponivelException.class, () -> client.consultar(CNPJ));
     }
 
     @Test
     @DisplayName("200 com corpo vazio lança CnpjProviderIndisponivelException")
     void corpoVazioLancaIndisponivel() {
-        server.expect(requestTo(URL))
-            .andRespond(withStatus(HttpStatus.OK));
-
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.OK));
         assertThrows(CnpjProviderIndisponivelException.class, () -> client.consultar(CNPJ));
     }
 
@@ -98,7 +93,6 @@ class BrasilApiClientTest {
                 MediaType.APPLICATION_JSON));
 
         CnpjDTO result = client.consultar(CNPJ);
-
         assertTrue(result.razaoSocial().equals("X"));
         assertTrue(result.nomeFantasia().equals("Y"));
     }

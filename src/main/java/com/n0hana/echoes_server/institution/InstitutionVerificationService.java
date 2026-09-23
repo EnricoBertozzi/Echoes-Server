@@ -75,10 +75,15 @@ public class InstitutionVerificationService {
     }
 
     public void applyDadosReceita(InstitutionModel inst, CnpjDTO dados) {
-        inst.setCnpj(dados.cnpj());
-        inst.setName(dados.razaoSocial());
-        inst.setCep(dados.cep());
-        inst.setAddress(formatEndereco(dados));
+    if (inst.getName() != null && !inst.getName().equals(dados.razaoSocial())) {
+        log.info("Razão social da instituição {} alterada: '{}' -> '{}'",
+                inst.getId(), inst.getName(), dados.razaoSocial());
+    }
+    inst.setCnpj(dados.cnpj());
+    inst.setName(dados.razaoSocial());
+    inst.setNomeFantasia(dados.nomeFantasia());
+    inst.setCep(dados.cep());
+    inst.setAddress(formatEndereco(dados));
     }
 
     private String formatEndereco(CnpjDTO d) {
