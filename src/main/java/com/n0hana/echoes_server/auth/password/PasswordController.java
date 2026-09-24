@@ -8,8 +8,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.auth.password.PasswordDTO.RequestReset;
+import com.n0hana.echoes_server.auth.password.PasswordDTO.TokenResponse;
 import com.n0hana.echoes_server.auth.password.PasswordDTO.RequestForgot;
-import com.n0hana.echoes_server.auth.password.PasswordDTO.ValidadeCode;
+import com.n0hana.echoes_server.auth.password.PasswordDTO.ValidadeCodeRequest;
 
 import jakarta.validation.Valid;
 
@@ -19,11 +20,11 @@ import jakarta.validation.Valid;
  * @author Enrico Bertozzi
  * @since 0.1.1
  */
-@RestController 
+@RestController
 @RequestMapping("/api/v1/password")
 public class PasswordController {
 
-    @Autowired 
+    @Autowired
     private PasswordService passwordService;
 
     /**
@@ -40,6 +41,21 @@ public class PasswordController {
     }
 
     /**
+     * Realiza validação do código multifator de redefinição de senha
+     * 
+     * @param dto Objeto com dados para verificação
+     * 
+     * @return {@link ResponseEntity} com token de de verificação e código HTTP 204
+     *         (NO CONTENT)
+     */
+    @PostMapping("/validate")
+    public ResponseEntity<TokenResponse> validadeCode(@RequestBody @Valid ValidadeCodeRequest dto) {
+        TokenResponse response = new TokenResponse(
+                passwordService.validate(dto.email(), dto.code()));
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Completa o processos de redefinição de senha
      * 
      * @param dto Objeto com dados de redefinição de senha
@@ -47,20 +63,8 @@ public class PasswordController {
      */
     @PostMapping("/reset")
     public ResponseEntity<Void> reset(@RequestBody @Valid RequestReset dto) {
-        passwordService.reset(dto.email(), dto.code(), dto.newPassword());
+        passwordService.reset(dto.email(), dto.token(), dto.newPassword());
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Realiza validação do código multifator de redefinição de senha
-     * 
-     * @param dto Objeto com dados para verificação
-     * 
-     * @return {@link ResponseEntity} com código HTTP 204 (NO CONTENT)
-     */
-    @PostMapping("/validate")
-    public ResponseEntity<Void> validadeCode(@RequestBody @Valid ValidadeCode dto) {
-        passwordService.validate(dto.email(), dto.code());
-        return ResponseEntity.noContent().build();
-    }
 }

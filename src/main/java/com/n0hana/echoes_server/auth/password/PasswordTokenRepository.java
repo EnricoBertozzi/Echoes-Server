@@ -6,38 +6,31 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
-/**
- * Repositório para armazenamento em memória de códigos de redefinação de senhas
- * 
- * @author Enrico Bertozzi
- * @since 0.1.1
- */
 @Repository
-public class PasswordCodeRepository {
-
+public class PasswordTokenRepository {
     // TODO criar implementação genérica de repositórios em memoria
 
-    private final String PREFIX = "password:code:";
+    private final String PREFIX = "password:token:";
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
     /**
-     * Salva o codigo de redefinição de senha de um usuário
+     * Salva o token de redefinição de senha de um usuário
      * 
      * @param email Email do usuário
-     * @param code  Código de redefinição
+     * @param token  Token de redefinição
      */
-    public void save(String email, String code) {
-        redisTemplate.opsForValue().set(key(email), code);
+    public void save(String email, String token) {
+        redisTemplate.opsForValue().set(key(email), token);
     }
 
     /**
-     * Busca um código armazenado no banco em memória
+     * Busca um token armazenado no banco em memória
      * 
      * @param email Email do usuário
      * 
-     * @return {@link Optional} com o código de redefinição de senha
+     * @return {@link Optional} com o token de redefinição de senha
      */
     public Optional<String> findByEmail(String email) {
         return Optional
@@ -45,7 +38,7 @@ public class PasswordCodeRepository {
     }
 
     /**
-     * Remove um código armazenado no banco em memória
+     * Remove um token armazenado no banco em memória
      * 
      * @param email Identificador do usuário
      */

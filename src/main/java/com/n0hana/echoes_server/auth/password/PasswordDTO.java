@@ -28,12 +28,12 @@ public class PasswordDTO {
      * DTO para redefinicação de senhas dos usuários
      * 
      * @param email       Email do usuário
-     * @param code        Código multifator enviado pelo usuário
+     * @param token       token enviado pelo usuário
      * @param newPassword Nova senha do usuário
      */
     public record RequestReset(
             @NotBlank @Email String email,
-            @NotBlank String code,
+            @NotBlank String token,
             @NotBlank String newPassword) {
     }
 
@@ -42,8 +42,17 @@ public class PasswordDTO {
      * 
      * @param code Código de redefinição
      */
-    public record ValidadeCode(
+    public record ValidadeCodeRequest(
             @NotBlank @Email String email,
             @NotEmpty @Size(min = 6, max = 6) String code) {
+    }
+
+    /**
+     * DTO com token de redefinição de senha
+     * 
+     * @param token Token de redefinição
+     */
+    public record TokenResponse(
+            String token) {
     }
 }

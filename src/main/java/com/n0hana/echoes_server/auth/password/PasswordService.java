@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.auth.password;
 
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,9 @@ public class PasswordService {
     private PasswordCodeRepository codeRepository;
 
     @Autowired
+    private PasswordTokenRepository tokenRepository;
+
+    @Autowired
     private TwoFactorService twoFactorService;
 
     @Autowired
@@ -49,30 +54,9 @@ public class PasswordService {
             throw new UserNotFoundException();
 
         String code = twoFactorService.generateCode();
-        PasswordCodeModel model = new PasswordCodeModel(code);
-        codeRepository.save(email, model);
+
+        codeRepository.save(email, code);
         notifier.send(new TwoFactorDTO(email, code, null));
-    }
-
-    /**
-     * Redefine a senha do usuário
-     * 
-     * @param email       Email do usuário
-     * @param newPassword Nova senha do usuário
-     */
-    @Transactional
-    public void reset(String email, String code, String newPassword) {
-        // TODO alterar exceção
-        PasswordCodeModel savedCode = (PasswordCodeModel) codeRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthFailedException());
-
-        if (!savedCode.isValidated() || !savedCode.getCode().equals(code))
-            throw new AuthFailedException();
-
-        codeRepository.delete(email);
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException());
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
     }
 
     /**
@@ -80,15 +64,39 @@ public class PasswordService {
      * 
      * @param code Código para verificação
      */
-    public void validate(String email, String code) {
-        PasswordCodeModel savedCode = (PasswordCodeModel) codeRepository.findByEmail(email)
+    public String validate(String email, String code) {
+        String savedCode = codeRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthFailedException());
 
-        if (!savedCode.getCode().equals(code))
+        if (!savedCode.equals(code))
             throw new AuthFailedException();
 
-        savedCode.setValidated(true);
-        codeRepository.save(email, savedCode);
+        codeRepository.delete(email);
+
+        String token = UUID.randomUUID().toString();
+        tokenRepository.save(email, token);
+        return token;
     }
 
+    /**
+     * Redefine a senha do usuário
+     * 
+     * @param email       Email do usuário
+     * @param token       Token para redefinição
+     * @param newPassword Nova senha do usuário
+     */
+    @Transactional
+    public void reset(String email, String token, String newPassword) {
+        // TODO alterar exceção
+
+        String savedToken = tokenRepository.findByEmail(email)
+                .orElseThrow(() -> new AuthFailedException());
+
+        if (!savedToken.equals(token))
+            throw new AuthFailedException();
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException());
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }
