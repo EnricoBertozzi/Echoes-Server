@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 
@@ -58,17 +59,16 @@ public class InstitutionController {
      *         status HTTP 200 (SUCCESS).
      */
     @GetMapping
-    public ResponseEntity<List<InstitutionDTO>> findAll(
-            @RequestParam(required = false) String name,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "name,asc") String sort) {
+    public ResponseEntity<Page<InstitutionDTO>> findAll(
+        @RequestParam(required = false) String name,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(defaultValue = "name,asc") String sort) {
+    Page<InstitutionDTO> result = service
+            .findAll(name, size, page, sort)
+            .map(InstitutionDTO::fromModel);
 
-        List<InstitutionDTO> list = service.findAll(name, size, page, sort)
-                .stream()
-                .map(InstitutionDTO::fromModel)
-                .toList();
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(result);
     }
 
     /**

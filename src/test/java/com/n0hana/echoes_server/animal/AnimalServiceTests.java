@@ -135,7 +135,7 @@ public class AnimalServiceTests {
     @DisplayName("Vericica a alteração de dados de um animal")
     public void verifyForChangesInAnimal() {
         // Arrage
-        UUID id = UUID.fromString("1111-2222-3333-4444");
+        UUID id = UUID.fromString("1111-2222-3333-4444-555555555555");
         
         AnimalModel animal = AnimalModel.builder()
         .id(id)

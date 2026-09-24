@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,235 +21,306 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import com.n0hana.echoes_server.cnpj.CnpjDTO;
+import com.n0hana.echoes_server.cnpj.CnpjService;
+import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
+import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
+import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 
 @ExtendWith(MockitoExtension.class)
 public class InstitutionServiceTests {
 
-  @Mock
-  private InstitutionRepository repository;
+    @Mock private InstitutionRepository repository;
+    @Mock private CnpjService cnpjService;
+    @Mock private InstitutionVerificationService verificationService;
+    @Mock private InstitutionNotifier notifier;
 
-  @InjectMocks
-  private InstitutionService service;
+    @InjectMocks
+    private InstitutionService service;
 
-  private InstitutionModel createTestModel(UUID id) {
-    InstitutionModel model = InstitutionModel.builder()
-        .id(id)
-        .name("Instituição Teste")
-        .acronym("IT")
-        .cnpj("12.345.678/0001-90")
-        .email("contato@teste.com")
-        .phone("11999999999")
-        .address("Rua Teste, 123")
-        .active(true)
-        .deleted(false)
-        .build();
-    return model;
-  }
+    private InstitutionModel createTestModel(UUID id) {
+        return InstitutionModel.builder()
+                .id(id)
+                .name("Instituição Teste")
+                .acronym("IT")
+                .cnpj("12.345.678/0001-90")
+                .email("contato@teste.com")
+                .phone("11999999999")
+                .address("Rua Teste, 123")
+                .active(true)
+                .deleted(false)
+                .build();
+    }
 
-  @Test
-  @DisplayName("Deve criar uma instituição com sucesso")
-  void shouldCreateSuccessfulInstitution() {
-    // Arrange
-    InstitutionModel model = this.createTestModel(null);
+    private CnpjDTO cnpjDTO() {
+        return new CnpjDTO(
+                "12345678000190",           // cnpj
+                "Instituição Teste LTDA",   // razaoSocial
+                "IT",                       // nomeFantasia
+                "Rua Teste",                // logradouro
+                "123",                      // numero
+                null,                       // complemento
+                "Centro",                   // bairro
+                "São Paulo",                // municipio
+                "SP",                       // uf
+                "01001000",                 // cep
+                null);                      // telefone
+    }
 
-    String expectedCnpj = "12345678000190";
+    @Test
+    @DisplayName("Create com Brasil API OK → VERIFIED, dados aplicados, sem notificação")
+    void shouldCreateSuccessfulInstitution() {
+        InstitutionModel model = this.createTestModel(null);
+        String expectedCnpj = "12345678000190";
 
-    when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail()))
-        .thenReturn(false);
-    when(repository.save(model)).thenReturn(model);
+        when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail())).thenReturn(false);
+        when(cnpjService.consultar(expectedCnpj)).thenReturn(cnpjDTO());
+        when(repository.save(any(InstitutionModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
-    // Act
-    InstitutionModel result = service.create(model);
+        InstitutionModel result = service.create(model);
 
-    // Assert
-    assertNotNull(result);
-    assertEquals(expectedCnpj, result.getCnpj());
-    verify(repository, times(1)).existsByCnpjOrEmail(expectedCnpj, model.getEmail());
-  }
+        assertNotNull(result);
+        assertEquals(expectedCnpj, result.getCnpj());
+        assertEquals(InstitutionVerificationStatus.VERIFIED, result.getVerificationStatus());
+        verify(verificationService).applyDadosReceita(eq(model), any(CnpjDTO.class));
+        verify(notifier, never()).notifyPendingVerification(any(), any());
+    }
 
-  @Test
-  @DisplayName("Deve levantar exceção por usuário já cadastrado")
-  void shouldThrowDuplicationKeyException() {
-    // Arrange
-    InstitutionModel model = this.createTestModel(null);
+    @Test
+    @DisplayName("Create com Brasil API indisponível → PENDING_VERIFICATION + notificação + persistência")
+    void shouldMarkAsPendingWhenBrasilApiUnavailable() {
+        InstitutionModel model = this.createTestModel(null);
+        String expectedCnpj = "12345678000190";
 
-    String expectedCnpj = "12345678000190";
+        when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail())).thenReturn(false);
+        when(cnpjService.consultar(expectedCnpj))
+                .thenThrow(new CnpjProviderIndisponivelException("503"));
+        when(repository.save(any(InstitutionModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
-    // Act
-    when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail()))
-        .thenReturn(true);
+        InstitutionModel result = service.create(model);
 
-    // Assert
-    assertThrows(DuplicateKeyException.class, () -> {
-      service.create(model);
-    });
+        assertEquals(InstitutionVerificationStatus.PENDING_VERIFICATION, result.getVerificationStatus());
+        verify(notifier).notifyPendingVerification(any(), any());
+        verify(verificationService, never()).applyDadosReceita(any(), any());
+    }
 
-    verify(repository, never()).save(any());
-  }
+    @Test
+    @DisplayName("Create com CNPJ já cadastrado → DuplicateKeyException sem consultar Brasil API")
+    void shouldThrowDuplicationKeyException() {
+        InstitutionModel model = this.createTestModel(null);
+        String expectedCnpj = "12345678000190";
 
-  @Test
-  @DisplayName("Deve filtrar as instituições cadastradas por nome quando o parâmetro é fornecido")
-  void shouldFilterInstitutionsByNameWhenParameterIsProvided() {
-    // Arrange
-    InstitutionModel model = this.createTestModel(null);
+        when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail())).thenReturn(true);
 
-    String searchName = "Teste";
-    PageImpl<InstitutionModel> page = new PageImpl<>(List.of(
-        model));
+        assertThrows(DuplicateKeyException.class, () -> service.create(model));
+        verify(repository, never()).save(any());
+        verify(cnpjService, never()).consultar(any());
+    }
 
-    when(repository.findByNameContainingIgnoreCase(eq(searchName), any(Pageable.class))).thenReturn(page);
+    @Test
+    @DisplayName("assertCanPurchase liberado para VERIFIED")
+    void assertCanPurchaseAllowsVerified() {
+        UUID id = UUID.randomUUID();
+        InstitutionModel model = createTestModel(id);
+        model.setVerificationStatus(InstitutionVerificationStatus.VERIFIED);
 
-    // Act
-    List<InstitutionModel> result = service.findAll(searchName, 10, 0, "name,asc");
+        when(repository.findById(id)).thenReturn(Optional.of(model));
 
-    // Assert
-    assertNotNull(result);
-    assertEquals(result.size(), 1);
-    verify(repository).findByNameContainingIgnoreCase(eq(searchName), any(Pageable.class));
-    verify(repository, never()).findAll(any(Pageable.class));
-  }
+        service.assertCanPurchase(id);
+        // sem throw = sucesso
+    }
 
-  @Test
-  @DisplayName("Deve buscar todas as instituições cadastradas")
-  void shouldFindAllInstituitions() {
-    // Arrange
-    InstitutionModel model = this.createTestModel(null);
+    @Test
+    @DisplayName("assertCanPurchase bloqueado para PENDING_VERIFICATION")
+    void assertCanPurchaseBlocksPending() {
+        UUID id = UUID.randomUUID();
+        InstitutionModel model = createTestModel(id);
+        model.setVerificationStatus(InstitutionVerificationStatus.PENDING_VERIFICATION);
 
-    PageImpl<InstitutionModel> page = new PageImpl<>(List.of(model));
+        when(repository.findById(id)).thenReturn(Optional.of(model));
 
-    when(repository.findAll(any(Pageable.class))).thenReturn(page);
+        assertThrows(InstitutionPendingVerificationException.class,
+                () -> service.assertCanPurchase(id));
+    }
 
-    // Act
-    List<InstitutionModel> result = service.findAll(null, 10, 0, "name,asc");
+    @Test
+    @DisplayName("assertCanPurchase bloqueado para REJECTED")
+    void assertCanPurchaseBlocksRejected() {
+        UUID id = UUID.randomUUID();
+        InstitutionModel model = createTestModel(id);
+        model.setVerificationStatus(InstitutionVerificationStatus.REJECTED);
 
-    // Assert
-    assertNotNull(result);
-    assertEquals(result.size(), 1);
-    verify(repository).findAll(any(Pageable.class));
-    verify(repository, never()).findByNameContainingIgnoreCase(eq(null), any(Pageable.class));
-  }
+        when(repository.findById(id)).thenReturn(Optional.of(model));
 
-  @Test
-  @DisplayName("Deve buscar uma instituição cadastrada no sistema pelo id")
-  void shouldFindInstitutionById() {
-    // Arrange
-    UUID uuid = UUID.fromString("be230414-d7ab-4448-b100-f29bb50609bb");
+        assertThrows(InstitutionPendingVerificationException.class,
+                () -> service.assertCanPurchase(id));
+    }
 
-    InstitutionModel model = this.createTestModel(uuid);
+    @Test
+    @DisplayName("assertCanPurchase em instituição inexistente → InstitutionNotFoundException")
+    void assertCanPurchaseThrowsWhenNotFound() {
+        UUID id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Optional.empty());
 
-    when(repository.findById(uuid)).thenReturn(Optional.of(model));
+        assertThrows(InstitutionNotFoundException.class, () -> service.assertCanPurchase(id));
+    }
 
-    // Act
-    InstitutionModel result = service.findById(uuid);
+    @Test
+    @DisplayName("retryPendingVerifications conta apenas VERIFIED como sucesso")
+    void retryPendingVerificationsCountsOnlyVerified() {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
 
-    // Assert
-    assertNotNull(result);
-    assertEquals(model.getId(), result.getId());
-    verify(repository).findById(uuid);
-  }
+        InstitutionModel m1 = createTestModel(id1);
+        InstitutionModel m2 = createTestModel(id2);
 
-  @Test
-  @DisplayName("Deve lançar execeção de instituição não encontrada quando id não está cadastrado")
-  void shouldThrowInstitutionNotFoundExceptionWhenIdNotFound() {
-    // Arrange
-    UUID uuid = UUID.fromString("be230414-d7ab-4448-b100-f29bb50609bb");
+        when(repository.findAllByVerificationStatus(InstitutionVerificationStatus.PENDING_VERIFICATION))
+                .thenReturn(List.of(m1, m2));
+        when(verificationService.tryVerify(id1))
+                .thenReturn(InstitutionVerificationService.VerificationOutcome.VERIFIED);
+        when(verificationService.tryVerify(id2))
+                .thenReturn(InstitutionVerificationService.VerificationOutcome.STILL_PENDING);
 
-    when(repository.findById(uuid)).thenReturn(Optional.empty());
+        int success = service.retryPendingVerifications();
 
-    // Act
-    assertThrows(InstitutionNotFoundException.class, () -> {
-      service.findById(uuid);
-    });
+        assertEquals(1, success);
+    }
 
-    // Assert
-    verify(repository).findById(uuid);
-  }
+    @Test
+    @DisplayName("Deve filtrar as instituições cadastradas por nome quando o parâmetro é fornecido")
+    void shouldFilterInstitutionsByNameWhenParameterIsProvided() {
+        InstitutionModel model = this.createTestModel(null);
+        String searchName = "Teste";
+        PageImpl<InstitutionModel> page = new PageImpl<>(List.of(model));
 
-  @Test
-  @DisplayName("Deve alterar os campos da instituição com novos campos")
-  void shouldUpdateInstitutionWithNewValues() {
-    // Arrange
-    UUID uuid = UUID.randomUUID();
-    InstitutionModel model = this.createTestModel(uuid);
+        when(repository.findByNameContainingIgnoreCase(eq(searchName), any(Pageable.class)))
+                .thenReturn(page);
 
-    InstitutionModel updatedModel = InstitutionModel.builder()
-        .name("Universidade Novo Mundo")
-        .acronym("UNM")
-        .phone("1101234567")
-        .address("Rua de baixo, 123")
-        .build();
+        Page<InstitutionModel> result = service.findAll(searchName, 10, 0, "name,asc");
 
-    when(repository.findById(uuid)).thenReturn(Optional.of(model));
-    when(repository.save(any(InstitutionModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+        assertEquals(model.getId(), result.getContent().get(0).getId());
+        verify(repository).findByNameContainingIgnoreCase(eq(searchName), any(Pageable.class));
+        verify(repository, never()).findAll(any(Pageable.class));
+    }
 
-    // Act
-    InstitutionModel result = service.update(uuid, updatedModel);
+    @Test
+    @DisplayName("Deve buscar todas as instituições cadastradas")
+    void shouldFindAllInstituitions() {
+        InstitutionModel model = this.createTestModel(null);
+        PageImpl<InstitutionModel> page = new PageImpl<>(List.of(model));
 
-    // Assert
-    assertNotNull(result);
-    assertEquals(updatedModel.getName(), result.getName());
-    assertEquals(updatedModel.getAcronym(), result.getAcronym());
-    assertEquals(updatedModel.getPhone(), result.getPhone());
-    assertEquals(updatedModel.getAddress(), result.getAddress());
+        when(repository.findAll(any(Pageable.class))).thenReturn(page);
 
-    verify(repository).save(model);
-  }
+        Page<InstitutionModel> result = service.findAll(null, 10, 0, "name,asc");
 
-  @Test
-  @DisplayName("Deve alterar o estado da instituição para desativo")
-  void shouldToggleInstitutionStatusToDisable() {
-    // Arrange
-    UUID uuid = UUID.randomUUID();
-    InstitutionModel model = spy(createTestModel(uuid));
-    model.setActive(true);
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+        verify(repository).findAll(any(Pageable.class));
+    }
 
-    when(repository.findById(uuid)).thenReturn(Optional.of(model));
-    when(repository.save(model)).thenAnswer(invocation -> invocation.getArgument(0));
+    @Test
+    @DisplayName("Deve buscar uma instituição cadastrada no sistema pelo id")
+    void shouldFindInstitutionById() {
+        UUID uuid = UUID.fromString("be230414-d7ab-4448-b100-f29bb50609bb");
+        InstitutionModel model = this.createTestModel(uuid);
 
-    // Act
-    service.toggleStatus(uuid);
+        when(repository.findById(uuid)).thenReturn(Optional.of(model));
 
-    // Assert
-    verify(model).setActive(eq(false));
-  }
+        InstitutionModel result = service.findById(uuid);
 
-  @Test
-  @DisplayName("Deve alterar o estado da instituição para ativo")
-  void shouldToggleInstitutionStatusToActive() {
-    // Arrange
-    UUID uuid = UUID.randomUUID();
-    InstitutionModel model = spy(createTestModel(uuid));
-    model.setActive(false);
+        assertNotNull(result);
+        assertEquals(model.getId(), result.getId());
+        verify(repository).findById(uuid);
+    }
 
-    when(repository.findById(uuid)).thenReturn(Optional.of(model));
-    when(repository.save(model)).thenAnswer(invocation -> invocation.getArgument(0));
+    @Test
+    @DisplayName("Deve lançar exceção de instituição não encontrada quando id não está cadastrado")
+    void shouldThrowInstitutionNotFoundExceptionWhenIdNotFound() {
+        UUID uuid = UUID.fromString("be230414-d7ab-4448-b100-f29bb50609bb");
+        when(repository.findById(uuid)).thenReturn(Optional.empty());
 
-    // Act
-    service.toggleStatus(uuid);
+        assertThrows(InstitutionNotFoundException.class, () -> service.findById(uuid));
+        verify(repository).findById(uuid);
+    }
 
-    // Assert
-    verify(model).setActive(eq(true));
-  }
+    @Test
+    @DisplayName("Deve alterar os campos da instituição com novos valores")
+    void shouldUpdateInstitutionWithNewValues() {
+        UUID uuid = UUID.randomUUID();
+        InstitutionModel model = this.createTestModel(uuid);
 
-  @Test
-  @DisplayName("Deve alterar o estado de remoção da instituição para ativo")
-  void shouldToggleInstitutionDeleteStatusToTrue() {
-    // Arrange
-    UUID uuid = UUID.randomUUID();
-    InstitutionModel model = spy(createTestModel(uuid));
-    model.setDeleted(false);
+        InstitutionModel updatedModel = InstitutionModel.builder()
+                .name("Universidade Novo Mundo")
+                .acronym("UNM")
+                .phone("1101234567")
+                .address("Rua de baixo, 123")
+                .build();
 
-    when(repository.findById(uuid)).thenReturn(Optional.of(model));
-    when(repository.save(model)).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.findById(uuid)).thenReturn(Optional.of(model));
+        when(repository.save(any(InstitutionModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
-    // Act
-    service.delete(uuid);
+        InstitutionModel result = service.update(uuid, updatedModel);
 
-    // Assert
-    verify(model).setDeleted(eq(true));
-  }
+        assertNotNull(result);
+        assertEquals(updatedModel.getName(), result.getName());
+        assertEquals(updatedModel.getAcronym(), result.getAcronym());
+        assertEquals(updatedModel.getPhone(), result.getPhone());
+        assertEquals(updatedModel.getAddress(), result.getAddress());
+
+        verify(repository).save(model);
+    }
+
+    @Test
+    @DisplayName("Deve alterar o estado da instituição para desativo")
+    void shouldToggleInstitutionStatusToDisable() {
+        UUID uuid = UUID.randomUUID();
+        InstitutionModel model = spy(createTestModel(uuid));
+        model.setActive(true);
+
+        when(repository.findById(uuid)).thenReturn(Optional.of(model));
+        when(repository.save(model)).thenAnswer(inv -> inv.getArgument(0));
+
+        service.toggleStatus(uuid);
+
+        verify(model).setActive(eq(false));
+    }
+
+    @Test
+    @DisplayName("Deve alterar o estado da instituição para ativo")
+    void shouldToggleInstitutionStatusToActive() {
+        UUID uuid = UUID.randomUUID();
+        InstitutionModel model = spy(createTestModel(uuid));
+        model.setActive(false);
+
+        when(repository.findById(uuid)).thenReturn(Optional.of(model));
+        when(repository.save(model)).thenAnswer(inv -> inv.getArgument(0));
+
+        service.toggleStatus(uuid);
+
+        verify(model).setActive(eq(true));
+    }
+
+    @Test
+    @DisplayName("Deve marcar instituição como deletada")
+    void shouldToggleInstitutionDeleteStatusToTrue() {
+        UUID uuid = UUID.randomUUID();
+        InstitutionModel model = spy(createTestModel(uuid));
+        model.setDeleted(false);
+
+        when(repository.findById(uuid)).thenReturn(Optional.of(model));
+        when(repository.save(model)).thenAnswer(inv -> inv.getArgument(0));
+
+        service.delete(uuid);
+
+        verify(model).setDeleted(eq(true));
+    }
 }
