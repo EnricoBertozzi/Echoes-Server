@@ -51,7 +51,7 @@ public class PasswordService {
      */
     public void request(String email) {
         if (!userRepository.existsByEmail(email))
-            throw new UserNotFoundException();
+            return;
 
         String code = twoFactorService.generateCode();
 
