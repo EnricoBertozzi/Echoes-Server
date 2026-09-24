@@ -74,3 +74,70 @@ docker-compose up -d
 ```
 
 5. Acesse a documentação dos endpoints do projeto pelo endereço [https://localhost/swagger-ui/index.html](https://localhost/swagger-ui/index.html)
+
+# Versionamento de documentos legais (Flyway)
+
+Os documentos legais (termos de uso, política de privacidade e política de cookies) são versionados e publicados via **Flyway**, executado automaticamente no startup da aplicação.
+
+A relação é explícita:
+
+```text
+arquivo Markdown
+       ↑
+       │ referência
+       │
+Java Migration
+       │
+       ↓
+Banco
+```
+
+Estrutura:
+
+```text
+src/main/resources/legal/
+├── cookies-policy/1.0.0.md     (fonte de conteúdo)
+├── privacy-policy/1.0.0.md
+└── terms/1.0.0.md
+
+src/main/java/com/n0hana/echoes_server/db/migration/
+├── LegalDocumentMigration.java          (base reutilizável)
+├── V2__publish_cookies_policy_1_0_0.java
+├── V3__publish_privacy_policy_1_0_0.java
+└── V4__publish_terms_1_0_0.java
+
+src/main/resources/db/migration/
+└── V1__create_legal_documents_table.sql (estrutura)
+```
+
+## Migrations são imutáveis
+
+Uma migration **já aplicada nunca deve ser alterada**. Para corrigir ou evoluir o conteúdo de um documento:
+
+1. Crie o novo Markdown em `src/main/resources/legal/<tipo-do-documento>/<versao>.md`, ex.:
+
+   ```text
+   legal/terms/1.1.0.md
+   ```
+
+2. Crie a Java Migration correspondente, ex.:
+
+   ```text
+   V5__publish_terms_1_1_0.java
+   ```
+
+3. A migration deve referenciar o Markdown pelo classpath (`legal/terms/1.1.0.md`) e usar `LegalDocumentMigration.publishDocument(...)` com o `DocumentType` existente e o novo `version`.
+
+4. Os dois arquivos devem fazer parte do **mesmo commit/PR**.
+
+As migrações Java herdam de `LegalDocumentMigration`, que:
+- lê o Markdown do classpath em UTF-8 (falha se o arquivo não existir) e não altera o conteúdo;
+- insere o documento na tabela `terms` via `PreparedStatement`, com o status `PUBLISHED` e o `DocumentType` do domínio existente;
+- aloca os ids pela mesma sequência do Hibernate (`terms_seq`), evitando colisão com ids futuros.
+
+## Comportamento
+
+- Banco vazio: o Flyway cria a estrutura (`V1`) e publica os documentos 1.0.0 (`V2`–`V4`); só migrations pendentes são executadas.
+- Reinicialização: o Flyway reconhece `flyway_schema_history` e não duplica documentos.
+- Novos documentos: apenas a nova migration é aplicada; as anteriores permanecem intactas.
+- Bancos existentes sem histórico Flyway são baselineados na versão 0 (`spring.flyway.baseline-on-migrate=true`), preservando o schema já criado pelo Hibernate.

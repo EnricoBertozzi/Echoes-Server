@@ -27,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.config.SpringDataWebConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -42,6 +43,7 @@ import com.n0hana.echoes_server.user.model.UserRole;
 @AutoConfigureMockMvc(addFilters = false)
 @Import(SpringDataWebConfiguration.class)
 @WithMockUser
+@ActiveProfiles("test")
 class TeacherControllerTest {
 
     @Autowired

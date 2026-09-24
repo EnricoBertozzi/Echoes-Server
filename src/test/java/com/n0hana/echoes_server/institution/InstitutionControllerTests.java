@@ -27,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -35,6 +36,7 @@ import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundExcepti
 @WebMvcTest(InstitutionController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
+@ActiveProfiles("test")
 public class InstitutionControllerTests {
 
     private static final String CNPJ_VALIDO = "19.131.243/0001-97";

@@ -68,6 +68,17 @@
       		<scope>runtime</scope>
    		 </dependency>
 
+		<!-- FLYWAY -->
+		<!-- Spring Boot 4: o starter ativa a auto-configuração do Flyway -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-mysql</artifactId>
+		</dependency>
+
 		<!-- SECURITY -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

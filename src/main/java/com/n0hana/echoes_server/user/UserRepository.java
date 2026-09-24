@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.user;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -19,6 +20,8 @@ import com.n0hana.echoes_server.user.model.User;
 public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
+
+    Optional<User> findByEmail(String email);
 
     @Query("select a from Admin a where a.active = true")
     Page<Admin> findAdmins(Pageable pageable);

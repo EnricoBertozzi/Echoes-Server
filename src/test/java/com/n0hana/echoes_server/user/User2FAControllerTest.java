@@ -18,6 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,6 +34,7 @@ import com.n0hana.echoes_server.user.model.UserRole;
 @WebMvcTest(User2FAController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
+@ActiveProfiles("test")
 class User2FAControllerTest {
 
     @Autowired
