@@ -38,6 +38,7 @@ import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
+import com.n0hana.echoes_server.infra.security.JwtFilter;
 
 @WebMvcTest(ManagerController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -51,6 +52,9 @@ class ManagerControllerTest {
 
     @MockitoBean
     private UserService service;
+
+    @MockitoBean
+    private JwtFilter jwtFilter;
 
     private final UUID id = UUID.randomUUID();
     private final UUID institutionId = UUID.randomUUID();

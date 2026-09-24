@@ -12,10 +12,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjInvalidoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
-import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
@@ -23,6 +23,7 @@ import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
 import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
+import com.n0hana.echoes_server.user.exception.RequiredTermsNotAcceptedException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 
 @RestControllerAdvice
@@ -33,23 +34,19 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex) {
 
         Map<String, String> errors = new HashMap<>();
-
         ex.getBindingResult().getFieldErrors().forEach(error -> {
             errors.put(error.getField(), error.getDefaultMessage());
         });
-
         return ResponseEntity.badRequest().body(errors);
     }
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleUserNotFound(
-            UserNotFoundException ex) {
+    public ResponseEntity<Map<String, String>> handleUserNotFound(UserNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message(ex));
     }
 
     @ExceptionHandler(EmailAlreadyInUseException.class)
-    public ResponseEntity<Map<String, String>> handleEmailAlreadyInUse(
-            EmailAlreadyInUseException ex) {
+    public ResponseEntity<Map<String, String>> handleEmailAlreadyInUse(EmailAlreadyInUseException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
     }
 
@@ -82,6 +79,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
     }
 
+    @ExceptionHandler(RequiredTermsNotAcceptedException.class)
+    public ResponseEntity<Map<String, String>> handleRequiredTermsNotAccepted(
+            RequiredTermsNotAcceptedException ex) {
+        return ResponseEntity.badRequest().body(message(ex));
+    }
+
     @ExceptionHandler(InvalidTwoFactorCodeException.class)
     public ResponseEntity<Map<String, String>> handleInvalidTwoFactorCode(
             InvalidTwoFactorCodeException ex) {
@@ -101,8 +104,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InstitutionNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleInstitutionNotFoundException(InstitutionNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(this.message(ex));
+    public ResponseEntity<Map<String, String>> handleInstitutionNotFoundException(
+            InstitutionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message(ex));
     }
 
     @ExceptionHandler(InstitutionPendingVerificationException.class)
@@ -113,7 +117,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateKeyException(DuplicateKeyException ex) {
-        return ResponseEntity.badRequest().body(this.message(ex));
+        return ResponseEntity.badRequest().body(message(ex));
     }
 
     // ---- Módulo CNPJ -----------------------------------------------------
@@ -129,11 +133,14 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(CnpjProviderIndisponivelException.class)
-    public ResponseEntity<Map<String, String>> handleCnpjProviderIndisponivel(CnpjProviderIndisponivelException ex) {
+    public ResponseEntity<Map<String, String>> handleCnpjProviderIndisponivel(
+            CnpjProviderIndisponivelException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(message(ex));
+    }
+
     @ExceptionHandler(AuthFailedException.class)
     public ResponseEntity<Map<String, String>> handleAuthFailedException(AuthFailedException ex) {
-        return ResponseEntity.badRequest().body(this.message(ex));
+        return ResponseEntity.badRequest().body(message(ex));
     }
 
     private Map<String, String> message(RuntimeException ex) {

@@ -32,6 +32,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
+import com.n0hana.echoes_server.infra.security.JwtFilter;
 
 @WebMvcTest(InstitutionController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -47,6 +48,9 @@ public class InstitutionControllerTests {
 
     @MockitoBean
     private InstitutionService service;
+
+    @MockitoBean
+    private JwtFilter jwtFilter;
 
     @Test
     @DisplayName("POST /api/v1/institutions com dados válidos (201 Created)")
