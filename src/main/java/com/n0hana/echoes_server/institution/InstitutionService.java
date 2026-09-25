@@ -206,6 +206,7 @@ public class InstitutionService {
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
+        model.setDeleteToken(UUID.randomUUID().toString());
 
         repository.save(model);
     }
