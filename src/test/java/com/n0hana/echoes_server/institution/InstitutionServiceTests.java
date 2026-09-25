@@ -328,4 +328,16 @@ public class InstitutionServiceTests {
 
         verify(model).setDeleted(eq(true));
     }
+
+
+    @Test
+    @DisplayName("delete em ID inexistente → InstitutionNotFoundException sem persistir")
+    void deleteOfMissingIdThrowsAndDoesNotPersist() {
+        UUID id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(InstitutionNotFoundException.class, () -> service.delete(id));
+
+        verify(repository, never()).save(any());
+    }
 }
