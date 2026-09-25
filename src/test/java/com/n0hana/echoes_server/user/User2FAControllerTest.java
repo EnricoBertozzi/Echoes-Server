@@ -30,7 +30,8 @@ import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
-
+import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.user.UserRepository;
 @WebMvcTest(User2FAController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
@@ -42,6 +43,10 @@ class User2FAControllerTest {
 
     @MockitoBean
     private UserService service;
+
+    @MockitoBean private JwtTokenService jwtTokenService;
+    @MockitoBean private UserRepository userRepository;
+
 
     private final UUID id = UUID.randomUUID();
 
