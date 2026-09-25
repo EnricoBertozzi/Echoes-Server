@@ -2,7 +2,7 @@ package com.n0hana.echoes_server.animal;
 
 import java.util.List;
 import java.util.UUID;
-
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -41,11 +41,13 @@ public class AnimalService {
   }
 
   @Transactional
+  @Auditable (action = "CREATE", entity ="Animal")    
   public AnimalModel save(AnimalModel animal) {
     return animalRepository.save(animal);
   }
 
   @Transactional
+  @Auditable (action = "UPDATE", entity = "Animal")
   public void updateAnimal(UUID id, AnimalModel animal) {
     AnimalModel savedAnimal = this.findAnimalById(id);
 
@@ -62,6 +64,7 @@ public class AnimalService {
   }
 
   @Transactional
+  @Auditable(action = "DELETE" , entity= "Animal")
   public void deleteAnimal(UUID id) {
     this.animalExists(id);
 
