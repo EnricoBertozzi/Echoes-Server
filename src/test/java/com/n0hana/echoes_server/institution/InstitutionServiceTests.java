@@ -35,10 +35,14 @@ import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 @ExtendWith(MockitoExtension.class)
 public class InstitutionServiceTests {
 
-    @Mock private InstitutionRepository repository;
-    @Mock private CnpjService cnpjService;
-    @Mock private InstitutionVerificationService verificationService;
-    @Mock private InstitutionNotifier notifier;
+    @Mock
+    private InstitutionRepository repository;
+    @Mock
+    private CnpjService cnpjService;
+    @Mock
+    private InstitutionVerificationService verificationService;
+    @Mock
+    private InstitutionNotifier notifier;
 
     @InjectMocks
     private InstitutionService service;
@@ -59,18 +63,18 @@ public class InstitutionServiceTests {
 
     private CnpjDTO cnpjDTO() {
         return new CnpjDTO(
-                "12345678000190",           // cnpj
-                "Instituição Teste LTDA",   // razaoSocial
-                "IT",                       //nome nomeFantasia
-                "ATIVA"                     // situacao cadastral
-                "Rua Teste",                // logradouro
-                "123",                      // numero
-                null,                       // complemento
-                "Centro",                   // bairro
-                "São Paulo",                // municipio
-                "SP",                       // uf
-                "01001000",                 // cep
-                null);                      // telefone
+                "12345678000190", // cnpj
+                "Instituição Teste LTDA", // razaoSocial
+                "IT", // nome nomeFantasia
+                "ATIVA", // situacao cadastral
+                "Rua Teste", // logradouro
+                "123", // numero
+                null, // complemento
+                "Centro", // bairro
+                "São Paulo", // municipio
+                "SP", // uf
+                "01001000", // cep
+                null); // telefone
     }
 
     @Test

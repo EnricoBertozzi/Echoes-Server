@@ -50,7 +50,7 @@ class InstitutionVerificationServiceTest {
             "19131243000197",
             "RAZAO SOCIAL OFICIAL",
             "FANTASIA",
-            "ATIVA"
+            "ATIVA",
             "Rua Y",
             "200",
             null,
