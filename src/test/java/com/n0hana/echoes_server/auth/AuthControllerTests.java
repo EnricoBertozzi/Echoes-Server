@@ -16,6 +16,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.n0hana.echoes_server.infra.security.JwtFilter;
+
 @WebMvcTest(AuthController.class)
 @ActiveProfiles("test")
 @WithMockUser
@@ -27,6 +29,9 @@ public class AuthControllerTests {
 
     @MockitoBean
     private AuthService service;
+
+    @MockitoBean
+    private JwtFilter jwtFilter;
 
     @Test
     @DisplayName("POST /api/v1/auth/login com dados validos para login (200 OK)")

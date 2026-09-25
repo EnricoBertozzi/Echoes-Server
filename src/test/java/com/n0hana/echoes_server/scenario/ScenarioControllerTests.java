@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.scenario;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
@@ -21,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
+import com.n0hana.echoes_server.infra.security.JwtFilter;
 
 @WebMvcTest(ScenarioController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -33,6 +33,9 @@ public class ScenarioControllerTests {
 
     @MockitoBean
     private ScenarioService service;
+
+    @MockitoBean
+    private JwtFilter jwtFilter;
 
     // TODO arrumar teste para arquivo multipart
     @Test
@@ -49,7 +52,7 @@ public class ScenarioControllerTests {
                 {
                     "name": "Cenário de Teste",
                     "description": "Descrição para o Cenário de Teste",
-                    "pointId": 91748f73-53c0-4c63-934a-28b09c996314
+                    "pointId": "91748f73-53c0-4c63-934a-28b09c996314"
                 }
                 """;
 
