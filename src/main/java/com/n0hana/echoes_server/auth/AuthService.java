@@ -3,7 +3,7 @@ package com.n0hana.echoes_server.auth;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
@@ -81,6 +81,7 @@ public class AuthService {
      * @param email Email do usuário
      * @param code  Código multifator
      */
+    @Auditable (action = "MFA", entity = "Auth")
     public String verifyMfaCode(String email, String code) {
         String savedCode = authRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthFailedException());
