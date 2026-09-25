@@ -35,10 +35,14 @@ import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 @ExtendWith(MockitoExtension.class)
 public class InstitutionServiceTests {
 
-    @Mock private InstitutionRepository repository;
-    @Mock private CnpjService cnpjService;
-    @Mock private InstitutionVerificationService verificationService;
-    @Mock private InstitutionNotifier notifier;
+    @Mock
+    private InstitutionRepository repository;
+    @Mock
+    private CnpjService cnpjService;
+    @Mock
+    private InstitutionVerificationService verificationService;
+    @Mock
+    private InstitutionNotifier notifier;
 
     @InjectMocks
     private InstitutionService service;
@@ -59,17 +63,18 @@ public class InstitutionServiceTests {
 
     private CnpjDTO cnpjDTO() {
         return new CnpjDTO(
-                "12345678000190",           // cnpj
-                "Instituição Teste LTDA",   // razaoSocial
-                "IT",                       // nomeFantasia
-                "Rua Teste",                // logradouro
-                "123",                      // numero
-                null,                       // complemento
-                "Centro",                   // bairro
-                "São Paulo",                // municipio
-                "SP",                       // uf
-                "01001000",                 // cep
-                null);                      // telefone
+                "12345678000190", // cnpj
+                "Instituição Teste LTDA", // razaoSocial
+                "IT", // nome nomeFantasia
+                "ATIVA", // situacao cadastral
+                "Rua Teste", // logradouro
+                "123", // numero
+                null, // complemento
+                "Centro", // bairro
+                "São Paulo", // municipio
+                "SP", // uf
+                "01001000", // cep
+                null); // telefone
     }
 
     @Test
@@ -322,5 +327,17 @@ public class InstitutionServiceTests {
         service.delete(uuid);
 
         verify(model).setDeleted(eq(true));
+    }
+
+
+    @Test
+    @DisplayName("delete em ID inexistente → InstitutionNotFoundException sem persistir")
+    void deleteOfMissingIdThrowsAndDoesNotPersist() {
+        UUID id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(InstitutionNotFoundException.class, () -> service.delete(id));
+
+        verify(repository, never()).save(any());
     }
 }

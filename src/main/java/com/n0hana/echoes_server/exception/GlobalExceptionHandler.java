@@ -12,10 +12,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjInvalidoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
-import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
@@ -116,7 +116,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(this.message(ex));
     }
 
-    // ---- Módulo CNPJ -----------------------------------------------------
 
     @ExceptionHandler(CnpjInvalidoException.class)
     public ResponseEntity<Map<String, String>> handleCnpjInvalido(CnpjInvalidoException ex) {
@@ -131,7 +130,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CnpjProviderIndisponivelException.class)
     public ResponseEntity<Map<String, String>> handleCnpjProviderIndisponivel(CnpjProviderIndisponivelException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(message(ex));
-    @ExceptionHandler(AuthFailedException.class)
+    }
+
+    @ExceptionHandler(AuthFailedException.class) // <-- falta um `}` antes desta linha
     public ResponseEntity<Map<String, String>> handleAuthFailedException(AuthFailedException ex) {
         return ResponseEntity.badRequest().body(this.message(ex));
     }

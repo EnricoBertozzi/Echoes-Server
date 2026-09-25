@@ -1,29 +1,28 @@
 package com.n0hana.echoes_server.institution;
 
-import com.n0hana.echoes_server.cnpj.CnpjValidator;
-import com.n0hana.echoes_server.cnpj.CnpjDTO;
-import com.n0hana.echoes_server.cnpj.CnpjService;
-import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
-import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
-import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.notifier.InstitutionNotificationData;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.domain.Sort;
 
-import java.util.List;
-import java.util.UUID;
+import com.n0hana.echoes_server.cnpj.CnpjDTO;
+import com.n0hana.echoes_server.cnpj.CnpjService;
+import com.n0hana.echoes_server.cnpj.CnpjValidator;
+import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
+import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
+import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
+import com.n0hana.echoes_server.notifier.InstitutionNotificationData;
+import com.n0hana.echoes_server.notifier.InstitutionNotifier;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service para a manipulação de instituições.
@@ -58,6 +57,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} cadastrado no banco de dados.
      */
     @Transactional
+    @Auditable(action = "CREATE", entity = "Institution")
     public InstitutionModel create(InstitutionModel model) {
         String cleanCnpj = CnpjValidator.normalizar(model.getCnpj());
         model.setCnpj(cleanCnpj);
@@ -75,19 +75,19 @@ public class InstitutionService {
         } catch (CnpjProviderIndisponivelException e) {
             // Brasil API caiu: permite cadastro com pendência, scheduler reverifica depois.
             log.warn("Brasil API indisponível ao cadastrar instituição CNPJ {}. Marcada como PENDING_VERIFICATION.",
-                cleanCnpj);
+                    cleanCnpj);
             model.setVerificationStatus(InstitutionVerificationStatus.PENDING_VERIFICATION);
             pendingNotification = true;
         }
-        // CnpjInvalidoException (400) e CnpjNaoEncontradoException (404) propagam — não persiste
-        
+        // CnpjInvalidoException (400) e CnpjNaoEncontradoException (404) propagam — não
+        // persiste
+
         InstitutionModel saved = repository.save(model);
 
         if (pendingNotification) {
             notifier.notifyPendingVerification(
-                InstitutionNotificationData.from(saved),
-                "Brasil API indisponível no momento do cadastro"
-            );
+                    InstitutionNotificationData.from(saved),
+                    "Brasil API indisponível no momento do cadastro");
         }
         return saved;
     }
@@ -102,14 +102,13 @@ public class InstitutionService {
 
     public int retryPendingVerifications() {
         List<UUID> ids = repository.findAllByVerificationStatus(
-            InstitutionVerificationStatus.PENDING_VERIFICATION)
-            .stream().map(InstitutionModel::getId).toList();
+                InstitutionVerificationStatus.PENDING_VERIFICATION)
+                .stream().map(InstitutionModel::getId).toList();
 
         int success = 0;
         for (UUID id : ids) {
             try {
-                if (verificationService.tryVerify(id) == 
-                    InstitutionVerificationService.VerificationOutcome.VERIFIED) {
+                if (verificationService.tryVerify(id) == InstitutionVerificationService.VerificationOutcome.VERIFIED) {
                     success++;
                 }
             } catch (Exception e) {
@@ -127,10 +126,10 @@ public class InstitutionService {
      * as instituições pelo seu nome.
      * </p>
      * 
-     * @param name Nome da instituição a ser filtrada.
-     * @param size Quantidade de elementos por paginação.
+     * @param name       Nome da instituição a ser filtrada.
+     * @param size       Quantidade de elementos por paginação.
      * @param pageNumber Número da página acessado na paginação.
-     * @param sort Parâmetro de ordenação.
+     * @param sort       Parâmetro de ordenação.
      * @return {@link Page} Contêm as instituições que atendem aos parâmetros.
      */
     @Transactional(readOnly = true)
@@ -138,12 +137,11 @@ public class InstitutionService {
         Sort sortSpec = this.parseSort(sort);
         Pageable pageable = PageRequest.of(pageNumber, size, sortSpec);
 
-    if (name != null && !name.isBlank()) {
-        return repository.findByNameContainingIgnoreCase(name, pageable);
+        if (name != null && !name.isBlank()) {
+            return repository.findByNameContainingIgnoreCase(name, pageable);
+        }
+        return repository.findAll(pageable);
     }
-    return repository.findAll(pageable);
-    }
-
 
     /**
      * Busca uma instituição por id.
@@ -164,6 +162,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
+    @Auditable(action = "UPDATE", entity = "Institution")
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 
@@ -188,6 +187,7 @@ public class InstitutionService {
      * @param id Id da instituição a ser alterada.
      */
     @Transactional
+    @Auditable(action = "TOGGLE_STATUS", entity = "Institution")
     public void toggleStatus(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setActive(!model.isActive());
@@ -200,10 +200,13 @@ public class InstitutionService {
      * 
      * @param id Id da instituição a ser desativada.
      */
+
     @Transactional
+    @Auditable(action = "DELETE", entity = "Institution")
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
+        model.setDeleteToken(UUID.randomUUID().toString());
 
         repository.save(model);
     }

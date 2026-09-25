@@ -5,7 +5,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.user.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,11 +29,14 @@ class CnpjControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private CnpjService service;
+    
+    @MockitoBean private JwtTokenService jwtTokenService;
+    @MockitoBean private UserRepository userRepository;
 
     @Test
     @DisplayName("GET /api/v1/cnpj/{cnpj} válido → 200 + DTO em camelCase")
     void consultaValidaRetorna200() throws Exception {
-        CnpjDTO dto = new CnpjDTO(CNPJ, "Empresa X", "Fantasia",
+        CnpjDTO dto = new CnpjDTO(CNPJ, "Empresa X", "Fantasia", "ATIVA",
             "Rua X", "100", null, "Centro", "São Paulo", "SP", "01001000" ,
             null);
 
