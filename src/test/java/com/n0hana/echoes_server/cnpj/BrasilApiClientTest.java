@@ -96,4 +96,25 @@ class BrasilApiClientTest {
         assertTrue(result.razaoSocial().equals("X"));
         assertTrue(result.nomeFantasia().equals("Y"));
     }
+
+
+    @Test
+    @DisplayName("429 (rate limit) lança CnpjProviderIndisponivelException")
+    void lancaIndisponivelNo429() {
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        assertThrows(CnpjProviderIndisponivelException.class, () -> client.consultar(CNPJ));
+}
+
+    @Test
+    @DisplayName("200 mapeia descricao_situacao_cadastral para situacaoCadastral")
+    void mapeiaSituacaoCadastral() {
+        server.expect(requestTo(URL))
+        .andRespond(withSuccess(
+            "{\"cnpj\":\"" + CNPJ + "\",\"razao_social\":\"X\","
+            + "\"descricao_situacao_cadastral\":\"BAIXADA\"}",
+            MediaType.APPLICATION_JSON));
+
+    CnpjDTO result = client.consultar(CNPJ);
+    assertEquals("BAIXADA", result.situacaoCadastral());
+}
 }

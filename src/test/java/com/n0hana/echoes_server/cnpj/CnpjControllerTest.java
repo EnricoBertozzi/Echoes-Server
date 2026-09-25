@@ -32,7 +32,7 @@ class CnpjControllerTest {
     @Test
     @DisplayName("GET /api/v1/cnpj/{cnpj} válido → 200 + DTO em camelCase")
     void consultaValidaRetorna200() throws Exception {
-        CnpjDTO dto = new CnpjDTO(CNPJ, "Empresa X", "Fantasia",
+        CnpjDTO dto = new CnpjDTO(CNPJ, "Empresa X", "Fantasia", "ATIVA",
             "Rua X", "100", null, "Centro", "São Paulo", "SP", "01001000" ,
             null);
 

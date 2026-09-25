@@ -61,7 +61,8 @@ public class InstitutionServiceTests {
         return new CnpjDTO(
                 "12345678000190",           // cnpj
                 "Instituição Teste LTDA",   // razaoSocial
-                "IT",                       // nomeFantasia
+                "IT",                       //nome nomeFantasia
+                "ATIVA"                     // situacao cadastral
                 "Rua Teste",                // logradouro
                 "123",                      // numero
                 null,                       // complemento

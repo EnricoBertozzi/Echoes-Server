@@ -50,6 +50,7 @@ class InstitutionVerificationServiceTest {
             "19131243000197",
             "RAZAO SOCIAL OFICIAL",
             "FANTASIA",
+            "ATIVA"
             "Rua Y",
             "200",
             null,
@@ -160,5 +161,26 @@ class InstitutionVerificationServiceTest {
 
         assertEquals(VerificationOutcome.SKIPPED, outcome);
         verifyNoInteractions(cnpjService);
+    }
+
+
+    @Test
+    @DisplayName("Situação cadastral BAIXADA → continua VERIFIED mas emite WARN")
+    void situacaoBaixadaAindaMarcaVerified() {
+        UUID id = UUID.randomUUID();
+        InstitutionModel inst = pendingInstitution(id);
+
+        CnpjDTO baixada = new CnpjDTO(
+            "19131243000197", "RAZAO OFICIAL", "FANTASIA", "BAIXADA",
+            "Rua Y", "200", null, "Centro", "São Paulo", "SP", "01001000", null);
+
+        when(repository.findById(id)).thenReturn(Optional.of(inst));
+        when(cnpjService.consultar(inst.getCnpj())).thenReturn(baixada);
+        when(repository.save(any(InstitutionModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        VerificationOutcome outcome = service.tryVerify(id);
+
+        assertEquals(VerificationOutcome.VERIFIED, outcome);
+        assertEquals(InstitutionVerificationStatus.VERIFIED, inst.getVerificationStatus());
     }
 }

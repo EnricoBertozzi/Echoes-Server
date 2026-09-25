@@ -21,7 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Sort;
-
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,6 +58,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} cadastrado no banco de dados.
      */
     @Transactional
+    @Auditable(action = "CREATE", entity = "Institution")
     public InstitutionModel create(InstitutionModel model) {
         String cleanCnpj = CnpjValidator.normalizar(model.getCnpj());
         model.setCnpj(cleanCnpj);
@@ -164,6 +165,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
+    @Auditable(action = "UPDATE", entity ="Institution ")
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 
@@ -188,6 +190,7 @@ public class InstitutionService {
      * @param id Id da instituição a ser alterada.
      */
     @Transactional
+    @Auditable(action = "TOGGLE_STATUS", entity = "Institution" )
     public void toggleStatus(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setActive(!model.isActive());
@@ -200,7 +203,10 @@ public class InstitutionService {
      * 
      * @param id Id da instituição a ser desativada.
      */
+
+    
     @Transactional
+    @Auditable(action = "DELETE", entity = "Institution" )
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
