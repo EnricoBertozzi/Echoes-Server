@@ -30,7 +30,8 @@ import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
-
+import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.user.UserRepository;
 @WebMvcTest(User2FAController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
@@ -43,7 +44,15 @@ class User2FAControllerTest {
     @MockitoBean
     private UserService service;
 
+    @MockitoBean private JwtTokenService jwtTokenService;
+    @MockitoBean private UserRepository userRepository;
+
+
     private final UUID id = UUID.randomUUID();
+
+    /** Payload com os três termos obrigatórios — evita falha de validação antes do UserService. */
+    private static final String ACCEPTED_TERMS =
+            "\"acceptedTerms\":[\"TERMS_OF_USE\",\"PRIVACY_POLICY\",\"COOKIES_POLICY\"]";
 
     @Test
     @DisplayName("POST /users/2fa com dados válidos → 201 + UserDTO sem senha")
@@ -53,7 +62,8 @@ class User2FAControllerTest {
 
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\",\"code\":\"123456\"}"))
+                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\","
+                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(id.toString()))
                 .andExpect(jsonPath("$.name").value("Joao"))
@@ -70,7 +80,8 @@ class User2FAControllerTest {
 
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\",\"code\":\"999999\"}"))
+                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\","
+                                + "\"code\":\"999999\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Código inválido"));
     }
@@ -83,7 +94,8 @@ class User2FAControllerTest {
 
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\",\"code\":\"123456\"}"))
+                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\","
+                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Código expirado"));
     }
@@ -96,7 +108,8 @@ class User2FAControllerTest {
 
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\",\"code\":\"123456\"}"))
+                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\","
+                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Cadastro já finalizado"));
     }
@@ -109,7 +122,8 @@ class User2FAControllerTest {
 
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"desconhecido@example.com\",\"password\":\"SenhaForte123!\",\"code\":\"123456\"}"))
+                        .content("{\"email\":\"desconhecido@example.com\",\"password\":\"SenhaForte123!\","
+                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Usuário não encontrado"));
     }
@@ -119,7 +133,8 @@ class User2FAControllerTest {
     void blankPasswordReturns400Validation() throws Exception {
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"\",\"code\":\"123456\"}"))
+                        .content("{\"email\":\"joao@example.com\",\"password\":\"\","
+                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.password").value("A senha é obrigatória"));
     }
@@ -129,7 +144,8 @@ class User2FAControllerTest {
     void weakPasswordReturns400WithMessage() throws Exception {
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"senha12345\",\"code\":\"123456\"}"))
+                        .content("{\"email\":\"joao@example.com\",\"password\":\"senha12345\","
+                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.password").value("Senha fraca"));
     }
@@ -145,7 +161,8 @@ class User2FAControllerTest {
 
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\",\"code\":\"123456\"}"))
+                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\","
+                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("E-mail já cadastrado"));
     }

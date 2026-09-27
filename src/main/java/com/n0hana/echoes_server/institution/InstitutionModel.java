@@ -1,22 +1,38 @@
 package com.n0hana.echoes_server.institution;
 
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.SQLRestriction;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** 
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+/**
  * Entidade representante das instituições do sistema.
  * 
- * @since 0.1.0
+ * @since 0.1.5
  * @author Miguel Santana da Costa
  */
 @Entity
-@Table(name = "institutions")
+@Table(name = "institutions", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "cnpj", "delete_token" }),
+        @UniqueConstraint(columnNames = { "email", "delete_token" })
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -38,13 +54,13 @@ public class InstitutionModel {
     @Column(nullable = false, length = 20)
     private String acronym;
 
-    @Column(unique = true, nullable = false, length = 14)
+    @Column(nullable = false, length = 14)
     private String cnpj;
 
     @Column(name = "nome_fantasia", length = 200)
     private String nomeFantasia;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String email;
 
     @Column(length = 20)
@@ -72,6 +88,10 @@ public class InstitutionModel {
     @Builder.Default
     @Column(nullable = false)
     private boolean deleted = false;
+
+    @Builder.Default
+    @Column(name = "delete_token", nullable = false)
+    private String deleteToken = "ACTIVE";
 
     @CreationTimestamp
     @Column(updatable = false, name = "created_at")
