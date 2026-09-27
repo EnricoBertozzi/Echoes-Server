@@ -6,6 +6,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.infra.security.SecurityConfig;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -20,12 +23,14 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/cnpj")
 @RequiredArgsConstructor
+@SecurityRequirement(name = SecurityConfig.SECURITY)
 public class CnpjController {
 
     private final CnpjService cnpjService;
 
     @GetMapping("/{cnpj}")
     public ResponseEntity<CnpjDTO> consultar(@PathVariable("cnpj") String cnpj) {
+        System.out.println("verificação");
         return ResponseEntity.ok(cnpjService.consultar(cnpj));
     }
 }
