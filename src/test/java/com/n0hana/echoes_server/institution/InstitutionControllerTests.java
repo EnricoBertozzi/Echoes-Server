@@ -53,9 +53,6 @@ public class InstitutionControllerTests {
     @MockitoBean private JwtTokenService jwtTokenService;
     @MockitoBean private UserRepository userRepository;
 
-    @MockitoBean
-    private JwtFilter jwtFilter;
-
     @Test
     @DisplayName("POST /api/v1/institutions com dados válidos (201 Created)")
     void shouldCreateInstitution() throws Exception {

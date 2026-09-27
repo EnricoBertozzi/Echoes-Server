@@ -40,6 +40,7 @@ import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.user.UserRepository;
+
 @WebMvcTest(ManagerController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(SpringDataWebConfiguration.class)
@@ -56,9 +57,6 @@ class ManagerControllerTest {
     @MockitoBean private JwtTokenService jwtTokenService;
     @MockitoBean private UserRepository userRepository;
 
-
-    @MockitoBean
-    private JwtFilter jwtFilter;
 
     private final UUID id = UUID.randomUUID();
     private final UUID institutionId = UUID.randomUUID();
