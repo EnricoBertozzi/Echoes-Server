@@ -82,6 +82,7 @@ public class InstitutionService {
         // CnpjInvalidoException (400) e CnpjNaoEncontradoException (404) propagam — não
         // persiste
 
+        model.setId(null);
         InstitutionModel saved = repository.save(model);
 
         if (pendingNotification) {
