@@ -7,9 +7,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
-import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
+import com.n0hana.echoes_server.notifier.EmailPasswordNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
@@ -39,7 +38,7 @@ public class PasswordService {
     private TwoFactorService twoFactorService;
 
     @Autowired
-    private TwoFactorNotifier notifier;
+    private EmailPasswordNotifier notifier;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -56,7 +55,7 @@ public class PasswordService {
         String code = twoFactorService.generateCode();
 
         codeRepository.save(email, code);
-        notifier.send(new TwoFactorDTO(email, code, null));
+        notifier.send(email, code);
     }
 
     /**
