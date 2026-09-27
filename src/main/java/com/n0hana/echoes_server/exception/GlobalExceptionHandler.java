@@ -136,7 +136,6 @@ public class GlobalExceptionHandler {
             CnpjProviderIndisponivelException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(message(ex));
     }
-
     @ExceptionHandler(AuthFailedException.class)
     public ResponseEntity<Map<String, String>> handleAuthFailedException(AuthFailedException ex) {
         return ResponseEntity.badRequest().body(message(ex));

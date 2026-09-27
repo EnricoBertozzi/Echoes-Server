@@ -8,6 +8,7 @@ import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
+import com.n0hana.echoes_server.notifier.EmailLoginNotifier;
 import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.User;
@@ -22,7 +23,7 @@ import com.n0hana.echoes_server.user.model.User;
 public class AuthService {
 
     @Autowired
-    private TwoFactorNotifier notifier;
+    private EmailLoginNotifier notifier;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -72,7 +73,7 @@ public class AuthService {
         String code = twoFactorService.generateCode();
         authRepository.save(email, code);
 
-        notifier.send(new TwoFactorDTO(email, code, null));
+        notifier.send(code, email);
     }
 
     /**
