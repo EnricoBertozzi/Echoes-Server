@@ -57,6 +57,9 @@ class TeacherControllerTest {
     @MockitoBean private UserRepository userRepository;
 
 
+    @MockitoBean
+    private JwtFilter jwtFilter;
+
     private final UUID id = UUID.randomUUID();
     private final UUID institutionId = UUID.randomUUID();
 

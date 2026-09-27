@@ -56,6 +56,9 @@ class AdminControllerTest {
     @MockitoBean private JwtTokenService jwtTokenService;
     @MockitoBean private UserRepository userRepository;
 
+    @MockitoBean
+    private JwtFilter jwtFilter;
+
     private final UUID id = UUID.randomUUID();
 
     @Test

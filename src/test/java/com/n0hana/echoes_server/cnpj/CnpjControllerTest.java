@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.n0hana.echoes_server.cnpj.exception.CnpjInvalidoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
+import com.n0hana.echoes_server.infra.security.JwtFilter;
 
 @WebMvcTest(CnpjController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -43,10 +44,10 @@ class CnpjControllerTest {
         when(service.consultar(eq(CNPJ))).thenReturn(dto);
 
         mockMvc.perform(get("/api/v1/cnpj/{cnpj}", CNPJ))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.razaoSocial").value("Empresa X"))
-            .andExpect(jsonPath("$.nomeFantasia").value("Fantasia"))
-            .andExpect(jsonPath("$.razao_social").doesNotExist());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.razaoSocial").value("Empresa X"))
+                .andExpect(jsonPath("$.nomeFantasia").value("Fantasia"))
+                .andExpect(jsonPath("$.razao_social").doesNotExist());
     }
 
     @Test
@@ -55,8 +56,8 @@ class CnpjControllerTest {
         when(service.consultar(eq(CNPJ))).thenThrow(new CnpjInvalidoException("CNPJ inválido"));
 
         mockMvc.perform(get("/api/v1/cnpj/{cnpj}", CNPJ))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("CNPJ inválido"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("CNPJ inválido"));
     }
 
     @Test
@@ -65,18 +66,18 @@ class CnpjControllerTest {
         when(service.consultar(eq(CNPJ))).thenThrow(new CnpjNaoEncontradoException("CNPJ não encontrado"));
 
         mockMvc.perform(get("/api/v1/cnpj/{cnpj}", CNPJ))
-            .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.message").value("CNPJ não encontrado"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("CNPJ não encontrado"));
     }
 
     @Test
     @DisplayName("Provedores indisponíveis → 503 + message")
     void todosProvedoresCaidosRetorna503() throws Exception {
         when(service.consultar(eq(CNPJ)))
-            .thenThrow(new CnpjProviderIndisponivelException("Serviço indisponível"));
+                .thenThrow(new CnpjProviderIndisponivelException("Serviço indisponível"));
 
         mockMvc.perform(get("/api/v1/cnpj/{cnpj}", CNPJ))
-            .andExpect(status().isServiceUnavailable())
-            .andExpect(jsonPath("$.message").value("Serviço indisponível"));
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value("Serviço indisponível"));
     }
 }

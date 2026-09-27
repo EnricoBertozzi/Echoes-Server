@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -34,6 +35,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
+import com.n0hana.echoes_server.term.TermService;
+import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
@@ -46,6 +49,7 @@ import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
 import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
+import com.n0hana.echoes_server.user.exception.RequiredTermsNotAcceptedException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Manager;
@@ -59,6 +63,11 @@ class UserServiceTests {
     private static final String RAW_PASSWORD = "SenhaForte123!";
     private static final String ENCODED_PASSWORD = "$2a$10$fixedhash";
     private static final String GENERATED_CODE = "123456";
+
+    private static final List<DocumentType> ALL_REQUIRED_TERMS = List.of(
+            DocumentType.TERMS_OF_USE,
+            DocumentType.PRIVACY_POLICY,
+            DocumentType.COOKIES_POLICY);
 
     @Mock
     private UserRepository userRepository;
@@ -74,6 +83,9 @@ class UserServiceTests {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private TermService termService;
 
     @InjectMocks
     private UserService userService;
@@ -203,7 +215,7 @@ class UserServiceTests {
         when(userRepository.save(any(Student.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UserDTO dto = userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS));
 
         ArgumentCaptor<Student> userCaptor = ArgumentCaptor.forClass(Student.class);
         verify(userRepository).save(userCaptor.capture());
@@ -231,7 +243,7 @@ class UserServiceTests {
         when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UserDTO dto = userService.completeRegistration(
-                new CompleteRegistrationDTO("  JOAO@Example.COM ", RAW_PASSWORD, GENERATED_CODE));
+                new CompleteRegistrationDTO("  JOAO@Example.COM ", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS));
 
         verify(pendingRegistrationRepository).findByEmail("joao@example.com");
         verify(pendingRegistrationRepository).deleteByEmail("joao@example.com");
@@ -245,7 +257,7 @@ class UserServiceTests {
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
 
         assertThrows(UserNotFoundException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS)));
     }
 
     @Test
@@ -255,7 +267,7 @@ class UserServiceTests {
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(true);
 
         assertThrows(RegistrationAlreadyCompletedException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS)));
     }
 
     @Test
@@ -265,7 +277,7 @@ class UserServiceTests {
                 .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", null, 1)));
 
         assertThrows(InvalidTwoFactorCodeException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, "999999")));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, "999999", ALL_REQUIRED_TERMS)));
 
         ArgumentCaptor<PendingRegistration> captor = ArgumentCaptor.forClass(PendingRegistration.class);
         verify(pendingRegistrationRepository).savePreservingTtl(captor.capture());
@@ -281,7 +293,7 @@ class UserServiceTests {
                         UserService.MAX_VERIFICATION_ATTEMPTS - 1)));
 
         assertThrows(InvalidTwoFactorCodeException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, "999999")));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, "999999", ALL_REQUIRED_TERMS)));
 
         verify(pendingRegistrationRepository).deleteByEmail("joao@example.com");
         verify(pendingRegistrationRepository, never()).savePreservingTtl(any());
@@ -295,7 +307,7 @@ class UserServiceTests {
         when(pendingRegistrationRepository.findByEmail("joao@example.com")).thenReturn(Optional.of(expired));
 
         assertThrows(ExpiredTwoFactorCodeException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS)));
     }
 
     @Test
@@ -306,7 +318,7 @@ class UserServiceTests {
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(true);
 
         assertThrows(EmailAlreadyInUseException.class, () -> userService.completeRegistration(
-                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE)));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS)));
 
         verify(userRepository, never()).save(any());
         verify(pendingRegistrationRepository, never()).deleteByEmail(anyString());
@@ -510,4 +522,37 @@ class UserServiceTests {
         student.setInstitutionId(institutionId);
         return student;
     }
+
+    @Test
+    @DisplayName("Cadastro sem termos obrigatórios lança RequiredTermsNotAcceptedException e não cria User")
+    void missingRequiredTermsRejectsRegistration() {
+        doThrow(new RequiredTermsNotAcceptedException(
+                List.of(DocumentType.TERMS_OF_USE, DocumentType.PRIVACY_POLICY, DocumentType.COOKIES_POLICY)))
+                .when(termService).validateRequiredAccepted(any());
+
+        var dto = new CompleteRegistrationDTO(
+                "joao@example.com", RAW_PASSWORD, GENERATED_CODE,
+                List.of(DocumentType.MARKETING_CONSENT));
+
+        assertThrows(RequiredTermsNotAcceptedException.class,
+                () -> userService.completeRegistration(dto));
+
+        verify(userRepository, never()).save(any());
+        verify(pendingRegistrationRepository, never()).deleteByEmail(anyString());
+    }
+
+    @Test
+    @DisplayName("Lista nula de termos é rejeitada como lista vazia")
+    void nullAcceptedTermsRejectsRegistration() {
+        doThrow(new RequiredTermsNotAcceptedException(
+                List.of(DocumentType.TERMS_OF_USE, DocumentType.PRIVACY_POLICY, DocumentType.COOKIES_POLICY)))
+                .when(termService).validateRequiredAccepted(any());
+
+        var dto = new CompleteRegistrationDTO(
+                "joao@example.com", RAW_PASSWORD, GENERATED_CODE, null);
+
+        assertThrows(RequiredTermsNotAcceptedException.class,
+                () -> userService.completeRegistration(dto));
+    }
+
 }
