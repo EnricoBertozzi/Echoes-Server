@@ -3,8 +3,6 @@ package com.n0hana.echoes_server.term.model;
 public enum DocumentType {
     TERMS_OF_USE("TERMS_OF_USE"),
     PRIVACY_POLICY("PRIVACY_POLICY"),
-    DATA_DELETION_POLICY("DATA_DELETION_POLICY"),
-    MARKETING_CONSENT("MARKETING_CONSENT"),
     COOKIES_POLICY("COOKIES_POLICY");
 
     private String name;
