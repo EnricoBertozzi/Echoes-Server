@@ -532,7 +532,7 @@ class UserServiceTests {
 
         var dto = new CompleteRegistrationDTO(
                 "joao@example.com", RAW_PASSWORD, GENERATED_CODE,
-                List.of(DocumentType.MARKETING_CONSENT));
+                List.of());
 
         assertThrows(RequiredTermsNotAcceptedException.class,
                 () -> userService.completeRegistration(dto));
