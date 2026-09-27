@@ -38,8 +38,8 @@ import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
-import com.n0hana.echoes_server.infra.security.JwtFilter;
-
+import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.user.UserRepository;
 @WebMvcTest(StudentController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(SpringDataWebConfiguration.class)
@@ -53,8 +53,9 @@ class StudentControllerTest {
     @MockitoBean
     private UserService service;
 
-    @MockitoBean
-    private JwtFilter jwtFilter;
+    @MockitoBean private JwtTokenService jwtTokenService;
+    @MockitoBean private UserRepository userRepository;
+
 
     private final UUID id = UUID.randomUUID();
     private final UUID institutionId = UUID.randomUUID();

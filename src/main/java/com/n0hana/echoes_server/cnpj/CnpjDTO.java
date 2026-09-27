@@ -11,15 +11,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CnpjDTO(
-    String cnpj,
-    @JsonAlias("razao_social") String razaoSocial,
-    @JsonAlias("nome_fantasia") String nomeFantasia,
-    String logradouro,
-    String numero,
-    String complemento,
-    String bairro,
-    String municipio,
-    String uf,
-    String cep,
-    @JsonAlias("ddd_telefone_1") String telefone
-) {}
+        String cnpj,
+        @JsonAlias("razao_social") String razaoSocial,
+        @JsonAlias("nome_fantasia") String nomeFantasia,
+        @JsonAlias("descricao_situacao_cadastral") String situacaoCadastral,
+        String logradouro,
+        String numero,
+        String complemento,
+        String bairro,
+        String municipio,
+        String uf,
+        String cep,
+        @JsonAlias("ddd_telefone_1") String telefone) {
+}

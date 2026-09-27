@@ -120,7 +120,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(message(ex));
     }
 
-    // ---- Módulo CNPJ -----------------------------------------------------
 
     @ExceptionHandler(CnpjInvalidoException.class)
     public ResponseEntity<Map<String, String>> handleCnpjInvalido(CnpjInvalidoException ex) {

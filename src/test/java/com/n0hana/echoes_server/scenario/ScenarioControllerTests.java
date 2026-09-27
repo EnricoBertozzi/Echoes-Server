@@ -20,7 +20,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
-import com.n0hana.echoes_server.infra.security.JwtFilter;
+import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.user.UserRepository;
 
 @WebMvcTest(ScenarioController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -35,7 +36,9 @@ public class ScenarioControllerTests {
     private ScenarioService service;
 
     @MockitoBean
-    private JwtFilter jwtFilter;
+    private JwtTokenService jwtTokenService;
+    @MockitoBean
+    private UserRepository userRepository;
 
     // TODO arrumar teste para arquivo multipart
     @Test

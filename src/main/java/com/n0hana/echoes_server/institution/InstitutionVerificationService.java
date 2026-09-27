@@ -74,7 +74,6 @@ public class InstitutionVerificationService {
         }
     }
         
-
     public void applyDadosReceita(InstitutionModel inst, CnpjDTO dados) {
     if (inst.getName() != null && !inst.getName().equals(dados.razaoSocial())) {
         log.info("Razão social da instituição {} alterada: '{}' -> '{}'",
@@ -89,7 +88,18 @@ public class InstitutionVerificationService {
     if (dados.telefone() != null && !dados.telefone().isBlank()) {
         inst.setPhone(dados.telefone());
     }
-}
+
+    // Divergência cadastral: o CNPJ existe na Receita mas não está "ATIVA".
+    // Continuamos marcando como VERIFIED (o número é válido), porém o WARN
+    // permite que operações identifiquem CNPJs Baixados/Inaptos/Suspensos
+    // que precisam de verificação manual antes de liberar compras.
+    if (dados.situacaoCadastral() != null
+            && !dados.situacaoCadastral().isBlank()
+            && !dados.situacaoCadastral().equalsIgnoreCase("ATIVA")) {
+        log.warn("CNPJ {} da instituição {} está com situação cadastral '{}' na Receita Federal (esperado: ATIVA)",
+                dados.cnpj(), inst.getId(), dados.situacaoCadastral());
+        }
+    }
 
 
     private String formatEndereco(CnpjDTO d) {

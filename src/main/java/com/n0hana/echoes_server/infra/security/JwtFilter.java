@@ -43,14 +43,13 @@ public class JwtFilter extends OncePerRequestFilter {
             UUID userId = UUID.fromString(jwtTokenService.validate(token));
 
             // TODO alterar exceção lançada
-            User user = userRepository.findById(userId).orElseThrow(() -> new AuthFailedException());
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    user,
-                    null,
-                    user.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
         filterChain.doFilter(request, response);
-    }    
+    }
 
 }
