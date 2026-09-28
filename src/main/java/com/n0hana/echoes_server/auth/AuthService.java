@@ -56,6 +56,7 @@ public class AuthService {
      * 
      * @throws {@link AuthFailedException}
      */
+    @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
     public void login(String email, String password) {
         // Verificação se o usuário existe
         User user = userRepository.findByEmail(email)
@@ -82,7 +83,8 @@ public class AuthService {
      * @param email Email do usuário
      * @param code  Código multifator
      */
-    @Auditable(action = "MFA", entity = "Auth")
+
+    @Auditable(action = "LOGIN_SUCESS)", entity = "User")
     public String verifyMfaCode(String email, String code) {
         String savedCode = authRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthFailedException());
@@ -101,7 +103,7 @@ public class AuthService {
      * 
      * @param header Cabeçalho contendo o token de autenticação
      */
-    @Auditable(action = "LOGOUT", entity = "Auth")
+    @Auditable(action = "LOGOUT", entity = "User")
     public void logout(String header) {
         if (header == null || !header.startsWith("Bearer "))
             // TODO Alterar exceção

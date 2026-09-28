@@ -2,7 +2,7 @@ package com.n0hana.echoes_server.user;
 
 import java.time.Instant;
 import java.util.UUID;
-
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,19 +45,24 @@ public class UserService {
     private final PendingRegistrationRepository pendingRegistrationRepository;
     private final TwoFactorNotifier notifier;
     private final PasswordEncoder passwordEncoder;
+    
 
+    @Auditable (action = "CREATE", entity = "Admin")
     public PendingRegistrationDTO createAdmin(CreateUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.ADMIN, null);
     }
-
+    
+    @Auditable (action = "CREATE", entity = "Manager")
     public PendingRegistrationDTO createManager(CreateInstitutionUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.MANAGER, dto.institutionId());
     }
-
+    
+    @Auditable (action = "CREATE", entity = "Teacher")
     public PendingRegistrationDTO createTeacher(CreateInstitutionUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.TEACHER, dto.institutionId());
     }
-
+    
+    @Auditable(action = "CREATE", entity = "Student"  )
     public PendingRegistrationDTO createStudent(CreateInstitutionUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.STUDENT, dto.institutionId());
     }
@@ -95,13 +100,16 @@ public class UserService {
     }
 
     @Transactional
+    @Auditable(action = "UPDATE", entity = "Admin")
     public UserDTO updateAdmin(UUID id, UpdateUserDTO dto) {
         Admin admin = findTyped(id, Admin.class);
         applyCommonUpdate(admin, dto.name(), dto.email());
         return toDTO(userRepository.save(admin));
     }
-
+    
+    
     @Transactional
+    @Auditable(action = "UPDATE", entity = "Manager")
     public UserDTO updateManager(UUID id, UpdateInstitutionUserDTO dto) {
         Manager manager = findTyped(id, Manager.class);
         applyCommonUpdate(manager, dto.name(), dto.email());
@@ -111,7 +119,9 @@ public class UserService {
         return toDTO(userRepository.save(manager));
     }
 
+    
     @Transactional
+    @Auditable(action = "UPDATE", entity = "Teacher")
     public UserDTO updateTeacher(UUID id, UpdateInstitutionUserDTO dto) {
         Teacher teacher = findTyped(id, Teacher.class);
         applyCommonUpdate(teacher, dto.name(), dto.email());
@@ -122,6 +132,7 @@ public class UserService {
     }
 
     @Transactional
+    @Auditable(action = "UPDATE", entity = "Student")
     public UserDTO updateStudent(UUID id, UpdateInstitutionUserDTO dto) {
         Student student = findTyped(id, Student.class);
         applyCommonUpdate(student, dto.name(), dto.email());
@@ -130,28 +141,37 @@ public class UserService {
         }
         return toDTO(userRepository.save(student));
     }
+    
 
     @Transactional
+    @Auditable(action = "DELETE", entity = "Admin")
     public void deleteAdmin(UUID id) {
         softDelete(findTyped(id, Admin.class));
     }
 
+    
     @Transactional
+    @Auditable(action = "DELETE", entity = "Manager")
     public void deleteManager(UUID id) {
         softDelete(findTyped(id, Manager.class));
     }
-
+    
+    
     @Transactional
+    @Auditable(action = "DELETE", entity = "Teacher")
     public void deleteTeacher(UUID id) {
         softDelete(findTyped(id, Teacher.class));
     }
-
+    
+    
     @Transactional
+    @Auditable(action = "DELETE", entity = "Student")
     public void deleteStudent(UUID id) {
         softDelete(findTyped(id, Student.class));
     }
 
     @Transactional
+    @Auditable( action = COMPLETE_REGISTRATION, entity = "User")
     public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
         String email = normalizeEmail(dto.email());
 
