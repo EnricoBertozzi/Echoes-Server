@@ -1,7 +1,7 @@
 package com.n0hana.echoes_server.mfa;
 
 import org.springframework.stereotype.Service;
-
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import java.security.SecureRandom;
 
 @Service
@@ -16,6 +16,7 @@ public class TwoFactorService {
      * método é chamado para fornecidmento
      * do código único de validação
     */
+    @Auditable(action = "GENERATED", entity = "MFA")
     public String generateCode() {
         int code = 100000 + random.nextInt(900000);
         return String.valueOf(code);
