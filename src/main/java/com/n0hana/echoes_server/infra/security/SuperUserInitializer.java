@@ -1,7 +1,5 @@
 package com.n0hana.echoes_server.infra.security;
 
-import java.time.LocalDateTime;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
@@ -10,11 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.n0hana.echoes_server.user.UserRepository;
-import com.n0hana.echoes_server.user.UserService;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.User;
-
-import jakarta.persistence.Column;
 
 /**
  * Classe de configuração para inicialização do super usuário

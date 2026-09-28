@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
+import com.n0hana.echoes_server.term.TermService;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
@@ -46,6 +47,7 @@ public class UserService {
     private final TwoFactorNotifier notifier;
     private final PasswordEncoder passwordEncoder;
     
+    private final TermService termService;
 
     @Auditable (action = "CREATE", entity = "Admin")
     public PendingRegistrationDTO createAdmin(CreateUserDTO dto) {
@@ -175,6 +177,8 @@ public class UserService {
     public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
         String email = normalizeEmail(dto.email());
 
+        termService.validateRequiredAccepted(dto.acceptedTerms());
+
         PendingRegistration pending = pendingRegistrationRepository.findByEmail(email)
                 .orElseThrow(() -> noPendingRegistrationFor(email));
 
@@ -192,8 +196,8 @@ public class UserService {
         User user = newUserFrom(pending, passwordEncoder.encode(dto.password()));
         User saved = userRepository.save(user);
 
-        // Se o commit falhar após o delete, um novo POST reconvita (reenvio)
-        // e o TTL do Redis limpa resíduos sozinho: o fluxo se auto-cura.
+        termService.registerInitialAcceptances(saved, dto.acceptedTerms());
+
         pendingRegistrationRepository.deleteByEmail(email);
 
         return toDTO(saved);
@@ -318,8 +322,7 @@ public class UserService {
                 user.getName(),
                 user.getEmail(),
                 institutionIdOf(user),
-                user.getUserRole()
-        );
+                user.getUserRole());
     }
 
     private UUID institutionIdOf(User user) {

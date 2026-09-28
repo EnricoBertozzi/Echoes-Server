@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -53,6 +54,7 @@ public class ScenarioController {
    */
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(encoding = @Encoding(name = "dto", contentType = MediaType.APPLICATION_JSON_VALUE)))
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<ScenarioInfo> newScenario(@RequestPart("dto") ScenarioRegister dto,
       @RequestPart("file") MultipartFile file) {
     ScenarioInfo responseDto = ScenarioInfo
@@ -123,6 +125,7 @@ public class ScenarioController {
    * @return {@link ResponseEntity} com o cenário atualizado e código HTTP 200 (OK)
    */
   @PatchMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<ScenarioInfo> updateScenario(@PathVariable("id") UUID id, @RequestBody ScenarioUpdate dto) {
     ScenarioInfo responseDTO = ScenarioInfo.from(
         scenarioService.updateScenario(id, dto.toModel()));
@@ -137,6 +140,7 @@ public class ScenarioController {
    * @return {@link ResponseEntity} com código HTTP 204 (NO CONTENT)
    */
   @PatchMapping(value = "/{id}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> reuploadFile(@RequestPart("file") MultipartFile file, @PathVariable("id") UUID id) {
     scenarioService.reuploadFile(id, file);
     return ResponseEntity.noContent().build();
@@ -148,6 +152,7 @@ public class ScenarioController {
    * @param id Identificador do cenário
    * @return {@link ResponseEntity} com código HTTP 204  (NO CONTENT)
    */
+  @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteScenario(@PathVariable("id") UUID id) {
     scenarioService.deleteScenario(id);

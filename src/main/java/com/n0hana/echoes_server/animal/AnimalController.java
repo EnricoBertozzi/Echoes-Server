@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -43,6 +44,7 @@ public class AnimalController {
    * @return {@link AnimalInfo} contendo os dados do novo animal.
    */
   @PostMapping
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<AnimalInfo> save(@RequestBody AnimalDTO.AnimalRegister dto) {
     AnimalInfo animal = AnimalInfo.from(animalService.save(dto.toModel()));
 
@@ -91,6 +93,7 @@ public class AnimalController {
    * Atualiza os dados de um animal
    */
   @PatchMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> updateAnimal(@PathVariable("id") UUID id, @RequestBody AnimalDTO.AnimalUpdate dto) {
     animalService.updateAnimal(id, dto.toModel());
     return ResponseEntity.ok().build();
@@ -99,6 +102,7 @@ public class AnimalController {
   /**
    * Remove um animal do banco de dados
    */
+  @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteAnimal(@PathVariable("id") UUID id) {
     animalService.deleteAnimal(id);

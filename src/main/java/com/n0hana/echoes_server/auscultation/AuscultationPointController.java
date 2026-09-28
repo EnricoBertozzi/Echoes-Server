@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -29,6 +30,7 @@ public class AuscultationPointController {
   private AuscultationPointService pointService;
 
   @PostMapping
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> newPoint(@RequestBody AuscultationPointDTO.PointRegister dto) {
     pointService.newAuscultationPoint(dto.toModel());
     return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -52,6 +54,7 @@ public class AuscultationPointController {
   }
 
   @PatchMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> updatePoint(@PathVariable UUID id, @RequestBody AuscultationPointDTO.PointUpdate dto) {
     pointService.updateAuscultationPoint(id, dto.toModel());
 
@@ -59,6 +62,7 @@ public class AuscultationPointController {
   }
 
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> deletePoint(@PathVariable UUID id) {
     pointService.deleteAuscultationPoint(id);
 

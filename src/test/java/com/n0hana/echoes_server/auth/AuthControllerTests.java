@@ -16,6 +16,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.user.UserRepository;
+
 @WebMvcTest(AuthController.class)
 @ActiveProfiles("test")
 @WithMockUser
@@ -27,6 +30,12 @@ public class AuthControllerTests {
 
     @MockitoBean
     private AuthService service;
+
+    @MockitoBean
+    private JwtTokenService jwtTokenService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     @DisplayName("POST /api/v1/auth/login com dados validos para login (200 OK)")

@@ -13,7 +13,6 @@ import com.n0hana.echoes_server.infra.security.SecurityConfig;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -58,6 +57,7 @@ public class InstitutionController {
      * @return {@link ResponseEntity} contendo as instituições cadastradas e o
      *         status HTTP 200 (SUCCESS).
      */
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping
     public ResponseEntity<Page<InstitutionDTO>> findAll(
         @RequestParam(required = false) String name,
@@ -79,6 +79,7 @@ public class InstitutionController {
      *         (SUCCESS).
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<InstitutionDTO> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(InstitutionDTO.fromModel(service.findById(id)));
     }
