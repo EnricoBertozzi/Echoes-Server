@@ -7,12 +7,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.n0hana.echoes_server.term.model.DocumentType;
 
 /**
  * Integração real com o Flyway sobre o mesmo banco relacional usado nos
@@ -43,13 +46,13 @@ class FlywayMigrationIntegrationTest {
     }
 
     @Test
-    void primeiraExecucaoPublicaOsTresDocumentosVersao1_0_0() throws Exception {
+    void primeiraExecucaoPublicaOsQuatroDocumentosVersao1_0_0() throws Exception {
         flyway().migrate();
 
         try (Connection connection = DriverManager.getConnection(H2_URL, "sa", "");
              Statement statement = connection.createStatement()) {
 
-            assertTableCount(statement, "terms", 3L);
+            assertTableCount(statement, "terms", 4L);
 
             assertPublishedDocuments(statement);
         }
@@ -65,14 +68,40 @@ class FlywayMigrationIntegrationTest {
              Statement statement = connection.createStatement()) {
 
             // Nenhum documento duplicado após reinicialização.
-            assertTableCount(statement, "terms", 3L);
+            assertTableCount(statement, "terms", 4L);
 
-            // V1..V4 executadas exatamente uma vez (installed_rank > 0 ignora a
+            // V1..V6 executadas exatamente uma vez (installed_rank > 0 ignora a
             // linha de marcador "Flyway Schema History table created").
             assertTableCount(
                 statement,
                 "\"flyway_schema_history\" WHERE \"installed_rank\" > 0",
-                4L);
+                6L);
+        }
+    }
+
+    /**
+     * Regressão: o ENUM de {@code terms.type} precisa aceitar TODOS os
+     * {@code DocumentType} do domínio. O Hibernate (ddl-auto=update) só widen
+     * a coluna depois do Flyway, então um {@code DocumentType} novo cuja
+     * migration de estrutura não preceda a publicação faria o INSERT falhar e
+     * deixaria uma migration marcada como failed no schema history.
+     */
+    @Test
+    void todoDocumentTypeDoDominioEhAceitoPeloEnumDaColunaType() throws Exception {
+        flyway().migrate();
+
+        String sql = "INSERT INTO terms (id, version, timestamp, type, status) "
+                     + "VALUES (?, '9.9.9', CURRENT_TIMESTAMP, ?, 'PUBLISHED')";
+
+        try (Connection connection = DriverManager.getConnection(H2_URL, "sa", "");
+             PreparedStatement insert = connection.prepareStatement(sql)) {
+
+            long id = 900L;
+            for (DocumentType type : DocumentType.values()) {
+                insert.setLong(1, id++);
+                insert.setString(2, type.getName());
+                insert.executeUpdate();
+            }
         }
     }
 
@@ -80,6 +109,7 @@ class FlywayMigrationIntegrationTest {
         expectPublished(statement, "COOKIES_POLICY", "cookies-policy");
         expectPublished(statement, "PRIVACY_POLICY", "privacy-policy");
         expectPublished(statement, "TERMS_OF_USE", "terms");
+        expectPublished(statement, "PROCESSING_OPERATIONS", "operations");
     }
 
     private void expectPublished(Statement statement, String type, String folder) throws Exception {
