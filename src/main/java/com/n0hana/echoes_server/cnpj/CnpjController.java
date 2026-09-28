@@ -30,7 +30,6 @@ public class CnpjController {
 
     @GetMapping("/{cnpj}")
     public ResponseEntity<CnpjDTO> consultar(@PathVariable("cnpj") String cnpj) {
-        System.out.println("verificação");
         return ResponseEntity.ok(cnpjService.consultar(cnpj));
     }
 }

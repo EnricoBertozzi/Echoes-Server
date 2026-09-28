@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -36,6 +37,7 @@ public class TeacherController {
     private final UserService service;
 
     @PostMapping
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createTeacher(dto));
     }
@@ -52,11 +54,13 @@ public class TeacherController {
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'TEACHER')")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
         return ResponseEntity.ok(service.updateTeacher(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'TEACHER')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.deleteTeacher(id);
         return ResponseEntity.noContent().build();
