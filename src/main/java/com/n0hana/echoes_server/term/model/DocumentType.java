@@ -3,7 +3,8 @@ package com.n0hana.echoes_server.term.model;
 public enum DocumentType {
     TERMS_OF_USE("TERMS_OF_USE"),
     PRIVACY_POLICY("PRIVACY_POLICY"),
-    COOKIES_POLICY("COOKIES_POLICY");
+    COOKIES_POLICY("COOKIES_POLICY"),
+    PROCESSING_OPERATIONS("PROCESSING_OPERATIONS");
 
     private String name;
 
