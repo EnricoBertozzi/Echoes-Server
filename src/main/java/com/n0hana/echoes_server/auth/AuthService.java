@@ -5,6 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
@@ -34,7 +35,7 @@ public class AuthService {
     @Autowired
     private TwoFactorService twoFactorService;
 
-    @Autowired 
+    @Autowired
     private JwtTokenService jwtTokenService;
 
     @Autowired
@@ -56,6 +57,7 @@ public class AuthService {
      * 
      * @throws {@link AuthFailedException}
      */
+    @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
     public void login(String email, String password) {
         // Verificação se o usuário existe
         User user = userRepository.findByEmail(email)
@@ -82,6 +84,8 @@ public class AuthService {
      * @param email Email do usuário
      * @param code  Código multifator
      */
+
+    @Auditable(action = "LOGIN_SUCESS)", entity = "User")
     public String verifyMfaCode(String email, String code) {
         String savedCode = authRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthFailedException());
@@ -100,11 +104,12 @@ public class AuthService {
      * 
      * @param header Cabeçalho contendo o token de autenticação
      */
+    @Auditable(action = "LOGOUT", entity = "User")
     public void logout(String header) {
         if (header == null || !header.startsWith("Bearer "))
             // TODO Alterar exceção
             throw new AuthFailedException();
-        
+
         jwtTokenService.invalidate(header);
     }
 
