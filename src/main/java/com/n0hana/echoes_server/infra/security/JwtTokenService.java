@@ -32,7 +32,7 @@ public class JwtTokenService {
 
     private String ISSUER = "echoes-server";
 
-    @Autowired 
+    @Autowired
     private JwtBlackListRepository blackListRepository;
 
     /**
@@ -95,9 +95,9 @@ public class JwtTokenService {
      * @return {@link String} sendo o token de JWT
      */
     public String recoverToken(String header) {
-        if (header == null)
+        if (header == null || !header.startsWith("Bearer "))
             return null;
-        return header.replace("Bearer ", "");
+        return header.substring(7);
     }
 
     /**
