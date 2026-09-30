@@ -41,7 +41,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     static final int MAX_VERIFICATION_ATTEMPTS = 5;
-
+    private static final String COMPLETE_REGISTRATION = "COMPLETE_REGISTRATION";
     private final UserRepository userRepository;
     private final TwoFactorService twoFactorService;
     private final PendingRegistrationRepository pendingRegistrationRepository;
@@ -168,7 +168,7 @@ public class UserService {
     }
 
     @Transactional
-    @Auditable(action = "COMPLETE_REGISTRATION", entity = "User")
+    @Auditable(action = COMPLETE_REGISTRATION, entity = "User")
     public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
         String email = normalizeEmail(dto.email());
         termService.validateRequiredAccepted(dto.acceptedTerms());
