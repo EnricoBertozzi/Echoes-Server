@@ -50,7 +50,7 @@ public class AuscultationPointService {
     }
 
     @Transactional
-    @Auditable(action = "UPADATE", entity = "Point")
+    @Auditable(action = "UPDATE", entity = "Point")
     public void updateAuscultationPoint(UUID id, AuscultationPointModel point) {
         AuscultationPointModel savedPoint = this.findPointById(id);
 

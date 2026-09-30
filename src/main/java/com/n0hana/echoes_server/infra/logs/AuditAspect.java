@@ -1,12 +1,11 @@
 package com.n0hana.echoes_server.infra.logs;
 
-import java.util.Optional;
-
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AuditAspect {
 
     @Autowired
-    private AuditLogService service;
+    private ApplicationEventPublisher eventPublisher;
 
     @Autowired
     private HttpServletRequest request;
@@ -30,7 +29,7 @@ public class AuditAspect {
 
     @AfterReturning("@annotation(auditable)")
     public void onSuccess(JoinPoint jp, Auditable auditable) {
-        service.register(
+        eventPublisher.publishEvent(
                 AuditLog.builder()
                         .userId(this.getUserId())
                         .action(auditable.action())
@@ -42,7 +41,7 @@ public class AuditAspect {
 
     @AfterThrowing(pointcut = "@annotation(auditable)", throwing = "ex")
     public void onFailure(JoinPoint jp, Auditable auditable, Exception ex) {
-        service.register(
+        eventPublisher.publishEvent(
                 AuditLog.builder()
                         .userId(this.getUserId())
                         .action(auditable.action())
@@ -56,15 +55,8 @@ public class AuditAspect {
     private String getUserId() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (auth != null && auth.isAuthenticated()) {
-
-            Optional<User> opt = userRepository.findByEmail(auth.getName());
-
-            if (opt.isPresent()) {
-                User user = opt.get();
-
-                return user.getId().toString();
-            }
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User user) {
+            return user.getId().toString();
         }
         return null;
     }
@@ -73,6 +65,8 @@ public class AuditAspect {
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isEmpty() || ip.equalsIgnoreCase("unknown")) {
             ip = request.getRemoteAddr();
+        } else {
+            ip = ip.split(",")[0].trim();
         }
         return ip;
     }

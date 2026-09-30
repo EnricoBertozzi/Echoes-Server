@@ -2,13 +2,14 @@ package com.n0hana.echoes_server.user;
 
 import java.time.Instant;
 import java.util.UUID;
-import com.n0hana.echoes_server.infra.logs.Auditable;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
@@ -40,31 +41,31 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     static final int MAX_VERIFICATION_ATTEMPTS = 5;
-
+    private static final String COMPLETE_REGISTRATION = "COMPLETE_REGISTRATION";
     private final UserRepository userRepository;
     private final TwoFactorService twoFactorService;
     private final PendingRegistrationRepository pendingRegistrationRepository;
     private final TwoFactorNotifier notifier;
     private final PasswordEncoder passwordEncoder;
-    
+
     private final TermService termService;
 
-    @Auditable (action = "CREATE", entity = "Admin")
+    @Auditable(action = "CREATE", entity = "Admin")
     public PendingRegistrationDTO createAdmin(CreateUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.ADMIN, null);
     }
-    
-    @Auditable (action = "CREATE", entity = "Manager")
+
+    @Auditable(action = "CREATE", entity = "Manager")
     public PendingRegistrationDTO createManager(CreateInstitutionUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.MANAGER, dto.institutionId());
     }
-    
-    @Auditable (action = "CREATE", entity = "Teacher")
+
+    @Auditable(action = "CREATE", entity = "Teacher")
     public PendingRegistrationDTO createTeacher(CreateInstitutionUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.TEACHER, dto.institutionId());
     }
-    
-    @Auditable(action = "CREATE", entity = "Student"  )
+
+    @Auditable(action = "CREATE", entity = "Student")
     public PendingRegistrationDTO createStudent(CreateInstitutionUserDTO dto) {
         return invite(dto.name(), dto.email(), UserRole.STUDENT, dto.institutionId());
     }
@@ -108,8 +109,7 @@ public class UserService {
         applyCommonUpdate(admin, dto.name(), dto.email());
         return toDTO(userRepository.save(admin));
     }
-    
-    
+
     @Transactional
     @Auditable(action = "UPDATE", entity = "Manager")
     public UserDTO updateManager(UUID id, UpdateInstitutionUserDTO dto) {
@@ -121,7 +121,6 @@ public class UserService {
         return toDTO(userRepository.save(manager));
     }
 
-    
     @Transactional
     @Auditable(action = "UPDATE", entity = "Teacher")
     public UserDTO updateTeacher(UUID id, UpdateInstitutionUserDTO dto) {
@@ -143,7 +142,6 @@ public class UserService {
         }
         return toDTO(userRepository.save(student));
     }
-    
 
     @Transactional
     @Auditable(action = "DELETE", entity = "Admin")
@@ -151,21 +149,18 @@ public class UserService {
         softDelete(findTyped(id, Admin.class));
     }
 
-    
     @Transactional
     @Auditable(action = "DELETE", entity = "Manager")
     public void deleteManager(UUID id) {
         softDelete(findTyped(id, Manager.class));
     }
-    
-    
+
     @Transactional
     @Auditable(action = "DELETE", entity = "Teacher")
     public void deleteTeacher(UUID id) {
         softDelete(findTyped(id, Teacher.class));
     }
-    
-    
+
     @Transactional
     @Auditable(action = "DELETE", entity = "Student")
     public void deleteStudent(UUID id) {
@@ -173,7 +168,7 @@ public class UserService {
     }
 
     @Transactional
-    @Auditable( action = COMPLETE_REGISTRATION, entity = "User")
+    @Auditable(action = COMPLETE_REGISTRATION, entity = "User")
     public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
         String email = normalizeEmail(dto.email());
 

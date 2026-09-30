@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.n0hana.echoes_server.user.UserRepository;
@@ -14,10 +15,11 @@ import com.n0hana.echoes_server.user.model.User;
 /**
  * Classe de configuração para inicialização do super usuário
  */
-@Configuration 
+@Configuration
+@Profile("!test")
 public class SuperUserInitializer {
-    
-    @Autowired 
+
+    @Autowired
     private UserRepository repository;
 
     @Value("${api.security.admin.email}")
@@ -29,7 +31,7 @@ public class SuperUserInitializer {
     @Value("${api.security.admin.password}")
     private String adminPassword;
 
-    @Autowired 
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Bean
@@ -43,7 +45,7 @@ public class SuperUserInitializer {
                 user.setLoginAttempts(0);
                 user.setLockUntil(null);
                 user.setActive(true);
-    
+
                 repository.save(user);
             }
         };
