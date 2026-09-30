@@ -90,7 +90,8 @@ public class AuditLogProtector {
     private boolean isMySql() {
         try (var conn = dataSource.getConnection()) {
             String product = conn.getMetaData().getDatabaseProductName();
-            if (product == null) return false;
+            if (product == null)
+                return false;
             String p = product.toLowerCase();
             return p.contains("mysql") || p.contains("mariadb");
         } catch (Exception e) {
