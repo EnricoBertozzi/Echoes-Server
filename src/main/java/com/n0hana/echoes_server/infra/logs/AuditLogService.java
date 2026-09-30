@@ -17,17 +17,31 @@ public class AuditLogService {
 
     private final AuditLogRepository repository;
 
+    /**
+     * Executa numa thread separada (@Async) para não bloquear a requisição
+     * principal.
+     * Só é acionado se a transação do método principal for efetivada na base de
+     * dados (AFTER_COMMIT).
+     */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onCommit(AuditLog logEvent) {
+        // Regista o log apenas se a operação principal tiver decorrido sem erros no
+        // código
         if ("SUCCESS".equals(logEvent.getStatus())) {
             saveLog(logEvent);
         }
     }
 
+    /**
+     * Executa se a transação principal falhar e a base de dados realizar um
+     * rollback (AFTER_ROLLBACK).
+     */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_ROLLBACK, fallbackExecution = true)
     public void onRollback(AuditLog logEvent) {
+        // Corrige o status caso o método Java não tenha lançado exceção,
+        // mas a transação tenha sido rejeitada pela base de dados no momento do commit.
         if ("SUCCESS".equals(logEvent.getStatus())) {
             logEvent.setStatus("FAILED");
             logEvent.setDetails("Transação sofreu rollback no banco de dados após a execução do método.");
@@ -37,9 +51,23 @@ public class AuditLogService {
 
     private void saveLog(AuditLog logEvent) {
         try {
-            repository.save(logEvent);
+            // Cria uma nova instância limpa ("fresh") em vez de persistir o objeto
+            // recebido.
+            // Como a transação original já foi encerrada (commit ou rollback),
+            // utilizar a entidade original causaria problemas de contexto JPA (detached
+            // entity).
+            AuditLog fresh = AuditLog.builder()
+                    .userId(logEvent.getUserId())
+                    .action(logEvent.getAction())
+                    .entity(logEvent.getEntity())
+                    .status(logEvent.getStatus())
+                    .details(logEvent.getDetails())
+                    .ip(logEvent.getIp())
+                    .build();
+
+            repository.save(fresh);
         } catch (Exception e) {
-            log.error("Falha crítica ao gravar log de auditoria. Ação: {}, Entidade: {}",
+            log.error("FALHA CRÍTICA ao gravar log de auditoria. Ação: {}, Entidade: {}",
                     logEvent.getAction(), logEvent.getEntity(), e);
         }
     }
