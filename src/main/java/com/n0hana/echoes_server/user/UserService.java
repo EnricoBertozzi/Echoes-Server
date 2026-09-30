@@ -171,19 +171,20 @@ public class UserService {
     @Auditable(action = COMPLETE_REGISTRATION, entity = "User")
     public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
         String email = normalizeEmail(dto.email());
-
         termService.validateRequiredAccepted(dto.acceptedTerms());
 
         PendingRegistration pending = pendingRegistrationRepository.findByEmail(email)
                 .orElseThrow(() -> noPendingRegistrationFor(email));
 
+        if (pending.expiresAt().isBefore(Instant.now())) {
+            pendingRegistrationRepository.deleteByEmail(email);
+            throw new ExpiredTwoFactorCodeException();
+
+        }
+
         if (!pending.code().equals(dto.code())) {
             registerFailedAttempt(pending);
             throw new InvalidTwoFactorCodeException();
-        }
-
-        if (pending.expiresAt().isBefore(Instant.now())) {
-            throw new ExpiredTwoFactorCodeException();
         }
 
         assertEmailAvailable(email);

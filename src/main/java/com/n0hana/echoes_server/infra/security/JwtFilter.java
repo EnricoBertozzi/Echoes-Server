@@ -11,7 +11,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.user.UserRepository;
-import com.n0hana.echoes_server.user.model.User;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,7 +21,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * Filtro de segurança para interceptar o token JWT
  * 
  * @author Enrico Bertozzi
- * @since 0.1.1
+ * @since 0.1.3
  */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -40,16 +39,16 @@ public class JwtFilter extends OncePerRequestFilter {
         String token = jwtTokenService.recoverToken(header);
 
         if (token != null && !jwtTokenService.isRevoked(token)) {
-            UUID userId = UUID.fromString(jwtTokenService.validate(token));
-
-            // TODO alterar exceção lançada
-            User user = userRepository.findById(userId).orElse(null);
-            if (user != null) {
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            try {
+                UUID userId = UUID.fromString(jwtTokenService.validate(token));
+                userRepository.findById(userId).ifPresent(user -> {
+                    var auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                });
+            } catch (AuthFailedException | IllegalArgumentException ex) {
+                SecurityContextHolder.clearContext();
             }
         }
         filterChain.doFilter(request, response);
     }
-
 }

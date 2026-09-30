@@ -1,6 +1,7 @@
 package com.n0hana.echoes_server.institution;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.dao.DuplicateKeyException;
@@ -167,16 +168,16 @@ public class InstitutionService {
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 
-        if (!savedModel.getName().equals(model.getName()))
+        if (!Objects.equals(savedModel.getName(), model.getName()))
             savedModel.setName(model.getName());
 
-        if (!savedModel.getAcronym().equals(model.getAcronym()))
+        if (!Objects.equals(savedModel.getAcronym(), model.getAcronym()))
             savedModel.setAcronym((model.getAcronym()));
 
-        if (!savedModel.getPhone().equals(model.getPhone()))
+        if (!Objects.equals(savedModel.getAcronym(), model.getPhone()))
             savedModel.setPhone((model.getPhone()));
 
-        if (!savedModel.getAddress().equals(model.getAddress()))
+        if (!Objects.equals(savedModel.getAddress(), model.getAddress()))
             savedModel.setAddress((model.getAddress()));
 
         return repository.save(savedModel);
