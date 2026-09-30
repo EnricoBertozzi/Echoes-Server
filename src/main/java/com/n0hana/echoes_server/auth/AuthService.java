@@ -1,6 +1,8 @@
 package com.n0hana.echoes_server.auth;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Duration;
+import java.time.Instant;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -9,10 +11,11 @@ import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.EmailLoginNotifier;
 import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.User;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service para gerenciar autenticação de usuários.
@@ -21,25 +24,15 @@ import com.n0hana.echoes_server.user.model.User;
  * @since 0.1.1
  */
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
-    @Autowired
-    private EmailLoginNotifier notifier;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private TwoFactorService twoFactorService;
-
-    @Autowired
-    private JwtTokenService jwtTokenService;
-
-    @Autowired
-    private AuthRepository authRepository;
+    private final TwoFactorNotifier notifier;
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+    private final TwoFactorService twoFactorService;
+    private final JwtTokenService jwtTokenService;
+    private final AuthRepository authRepository;
 
     /**
      * Realiza verificação do login do usuário
@@ -75,7 +68,7 @@ public class AuthService {
         String code = twoFactorService.generateCode();
         authRepository.save(email, code);
 
-        notifier.send(code, email);
+        notifier.send(new TwoFactorDTO(email, code, Instant.now().plus(Duration.ofMinutes(15))));
     }
 
     /**

@@ -1,6 +1,8 @@
 package com.n0hana.echoes_server.notifier;
 
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -27,26 +29,29 @@ public class EmailNotifier implements TwoFactorNotifier {
     public void send(TwoFactorDTO dto) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();
-            
+
             MimeMessageHelper helper = new MimeMessageHelper(
-                message,
-                true,
-                StandardCharsets.UTF_8.name()
-            );
+                    message,
+                    true,
+                    StandardCharsets.UTF_8.name());
+
+            // Formata o Instant para HH:mm no fuso horário adequado
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm")
+                    .withZone(ZoneId.of("America/Sao_Paulo"));
+            String horaExpiracao = formatter.format(dto.expiresAt());
 
             String html = """
-                <html>
-                    <body>
-                        <h1>Bem-vindo ao echoes!</h1>
-                        <p>Para continuar o registro, clique <a href="http://localhost:5173/register?code=%s&email=%s">aqui</a></p>
-                        <strong>Lembre-se, o link é válido por 5 minutos</strong>
-                    </body>
-                </html>
-                """.formatted(dto.code(), dto.email());
+                    <html>
+                        <body>
+                            <h1>Echoes - Código de Acesso</h1>
+                            <p>O seu código de acesso é <strong>%s</strong> e é válido até às <strong>%s</strong>.</p>
+                        </body>
+                    </html>
+                    """.formatted(dto.code(), horaExpiracao);
 
             helper.setFrom(origin);
             helper.setTo(dto.email());
-            helper.setSubject("Echoes Validation Code");
+            helper.setSubject("Echoes - Código de Validação");
             helper.setText(html, true);
 
             javaMailSender.send(message);
