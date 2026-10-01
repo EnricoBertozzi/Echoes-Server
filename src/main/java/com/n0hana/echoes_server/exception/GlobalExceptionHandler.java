@@ -12,20 +12,16 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.n0hana.echoes_server.auth.exception.AuthFailedException;
-import com.n0hana.echoes_server.cnpj.exception.CnpjInvalidoException;
-import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
-import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
-import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
-import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
-import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
-import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
-import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
-import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
-import com.n0hana.echoes_server.user.exception.RequiredTermsNotAcceptedException;
-import com.n0hana.echoes_server.user.exception.UserNotFoundException;
-
+/**
+ * Tratamento de exceções transversais (Bean Validation, integridade de dados).
+ *
+ * <p>
+ * Exceções de domínio são tratadas nos {@code *ExceptionHandler} de cada
+ * pacote ({@code auth}, {@code user}, {@code institution}, {@code cnpj},
+ * {@code animal}, {@code auscultation}, {@code scenario}, {@code term},
+ * {@code infra.file}), evitando uma God Class.
+ * </p>
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -34,27 +30,16 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex) {
 
         Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error -> {
-            errors.put(error.getField(), error.getDefaultMessage());
-        });
+        ex.getBindingResult().getFieldErrors()
+                .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
         return ResponseEntity.badRequest().body(errors);
-    }
-
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleUserNotFound(UserNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message(ex));
-    }
-
-    @ExceptionHandler(EmailAlreadyInUseException.class)
-    public ResponseEntity<Map<String, String>> handleEmailAlreadyInUse(EmailAlreadyInUseException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
     }
 
     /**
      * Corrida de concorrência no e-mail único: a constraint do banco rejeita
      * o insert depois que a checagem de disponibilidade já tinha passado.
      * Só duplicidade (MySQL 1062 / SQLState 23505) vira 409 — outras
-     * violações são re-lançadas para o 500 expor a causa real no log.
+     * violações são relançadas para o 500 expor a causa real no log.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(
@@ -73,75 +58,8 @@ public class GlobalExceptionHandler {
         return false;
     }
 
-    @ExceptionHandler(RegistrationAlreadyCompletedException.class)
-    public ResponseEntity<Map<String, String>> handleRegistrationAlreadyCompleted(
-            RegistrationAlreadyCompletedException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
-    }
-
-    @ExceptionHandler(RequiredTermsNotAcceptedException.class)
-    public ResponseEntity<Map<String, String>> handleRequiredTermsNotAccepted(
-            RequiredTermsNotAcceptedException ex) {
-        return ResponseEntity.badRequest().body(message(ex));
-    }
-
-    @ExceptionHandler(InvalidTwoFactorCodeException.class)
-    public ResponseEntity<Map<String, String>> handleInvalidTwoFactorCode(
-            InvalidTwoFactorCodeException ex) {
-        return ResponseEntity.badRequest().body(message(ex));
-    }
-
-    @ExceptionHandler(ExpiredTwoFactorCodeException.class)
-    public ResponseEntity<Map<String, String>> handleExpiredTwoFactorCode(
-            ExpiredTwoFactorCodeException ex) {
-        return ResponseEntity.badRequest().body(message(ex));
-    }
-
-    @ExceptionHandler(InvalidUserTypeException.class)
-    public ResponseEntity<Map<String, String>> handleInvalidUserType(
-            InvalidUserTypeException ex) {
-        return ResponseEntity.badRequest().body(message(ex));
-    }
-
-    @ExceptionHandler(InstitutionNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleInstitutionNotFoundException(
-            InstitutionNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message(ex));
-    }
-
-    @ExceptionHandler(InstitutionPendingVerificationException.class)
-    public ResponseEntity<Map<String, String>> handleInstitutionPendingVerification(
-            InstitutionPendingVerificationException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
-    }
-
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateKeyException(DuplicateKeyException ex) {
-        return ResponseEntity.badRequest().body(message(ex));
-    }
-
-
-    @ExceptionHandler(CnpjInvalidoException.class)
-    public ResponseEntity<Map<String, String>> handleCnpjInvalido(CnpjInvalidoException ex) {
-        return ResponseEntity.badRequest().body(message(ex));
-    }
-
-    @ExceptionHandler(CnpjNaoEncontradoException.class)
-    public ResponseEntity<Map<String, String>> handleCnpjNaoEncontrado(CnpjNaoEncontradoException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message(ex));
-    }
-
-    @ExceptionHandler(CnpjProviderIndisponivelException.class)
-    public ResponseEntity<Map<String, String>> handleCnpjProviderIndisponivel(
-            CnpjProviderIndisponivelException ex) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(message(ex));
-    }
-    @ExceptionHandler(AuthFailedException.class)
-    public ResponseEntity<Map<String, String>> handleAuthFailedException(AuthFailedException ex) {
-        return ResponseEntity.badRequest().body(message(ex));
-    }
-
-    private Map<String, String> message(RuntimeException ex) {
-        return Map.of("message", ex.getMessage());
+        return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
     }
 }
