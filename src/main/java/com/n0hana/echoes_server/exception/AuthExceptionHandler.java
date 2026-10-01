@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.auth.exception;
+package com.n0hana.echoes_server.exception;
 
 import java.util.Map;
 
