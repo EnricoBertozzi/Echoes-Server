@@ -17,6 +17,7 @@ import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.term.model.TermModel;
 import com.n0hana.echoes_server.term.model.UserTermAcceptance;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
 
 import lombok.RequiredArgsConstructor;
@@ -48,8 +49,8 @@ public class TermController {
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable DocumentType type) {
         User user = userRepository.findByEmail(userDetails.getUsername())
-            .orElseThrow(() -> new RuntimeException("User not found"));
-        
+            .orElseThrow(UserNotFoundException::new);
+
         boolean accepted = termsService.hasAcceptedLatestTerms(user.getId(), type);
         return ResponseEntity.ok(accepted);
     }
@@ -59,8 +60,8 @@ public class TermController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody AcceptTermRequestDTO dto) {
         User user = userRepository.findByEmail(userDetails.getUsername())
-            .orElseThrow(() -> new RuntimeException("User not found"));
-        
+            .orElseThrow(UserNotFoundException::new);
+
         UserTermAcceptance acceptance = termsService.acceptTerms(user.getId(), dto.type());
         return ResponseEntity.ok(toDTO(acceptance.getTerm()));
     }
