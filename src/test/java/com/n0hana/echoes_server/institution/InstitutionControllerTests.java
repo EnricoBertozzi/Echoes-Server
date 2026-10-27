@@ -37,12 +37,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
 
 @WebMvcTest(InstitutionController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @ActiveProfiles("test")
-@Import(InstitutionControllerTests.PageConfig.class)
+@Import({InstitutionControllerTests.PageConfig.class, InstitutionExceptionHandler.class})
 public class InstitutionControllerTests {
     @TestConfiguration
     @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)

@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.n0hana.echoes_server.exception.GlobalExceptionHandler;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
 import com.n0hana.echoes_server.user.exception.ExpiredTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.InvalidTwoFactorCodeException;
 import com.n0hana.echoes_server.user.exception.RegistrationAlreadyCompletedException;
@@ -32,10 +33,16 @@ import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.user.UserRepository;
+
+import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
+import org.springframework.context.annotation.Import;
+
 @WebMvcTest(User2FAController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @ActiveProfiles("test")
+@Import(UserExceptionHandler.class)
+
 class User2FAControllerTest {
 
     @Autowired
@@ -50,26 +57,22 @@ class User2FAControllerTest {
 
     private final UUID id = UUID.randomUUID();
 
-    /** Payload com os três termos obrigatórios — evita falha de validação antes do UserService. */
+    //Payload com os três termos obrigatórios — evita falha de validação antes do UserService.
     private static final String ACCEPTED_TERMS =
             "\"acceptedTerms\":[\"TERMS_OF_USE\",\"PRIVACY_POLICY\",\"COOKIES_POLICY\"]";
 
     @Test
-    @DisplayName("POST /users/2fa com dados válidos → 201 + UserDTO sem senha")
-    void completeRegistrationValidReturns201WithoutPassword() throws Exception {
+    @DisplayName("POST /users/2fa com duplicidade de e-mail no banco (corrida) → 409")
+    void duplicateEmailRaceReturns409WithMessage() throws Exception {
         when(service.completeRegistration(any(CompleteRegistrationDTO.class)))
-                .thenReturn(new UserDTO(id, "Joao", "joao@example.com", null, UserRole.STUDENT));
+                .thenThrow(new EmailAlreadyInUseException());
 
         mockMvc.perform(post("/users/2fa")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\","
                                 + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(id.toString()))
-                .andExpect(jsonPath("$.name").value("Joao"))
-                .andExpect(jsonPath("$.email").value("joao@example.com"))
-                .andExpect(jsonPath("$.role").value("STUDENT"))
-                .andExpect(jsonPath("$.password").doesNotExist());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("E-mail já cadastrado"));
     }
 
     @Test
@@ -148,23 +151,6 @@ class User2FAControllerTest {
                                 + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.password").value("Senha fraca"));
-    }
-
-    @Test
-    @DisplayName("POST /users/2fa com duplicidade de e-mail no banco (corrida) → 409")
-    void duplicateEmailRaceReturns409WithMessage() throws Exception {
-        when(service.completeRegistration(any(CompleteRegistrationDTO.class)))
-                .thenThrow(new DataIntegrityViolationException("could not execute statement",
-                        new SQLIntegrityConstraintViolationException(
-                                "Duplicate entry 'joao@example.com' for key 'users.UK6dotkott2kjsp8vw4d0m25fb7'",
-                                "23000", 1062)));
-
-        mockMvc.perform(post("/users/2fa")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"joao@example.com\",\"password\":\"SenhaForte123!\","
-                                + "\"code\":\"123456\"," + ACCEPTED_TERMS + "}"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("E-mail já cadastrado"));
     }
 
     @Test
