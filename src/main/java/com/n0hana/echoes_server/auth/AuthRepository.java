@@ -1,36 +1,31 @@
 package com.n0hana.echoes_server.auth;
 
-import java.time.Duration;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
+
+import com.n0hana.echoes_server.infra.redis.CodeType;
+import com.n0hana.echoes_server.infra.redis.RedisRepository;
+import com.n0hana.echoes_server.infra.redis.RedisRepositoryFactory;
 
 @Repository
 public class AuthRepository {
 
-    private final String PREFIX = "pending:login:";
-    private final Duration TTL = Duration.ofMinutes(15);
+    private final RedisRepository<String> store;
 
-    @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    public AuthRepository(RedisRepositoryFactory factory) {
+        this.store = factory.string(CodeType.MFA);
+    }
 
     public void save(String email, String code) {
-        redisTemplate.opsForValue().set(key(email), code, TTL);
+        store.save(email, code);
     }
 
     public Optional<String> findByEmail(String email) {
-        return Optional
-                .ofNullable(redisTemplate.opsForValue().get(key(email)));
+        return store.find(email);
     }
 
     public void delete(String email) {
-        redisTemplate.opsForValue().getAndDelete(key(email));
+        store.delete(email);
     }
-
-    private String key(String email) {
-        return PREFIX + email;
-    }
-
 }

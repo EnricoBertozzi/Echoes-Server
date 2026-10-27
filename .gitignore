@@ -65,6 +65,7 @@ keystore.p12
 *.zip
 *.tar.gz
 combinado.txt
+/*.sh
 
 # Certificados locais e chaves temporárias
 *.crt
