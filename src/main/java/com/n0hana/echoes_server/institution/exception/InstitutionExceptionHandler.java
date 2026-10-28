@@ -2,12 +2,15 @@ package com.n0hana.echoes_server.institution.exception;
 
 import java.util.Map;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class InstitutionExceptionHandler {
 
     @ExceptionHandler(InstitutionNotFoundException.class)
@@ -17,6 +20,11 @@ public class InstitutionExceptionHandler {
 
     @ExceptionHandler(InstitutionPendingVerificationException.class)
     public ResponseEntity<Map<String, String>> handlePending(InstitutionPendingVerificationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InstitutionAlreadyExistsException.class)
+    public ResponseEntity<Map<String, String>> handleAlreadyExists(InstitutionAlreadyExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 }

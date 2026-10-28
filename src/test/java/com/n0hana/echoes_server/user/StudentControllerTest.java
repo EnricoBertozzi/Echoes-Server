@@ -40,11 +40,15 @@ import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.user.UserRepository;
+
+import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
+
 @WebMvcTest(StudentController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(SpringDataWebConfiguration.class)
 @WithMockUser
 @ActiveProfiles("test")
+
+@Import({SpringDataWebConfiguration.class, UserExceptionHandler.class})
 class StudentControllerTest {
 
     @Autowired

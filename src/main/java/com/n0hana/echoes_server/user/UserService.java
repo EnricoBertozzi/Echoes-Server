@@ -34,6 +34,9 @@ import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.User;
 import com.n0hana.echoes_server.user.model.UserRole;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import java.sql.SQLIntegrityConstraintViolationException;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -190,13 +193,30 @@ public class UserService {
         assertEmailAvailable(email);
 
         User user = newUserFrom(pending, passwordEncoder.encode(dto.password()));
-        User saved = userRepository.save(user);
+
+        User saved;
+        try {
+            saved = userRepository.save(user);
+        } catch (DataIntegrityViolationException ex){
+            //Email ficou indisponivel entre o check e o INSERT.
+            //Converte para exceção de dominio 
+            //GlobalExceptHandler nõo conhece  "email duplicado" a responsabilidade esta RequiredArgsConstructor
+            if (isEmailDuplicate(ex)){
+                throw new EmailAlreadyInUseException();
+            }
+            throw ex;
+        }
 
         termService.registerInitialAcceptances(saved, dto.acceptedTerms());
-
         pendingRegistrationRepository.deleteByEmail(email);
-
         return toDTO(saved);
+    }
+
+    private boolean isEmailDuplicate(DataIntegrityViolationException ex){
+        if (ex.getMostSpecificCause() instanceof SQLIntegrityConstraintViolationException sqlEx){
+            return sqlEx.getErrorCode() == 1062 || "23505".equals(sqlEx.getSQLState());
+        }
+        return false;
     }
 
     private PendingRegistrationDTO invite(String name, String rawEmail, UserRole role, UUID institutionId) {
