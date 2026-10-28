@@ -20,10 +20,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
 
 import com.n0hana.echoes_server.cnpj.CnpjDTO;
 import com.n0hana.echoes_server.cnpj.CnpjService;
@@ -114,15 +114,16 @@ public class InstitutionServiceTests {
         verify(verificationService, never()).applyDadosReceita(any(), any());
     }
 
+
     @Test
-    @DisplayName("Create com CNPJ já cadastrado → DuplicateKeyException sem consultar Brasil API")
-    void shouldThrowDuplicationKeyException() {
+    @DisplayName("Create com CNPJ já cadastrado → InstitutionAlreadyExistsException sem consultar Brasil API")
+    void shouldThrowAlreadyExistsException() {
         InstitutionModel model = this.createTestModel(null);
         String expectedCnpj = "12345678000190";
 
         when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail())).thenReturn(true);
 
-        assertThrows(DuplicateKeyException.class, () -> service.create(model));
+        assertThrows(InstitutionAlreadyExistsException.class, () -> service.create(model));
         verify(repository, never()).save(any());
         verify(cnpjService, never()).consultar(any());
     }
