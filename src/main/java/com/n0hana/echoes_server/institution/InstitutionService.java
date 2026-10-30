@@ -16,12 +16,11 @@ import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.CnpjValidator;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.notifier.InstitutionNotificationData;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
- 
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,7 +39,7 @@ public class InstitutionService {
     private final InstitutionRepository repository;
     private final CnpjService cnpjService;
     private final InstitutionVerificationService verificationService;
-    private final InstitutionNotifier notifier;
+    private final NotifierService notifier;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -87,8 +86,10 @@ public class InstitutionService {
         InstitutionModel saved = repository.save(model);
 
         if (pendingNotification) {
-            notifier.notifyPendingVerification(
-                    InstitutionNotificationData.from(saved),
+            notifier.sendInstitutionPending(
+                    saved.getEmail(),
+                    saved.getName(),
+                    saved.getCnpj(),
                     "Brasil API indisponível no momento do cadastro");
         }
         return saved;
@@ -120,15 +121,17 @@ public class InstitutionService {
         return success;
     }
 
-     //* Busca e filtra instituições cadastradas no sistema.
-     //* O método realiza a consulta de todas as instituições cadastradas, ou filtra
-     //* as instituições pelo seu nome.
-     //* @param name       Nome da instituição a ser filtrada.
-     //* @param size       Quantidade de elementos por paginação.
-     //* @param pageNumber Número da página acessado na paginação.
-     //* @param sort       Parâmetro de ordenação.
-     //* @return {@link Page} Contêm as instituições que atendem aos parâmetros.
-     
+    /**
+     * Busca e filtra instituições cadastradas no sistema.
+     * O método realiza a consulta de todas as instituições cadastradas, ou filtra
+     * as instituições pelo seu nome.
+     * 
+     * @param name       Nome da instituição a ser filtrada.
+     * @param size       Quantidade de elementos por paginação.
+     * @param pageNumber Número da página acessado na paginação.
+     * @param sort       Parâmetro de ordenação.
+     * @return {@link Page} Contêm as instituições que atendem aos parâmetros.
+     */
     @Transactional(readOnly = true)
     public Page<InstitutionModel> findAll(String name, int size, int pageNumber, String sort) {
         Sort sortSpec = this.parseSort(sort);
