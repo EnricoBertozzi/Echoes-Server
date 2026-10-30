@@ -28,9 +28,9 @@ import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsEx
 import com.n0hana.echoes_server.cnpj.CnpjDTO;
 import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 
 @ExtendWith(MockitoExtension.class)
 public class InstitutionServiceTests {
@@ -42,7 +42,7 @@ public class InstitutionServiceTests {
     @Mock
     private InstitutionVerificationService verificationService;
     @Mock
-    private InstitutionNotifier notifier;
+    private NotifierService notifier;
 
     @InjectMocks
     private InstitutionService service;
@@ -93,7 +93,8 @@ public class InstitutionServiceTests {
         assertEquals(expectedCnpj, result.getCnpj());
         assertEquals(InstitutionVerificationStatus.VERIFIED, result.getVerificationStatus());
         verify(verificationService).applyDadosReceita(eq(model), any(CnpjDTO.class));
-        verify(notifier, never()).notifyPendingVerification(any(), any());
+
+        verify(notifier, never()).sendInstitutionPending(any(), any(), any(), any());
     }
 
     @Test
@@ -110,7 +111,7 @@ public class InstitutionServiceTests {
         InstitutionModel result = service.create(model);
 
         assertEquals(InstitutionVerificationStatus.PENDING_VERIFICATION, result.getVerificationStatus());
-        verify(notifier).notifyPendingVerification(any(), any());
+        verify(notifier).sendInstitutionPending(any(), any(), any(),  any());
         verify(verificationService, never()).applyDadosReceita(any(), any());
     }
 

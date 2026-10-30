@@ -21,46 +21,48 @@ import com.n0hana.echoes_server.cnpj.CnpjDTO;
 import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.InstitutionVerificationService.VerificationOutcome;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
-
 
 @ExtendWith(MockitoExtension.class)
 class InstitutionVerificationServiceTest {
 
-    @Mock private CnpjService cnpjService;
-    @Mock private InstitutionRepository repository;
-    @Mock private InstitutionNotifier notifier;
+    @Mock
+    private CnpjService cnpjService;
+    @Mock
+    private InstitutionRepository repository;
+    @Mock
+    private NotifierService notifier;
 
     @InjectMocks
     private InstitutionVerificationService service;
 
     private InstitutionModel pendingInstitution(UUID id) {
         return InstitutionModel.builder()
-            .id(id)
-            .name("Instituição Pendente")
-            .acronym("IP")
-            .cnpj("19131243000197")
-            .email("pendente@teste.com")
-            .verificationStatus(InstitutionVerificationStatus.PENDING_VERIFICATION)
-            .build();
+                .id(id)
+                .name("Instituição Pendente")
+                .acronym("IP")
+                .cnpj("19131243000197")
+                .email("pendente@teste.com")
+                .verificationStatus(InstitutionVerificationStatus.PENDING_VERIFICATION)
+                .build();
     }
 
     private CnpjDTO cnpjDTO() {
         return new CnpjDTO(
-            "19131243000197",
-            "RAZAO SOCIAL OFICIAL",
-            "FANTASIA",
-            "ATIVA",
-            "Rua Y",
-            "200",
-            null,
-            "Centro",
-            "São Paulo",
-            "SP",
-            "01001000",
-             null);
+                "19131243000197",
+                "RAZAO SOCIAL OFICIAL",
+                "FANTASIA",
+                "ATIVA",
+                "Rua Y",
+                "200",
+                null,
+                "Centro",
+                "São Paulo",
+                "SP",
+                "01001000",
+                null);
     }
 
     @Test
@@ -79,8 +81,8 @@ class InstitutionVerificationServiceTest {
         assertEquals(InstitutionVerificationStatus.VERIFIED, inst.getVerificationStatus());
         assertEquals("RAZAO SOCIAL OFICIAL", inst.getName());
         assertEquals("01001000", inst.getCep());
-        verify(notifier).notifyVerificationCompleted(any());
-        verify(notifier, never()).notifyVerificationRejected(any(), any());
+        verify(notifier).sendInstituitionCompleted(any(), any(), any());
+        verify(notifier, never()).sendInstitutionRejected(any(), any(), any(), any());
     }
 
     @Test
@@ -92,7 +94,7 @@ class InstitutionVerificationServiceTest {
 
         when(repository.findById(id)).thenReturn(Optional.of(inst));
         when(cnpjService.consultar(inst.getCnpj()))
-            .thenThrow(new CnpjProviderIndisponivelException("503"));
+                .thenThrow(new CnpjProviderIndisponivelException("503"));
         when(repository.save(any(InstitutionModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
         VerificationOutcome outcome = service.tryVerify(id);
@@ -111,15 +113,16 @@ class InstitutionVerificationServiceTest {
 
         when(repository.findById(id)).thenReturn(Optional.of(inst));
         when(cnpjService.consultar(inst.getCnpj()))
-            .thenThrow(new CnpjNaoEncontradoException("não encontrado"));
+                .thenThrow(new CnpjNaoEncontradoException("não encontrado"));
         when(repository.save(any(InstitutionModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
         VerificationOutcome outcome = service.tryVerify(id);
 
         assertEquals(VerificationOutcome.REJECTED, outcome);
         assertEquals(InstitutionVerificationStatus.REJECTED, inst.getVerificationStatus());
-        verify(notifier).notifyVerificationRejected(any(), any());
-        verify(notifier, never()).notifyVerificationCompleted(any());
+        verify(notifier).sendInstitutionRejected(any(), any(), any(), any());
+
+        verify(notifier, never()).sendInstituitionCompleted(any(), any(), any());
     }
 
     @Test
@@ -165,7 +168,6 @@ class InstitutionVerificationServiceTest {
         verifyNoInteractions(cnpjService);
     }
 
-
     @Test
     @DisplayName("Situação cadastral BAIXADA → continua VERIFIED mas emite WARN")
     void situacaoBaixadaAindaMarcaVerified() {
@@ -173,8 +175,8 @@ class InstitutionVerificationServiceTest {
         InstitutionModel inst = pendingInstitution(id);
 
         CnpjDTO baixada = new CnpjDTO(
-            "19131243000197", "RAZAO OFICIAL", "FANTASIA", "BAIXADA",
-            "Rua Y", "200", null, "Centro", "São Paulo", "SP", "01001000", null);
+                "19131243000197", "RAZAO OFICIAL", "FANTASIA", "BAIXADA",
+                "Rua Y", "200", null, "Centro", "São Paulo", "SP", "01001000", null);
 
         when(repository.findById(id)).thenReturn(Optional.of(inst));
         when(cnpjService.consultar(inst.getCnpj())).thenReturn(baixada);

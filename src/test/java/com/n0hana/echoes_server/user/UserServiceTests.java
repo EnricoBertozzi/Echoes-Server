@@ -14,6 +14,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -26,15 +27,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.n0hana.echoes_server.mfa.TwoFactorDTO;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.term.TermService;
 import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
@@ -56,8 +57,6 @@ import com.n0hana.echoes_server.user.model.Manager;
 import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.UserRole;
-import java.sql.SQLIntegrityConstraintViolationException;
-import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTests {
@@ -81,7 +80,7 @@ class UserServiceTests {
     private PendingRegistrationRepository pendingRegistrationRepository;
 
     @Mock
-    private TwoFactorNotifier notifier;
+    private NotifierService notifier;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -112,7 +111,7 @@ class UserServiceTests {
         assertEquals(GENERATED_CODE, pending.code());
         assertEquals(0, pending.attempts());
         assertCodeValidFor5Minutes(pending);
-        assertCodeSentFor("joao@example.com");
+        assertInviteSentFor("joao@example.com");
 
         assertEquals("João", dto.name());
         assertEquals("joao@example.com", dto.email());
@@ -135,7 +134,7 @@ class UserServiceTests {
         assertEquals("MANAGER", pending.role());
         assertEquals(institutionId, pending.institutionId());
         assertEquals("gestor@example.com", pending.email());
-        assertCodeSentFor("gestor@example.com");
+        assertInviteSentFor("gestor@example.com");
 
         assertEquals(UserRole.MANAGER, dto.role());
         assertEquals(institutionId, dto.institutionId());
@@ -155,7 +154,7 @@ class UserServiceTests {
         PendingRegistration pending = captureSavedPending();
         assertEquals("TEACHER", pending.role());
         assertEquals(institutionId, pending.institutionId());
-        assertCodeSentFor("professor@example.com");
+        assertInviteSentFor("professor@example.com");
 
         assertEquals(UserRole.TEACHER, dto.role());
         assertEquals(institutionId, dto.institutionId());
@@ -175,7 +174,7 @@ class UserServiceTests {
         PendingRegistration pending = captureSavedPending();
         assertEquals("STUDENT", pending.role());
         assertEquals(institutionId, pending.institutionId());
-        assertCodeSentFor("aluno@example.com");
+        assertInviteSentFor("aluno@example.com");
 
         assertEquals(UserRole.STUDENT, dto.role());
         assertEquals(institutionId, dto.institutionId());
@@ -190,7 +189,7 @@ class UserServiceTests {
                 new CreateUserDTO("João", "JOAO@example.com")));
 
         verify(pendingRegistrationRepository, never()).save(any());
-        verify(notifier, never()).send(any());
+        verify(notifier, never()).sendRegisterInvite(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -203,7 +202,7 @@ class UserServiceTests {
         userService.createAdmin(new CreateUserDTO("João Silva", "joao@example.com"));
 
         verify(pendingRegistrationRepository, times(2)).save(any(PendingRegistration.class));
-        verify(notifier, times(2)).send(any(TwoFactorDTO.class));
+        verify(notifier, times(2)).sendRegisterInvite(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -476,13 +475,11 @@ class UserServiceTests {
         return captor.getValue();
     }
 
-    private void assertCodeSentFor(String email) {
-        ArgumentCaptor<TwoFactorDTO> tokenCaptor = ArgumentCaptor.forClass(TwoFactorDTO.class);
-        verify(notifier).send(tokenCaptor.capture());
-        TwoFactorDTO token = tokenCaptor.getValue();
-        assertEquals(email, token.email());
-        assertEquals(GENERATED_CODE, token.code());
-        assertTrue(token.expiresAt().isAfter(Instant.now().plusSeconds(290)));
+    private void assertInviteSentFor(String email) {
+        verify(notifier).sendRegisterInvite(
+                email,
+                GENERATED_CODE,
+                email);
     }
 
     private void assertCodeValidFor5Minutes(PendingRegistration pending) {
@@ -556,24 +553,23 @@ class UserServiceTests {
         assertThrows(RequiredTermsNotAcceptedException.class,
                 () -> userService.completeRegistration(dto));
     }
-        
 
     @Test
     @DisplayName("Corrida de e-mail entre check e insert é convertida em EmailAlreadyInUseException")
-        void emailRaceConditionIsConvertedToConflict() {
+    void emailRaceConditionIsConvertedToConflict() {
         when(pendingRegistrationRepository.findByEmail("joao@example.com"))
-            .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", null, 0)));
+                .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", null, 0)));
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
         when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
         when(userRepository.save(any(Student.class)))
-            .thenThrow(new DataIntegrityViolationException("could not execute statement",
-                    new SQLIntegrityConstraintViolationException(
-                            "Duplicate entry 'joao@example.com' for key 'users.UK...'",
-                            "23000", 1062)));
+                .thenThrow(new DataIntegrityViolationException("could not execute statement",
+                        new SQLIntegrityConstraintViolationException(
+                                "Duplicate entry 'joao@example.com' for key 'users.UK...'",
+                                "23000", 1062)));
 
         assertThrows(EmailAlreadyInUseException.class, () -> userService.completeRegistration(
-            new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS)));
+                new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS)));
 
-         verify(pendingRegistrationRepository, never()).deleteByEmail(anyString());
+        verify(pendingRegistrationRepository, never()).deleteByEmail(anyString());
     }
 }
