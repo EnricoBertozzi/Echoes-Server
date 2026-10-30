@@ -1,17 +1,13 @@
 package com.n0hana.echoes_server.auth;
 
-import java.time.Duration;
-import java.time.Instant;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
-import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.User;
 
@@ -27,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final TwoFactorNotifier notifier;
+    private final NotifierService notifier;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final TwoFactorService twoFactorService;
@@ -68,7 +64,7 @@ public class AuthService {
         String code = twoFactorService.generateCode();
         authRepository.save(email, code);
 
-        notifier.send(new TwoFactorDTO(email, code, Instant.now().plus(Duration.ofMinutes(15))));
+        notifier.sendMfaCode(email, code);
     }
 
     /**

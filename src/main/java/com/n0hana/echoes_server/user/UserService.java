@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.term.TermService;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
@@ -48,7 +48,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final TwoFactorService twoFactorService;
     private final PendingRegistrationRepository pendingRegistrationRepository;
-    private final TwoFactorNotifier notifier;
+    private final NotifierService notifier;
     private final PasswordEncoder passwordEncoder;
 
     private final TermService termService;
@@ -241,7 +241,7 @@ public class UserService {
         // engolem todas as exceções (verificado): uma falha externa de e-mail
         // não deixa nada inconsistente — o convite expira via TTL e um novo
         // POST reenvia o código.
-        notifier.send(new TwoFactorDTO(email, pending.code(), pending.expiresAt()));
+        notifier.sendRegisterInvite(email, pending.code(), email);
 
         return new PendingRegistrationDTO(name, email, role, institutionId);
     }

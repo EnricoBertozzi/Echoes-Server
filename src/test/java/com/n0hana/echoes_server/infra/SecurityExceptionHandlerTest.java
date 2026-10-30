@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.infra.security;
+package com.n0hana.echoes_server.infra;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

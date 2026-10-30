@@ -22,10 +22,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.User;
 
@@ -33,7 +33,7 @@ import com.n0hana.echoes_server.user.model.User;
 public class AuthServiceTests {
 
     @Mock
-    private TwoFactorNotifier notifier;
+    private NotifierService notifier;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -73,14 +73,7 @@ public class AuthServiceTests {
 
         verify(authRepository).save(email, code);
 
-        ArgumentCaptor<TwoFactorDTO> captor = ArgumentCaptor.forClass(TwoFactorDTO.class);
-        verify(notifier).send(captor.capture());
-
-        TwoFactorDTO sentDto = captor.getValue();
-        assertEquals(email, sentDto.email());
-        assertEquals(code, sentDto.code());
-        assertNotNull(sentDto.expiresAt());
-        assertTrue(sentDto.expiresAt().isAfter(Instant.now()));
+        verify(notifier).sendMfaCode(email, code);
     }
 
     @Test
