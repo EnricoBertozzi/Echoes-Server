@@ -17,11 +17,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
-import com.n0hana.echoes_server.user.UserService;
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.service.UserInfoService;
+import com.n0hana.echoes_server.user.service.UserManagerService;
 import com.n0hana.echoes_server.user.service.UserRegisterService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,8 +35,9 @@ import lombok.RequiredArgsConstructor;
 @SecurityRequirement(name = SecurityConfig.SECURITY)
 public class AdminController {
 
-    private final UserService service;
+    private final UserInfoService userInfoservice;
     private final UserRegisterService userRegisterService;
+    private final UserManagerService userManagerService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -46,25 +48,25 @@ public class AdminController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<UserDTO>> findAll(Pageable pageable) {
-        return ResponseEntity.ok(service.findAdmins(pageable));
+        return ResponseEntity.ok(userInfoservice.findAdmins(pageable));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(service.findAdminById(id));
+        return ResponseEntity.ok(userInfoservice.findAdminById(id));
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserDTO dto) {
-        return ResponseEntity.ok(service.updateAdmin(id, dto));
+        return ResponseEntity.ok(userManagerService.updateAdmin(id, dto));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.deleteAdmin(id);
+        userManagerService.deleteAdmin(id);
         return ResponseEntity.noContent().build();
     }
 }

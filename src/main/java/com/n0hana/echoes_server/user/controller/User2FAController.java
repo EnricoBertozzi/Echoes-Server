@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.n0hana.echoes_server.user.UserService;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.service.UserRegisterService;
@@ -20,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class User2FAController {
 
-    private final UserService service;
     private final UserRegisterService userRegisterService;
 
     @PostMapping("/2fa")

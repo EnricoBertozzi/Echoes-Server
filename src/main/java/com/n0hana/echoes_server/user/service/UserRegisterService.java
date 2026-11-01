@@ -18,6 +18,7 @@ import com.n0hana.echoes_server.term.TermService;
 import com.n0hana.echoes_server.user.PendingRegistration;
 import com.n0hana.echoes_server.user.PendingRegistrationRepository;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.user.UserUtils;
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
@@ -46,7 +47,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserRegisterService {
-    private static final int MAX_VERIFICATION_ATTEMPTS = 5;
+    public static final int MAX_VERIFICATION_ATTEMPTS = 5;
 
     private final NotifierService notifierService;
 
@@ -112,7 +113,7 @@ public class UserRegisterService {
     @Transactional
     @Auditable(action = "COMPLETE_REGISTRATION", entity = "User")
     public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
-        String email = normalizeEmail(dto.email());
+        String email = UserUtils.normalizeEmail(dto.email());
         termService.validateRequiredAccepted(dto.acceptedTerms());
 
         PendingRegistration pending = pendingRepository.findByEmail(email)
@@ -146,7 +147,7 @@ public class UserRegisterService {
 
         termService.registerInitialAcceptances(saved, dto.acceptedTerms());
         pendingRepository.deleteByEmail(email);
-        return toDTO(saved);
+        return UserUtils.toDTO(saved);
     }
 
     // ============================================================================
@@ -161,7 +162,7 @@ public class UserRegisterService {
      * @param institutionId Identificador da instituição do usuário
      */
     private PendingRegistrationDTO invite(String name, String rawEmail, UserRole role, UUID institutionId) {
-        String email = normalizeEmail(rawEmail);
+        String email = UserUtils.normalizeEmail(rawEmail);
         assertEmailAvailable(email);
 
         PendingRegistration pending = new PendingRegistration(
@@ -180,27 +181,6 @@ public class UserRegisterService {
         notifierService.sendRegisterInvite(email, pending.code(), email);
 
         return new PendingRegistrationDTO(name, email, role, institutionId);
-    }
-
-    /**
-     * Verifica se o e-mail está disponível
-     * 
-     * @param email e-mail a ser verificado
-     */
-    private void assertEmailAvailable(String email) {
-        if (userRepository.existsByEmail(email)) {
-            throw new EmailAlreadyInUseException();
-        }
-    }
-
-    /**
-     * Normaliza o e-mail enviado para manter sem espaços extras ou maiusculas
-     * 
-     * @param email E-mail a ser normalizazdo
-     * @return E-mail normalizado
-     */
-    private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
     }
 
     /**
@@ -288,38 +268,13 @@ public class UserRegisterService {
     }
 
     /**
-     * Converte um usuário para um objeto DTO
+     * Verifica se o e-mail está disponível
      * 
-     * @param user Usuário a ser convertido
-     * @return DTO com dados do usuário
+     * @param email e-mail a ser verificado
      */
-    private UserDTO toDTO(User user) {
-        InstitutionModel institutionModel = this.institutionIdOf(user);
-        return new UserDTO(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                institutionModel.getId(),
-                user.getUserRole());
+    public void assertEmailAvailable(String email) {
+        if (userRepository.existsByEmail(email)) {
+            throw new EmailAlreadyInUseException();
+        }
     }
-
-    /**
-     * Adiciona o id do usuário baseado na sua subclasse
-     * 
-     * @param user Instãncia de usuário
-     * @return UUID da instituição.
-     */
-    private InstitutionModel institutionIdOf(User user) {
-        if (user instanceof Manager manager) {
-            return manager.getInstitution();
-        }
-        if (user instanceof Teacher teacher) {
-            return teacher.getInstitution();
-        }
-        if (user instanceof Student student) {
-            return student.getInstitution();
-        }
-        return null;
-    }
-
 }
