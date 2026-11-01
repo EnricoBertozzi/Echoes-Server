@@ -23,23 +23,26 @@ import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.service.UserRegisterService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/users/manager")
+@RequestMapping("/api/v1/users/manager")
 @RequiredArgsConstructor
 @SecurityRequirement(name = SecurityConfig.SECURITY)
 public class ManagerController {
 
     private final UserService service;
 
+    private final UserRegisterService userRegisterService;
+
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createManager(dto));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(userRegisterService.createManager(dto));
     }
 
     @GetMapping

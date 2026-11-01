@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
+import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.term.TermService;
@@ -43,35 +44,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserService {
 
-    static final int MAX_VERIFICATION_ATTEMPTS = 5;
-    private static final String COMPLETE_REGISTRATION = "COMPLETE_REGISTRATION";
     private final UserRepository userRepository;
-    private final TwoFactorService twoFactorService;
     private final PendingRegistrationRepository pendingRegistrationRepository;
-    private final NotifierService notifier;
-    private final PasswordEncoder passwordEncoder;
-
-    private final TermService termService;
-
-    @Auditable(action = "CREATE", entity = "Admin")
-    public PendingRegistrationDTO createAdmin(CreateUserDTO dto) {
-        return invite(dto.name(), dto.email(), UserRole.ADMIN, null);
-    }
-
-    @Auditable(action = "CREATE", entity = "Manager")
-    public PendingRegistrationDTO createManager(CreateInstitutionUserDTO dto) {
-        return invite(dto.name(), dto.email(), UserRole.MANAGER, dto.institutionId());
-    }
-
-    @Auditable(action = "CREATE", entity = "Teacher")
-    public PendingRegistrationDTO createTeacher(CreateInstitutionUserDTO dto) {
-        return invite(dto.name(), dto.email(), UserRole.TEACHER, dto.institutionId());
-    }
-
-    @Auditable(action = "CREATE", entity = "Student")
-    public PendingRegistrationDTO createStudent(CreateInstitutionUserDTO dto) {
-        return invite(dto.name(), dto.email(), UserRole.STUDENT, dto.institutionId());
-    }
 
     public UserDTO findAdminById(UUID id) {
         return toDTO(findTyped(id, Admin.class));
@@ -109,7 +83,7 @@ public class UserService {
     @Auditable(action = "UPDATE", entity = "Admin")
     public UserDTO updateAdmin(UUID id, UpdateUserDTO dto) {
         Admin admin = findTyped(id, Admin.class);
-        applyCommonUpdate(admin, dto.name(), dto.email());
+//        applyCommonUpdate(admin, dto.name(), dto.email());
         return toDTO(userRepository.save(admin));
     }
 
@@ -117,9 +91,9 @@ public class UserService {
     @Auditable(action = "UPDATE", entity = "Manager")
     public UserDTO updateManager(UUID id, UpdateInstitutionUserDTO dto) {
         Manager manager = findTyped(id, Manager.class);
-        applyCommonUpdate(manager, dto.name(), dto.email());
+//        applyCommonUpdate(manager, dto.name(), dto.email());
         if (dto.institutionId() != null) {
-            manager.setInstitutionId(dto.institutionId());
+            // manager.setInstitutionId(dto.institutionId());
         }
         return toDTO(userRepository.save(manager));
     }
@@ -128,9 +102,9 @@ public class UserService {
     @Auditable(action = "UPDATE", entity = "Teacher")
     public UserDTO updateTeacher(UUID id, UpdateInstitutionUserDTO dto) {
         Teacher teacher = findTyped(id, Teacher.class);
-        applyCommonUpdate(teacher, dto.name(), dto.email());
+//        applyCommonUpdate(teacher, dto.name(), dto.email());
         if (dto.institutionId() != null) {
-            teacher.setInstitutionId(dto.institutionId());
+            //teacher.setInstitutionId(dto.institutionId());
         }
         return toDTO(userRepository.save(teacher));
     }
@@ -139,9 +113,9 @@ public class UserService {
     @Auditable(action = "UPDATE", entity = "Student")
     public UserDTO updateStudent(UUID id, UpdateInstitutionUserDTO dto) {
         Student student = findTyped(id, Student.class);
-        applyCommonUpdate(student, dto.name(), dto.email());
+//        applyCommonUpdate(student, dto.name(), dto.email());
         if (dto.institutionId() != null) {
-            student.setInstitutionId(dto.institutionId());
+            //student.setInstitutionId(dto.institutionId());
         }
         return toDTO(userRepository.save(student));
     }
@@ -170,146 +144,18 @@ public class UserService {
         softDelete(findTyped(id, Student.class));
     }
 
-    @Transactional
-    @Auditable(action = COMPLETE_REGISTRATION, entity = "User")
-    public UserDTO completeRegistration(CompleteRegistrationDTO dto) {
-        String email = normalizeEmail(dto.email());
-        termService.validateRequiredAccepted(dto.acceptedTerms());
-
-        PendingRegistration pending = pendingRegistrationRepository.findByEmail(email)
-                .orElseThrow(() -> noPendingRegistrationFor(email));
-
-        if (pending.expiresAt().isBefore(Instant.now())) {
-            pendingRegistrationRepository.deleteByEmail(email);
-            throw new ExpiredTwoFactorCodeException();
-
-        }
-
-        if (!pending.code().equals(dto.code())) {
-            registerFailedAttempt(pending);
-            throw new InvalidTwoFactorCodeException();
-        }
-
-        assertEmailAvailable(email);
-
-        User user = newUserFrom(pending, passwordEncoder.encode(dto.password()));
-
-        User saved;
-        try {
-            saved = userRepository.save(user);
-        } catch (DataIntegrityViolationException ex){
-            //Email ficou indisponivel entre o check e o INSERT.
-            //Converte para exceção de dominio 
-            //GlobalExceptHandler nõo conhece  "email duplicado" a responsabilidade esta RequiredArgsConstructor
-            if (isEmailDuplicate(ex)){
-                throw new EmailAlreadyInUseException();
-            }
-            throw ex;
-        }
-
-        termService.registerInitialAcceptances(saved, dto.acceptedTerms());
-        pendingRegistrationRepository.deleteByEmail(email);
-        return toDTO(saved);
-    }
-
-    private boolean isEmailDuplicate(DataIntegrityViolationException ex){
-        if (ex.getMostSpecificCause() instanceof SQLIntegrityConstraintViolationException sqlEx){
-            return sqlEx.getErrorCode() == 1062 || "23505".equals(sqlEx.getSQLState());
-        }
-        return false;
-    }
-
-    private PendingRegistrationDTO invite(String name, String rawEmail, UserRole role, UUID institutionId) {
-        String email = normalizeEmail(rawEmail);
-        assertEmailAvailable(email);
-
-        PendingRegistration pending = new PendingRegistration(
-                name,
-                email,
-                role.getName(),
-                institutionId,
-                twoFactorService.generateCode(),
-                Instant.now().plusSeconds(300),
-                0,
-                Instant.now());
-
-        // Reconvites de um mesmo e-mail pendente sobrescrevem o registro:
-        // este é o caminho de reenvio para código perdido ou expirado.
-        pendingRegistrationRepository.save(pending);
-
-        // notifier.send é síncrono e SEGURO porque EmailNotifier/LoggerNotifier
-        // engolem todas as exceções (verificado): uma falha externa de e-mail
-        // não deixa nada inconsistente — o convite expira via TTL e um novo
-        // POST reenvia o código.
-        notifier.sendRegisterInvite(email, pending.code(), email);
-
-        return new PendingRegistrationDTO(name, email, role, institutionId);
-    }
-
-    private RuntimeException noPendingRegistrationFor(String email) {
-        if (userRepository.existsByEmail(email)) {
-            return new RegistrationAlreadyCompletedException();
-        }
-        return new UserNotFoundException();
-    }
-
-    private void registerFailedAttempt(PendingRegistration pending) {
-        int attempts = pending.attempts() + 1;
-        if (attempts >= MAX_VERIFICATION_ATTEMPTS) {
-            // Esgotou as tentativas: invalida o convite inteiro para impedir
-            // força bruta do código de 6 dígitos; um novo POST reenvia.
-            pendingRegistrationRepository.deleteByEmail(pending.email());
-            return;
-        }
-        pendingRegistrationRepository.savePreservingTtl(new PendingRegistration(
-                pending.name(),
-                pending.email(),
-                pending.role(),
-                pending.institutionId(),
-                pending.code(),
-                pending.expiresAt(),
-                attempts,
-                pending.createdAt()));
-    }
-
-    private User newUserFrom(PendingRegistration pending, String encodedPassword) {
-        User user = switch (UserRole.valueOf(pending.role())) {
-            case ADMIN -> new Admin();
-            case MANAGER -> new Manager();
-            case TEACHER -> new Teacher();
-            case STUDENT -> new Student();
-        };
-        user.setName(pending.name());
-        user.setEmail(pending.email());
-        user.setPassword(encodedPassword);
-        if (user instanceof Manager manager) {
-            manager.setInstitutionId(pending.institutionId());
-        } else if (user instanceof Teacher teacher) {
-            teacher.setInstitutionId(pending.institutionId());
-        } else if (user instanceof Student student) {
-            student.setInstitutionId(pending.institutionId());
-        }
-        return user;
-    }
-
-    private void assertEmailAvailable(String email) {
-        if (userRepository.existsByEmail(email)) {
-            throw new EmailAlreadyInUseException();
-        }
-    }
-
-    private void applyCommonUpdate(User user, String name, String email) {
-        if (name != null) {
-            user.setName(name);
-        }
-        if (email != null) {
-            String normalized = normalizeEmail(email);
-            if (!normalized.equals(user.getEmail())) {
-                assertEmailAvailable(normalized);
-                user.setEmail(normalized);
-            }
-        }
-    }
+//    private void applyCommonUpdate(User user, String name, String email) {
+//        if (name != null) {
+//            user.setName(name);
+//        }
+//        if (email != null) {
+//            String normalized = normalizeEmail(email);
+//            if (!normalized.equals(user.getEmail())) {
+//                assertEmailAvailable(normalized);
+//                user.setEmail(normalized);
+//            }
+//        }
+//    }
 
     private void softDelete(User user) {
         user.setActive(false);
@@ -328,28 +174,25 @@ public class UserService {
         return type.cast(user);
     }
 
-    private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
-    }
-
     private UserDTO toDTO(User user) {
+        InstitutionModel institutionModel = institutionIdOf(user);
         return new UserDTO(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                institutionIdOf(user),
+                institutionModel.getId(),
                 user.getUserRole());
     }
 
-    private UUID institutionIdOf(User user) {
+    private InstitutionModel institutionIdOf(User user) {
         if (user instanceof Manager manager) {
-            return manager.getInstitutionId();
+            return manager.getInstitution();
         }
         if (user instanceof Teacher teacher) {
-            return teacher.getInstitutionId();
+            return teacher.getInstitution();
         }
         if (user instanceof Student student) {
-            return student.getInstitutionId();
+            return student.getInstitution();
         }
         return null;
     }
