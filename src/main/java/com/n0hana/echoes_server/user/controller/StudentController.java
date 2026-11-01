@@ -18,51 +18,56 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
-import com.n0hana.echoes_server.user.UserService;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.service.UserInfoService;
+import com.n0hana.echoes_server.user.service.UserManagerService;
+import com.n0hana.echoes_server.user.service.UserRegisterService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/users/student")
+@RequestMapping("/api/v1/users/student")
 @RequiredArgsConstructor
 @SecurityRequirement(name = SecurityConfig.SECURITY)
 public class StudentController {
 
-    private final UserService service;
+    private final UserInfoService userInfoService;    
+    private final UserRegisterService userRegisterService;
+    private final UserManagerService userManagerService;
 
     @PostMapping
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createStudent(dto));
+    public ResponseEntity<Void> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
+        userRegisterService.createStudent(dto);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
     @GetMapping
     public ResponseEntity<Page<UserDTO>> findAll(
             @RequestParam(required = false) UUID institutionId, Pageable pageable) {
-        return ResponseEntity.ok(service.findStudents(institutionId, pageable));
+        return ResponseEntity.ok(userInfoService.findStudents(institutionId, pageable));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(service.findStudentById(id));
+        return ResponseEntity.ok(userInfoService.findStudentById(id));
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT')")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
-        return ResponseEntity.ok(service.updateStudent(id, dto));
+        return ResponseEntity.ok(userManagerService.updateStudent(id, dto));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.deleteStudent(id);
+        userManagerService.deleteStudent(id);
         return ResponseEntity.noContent().build();
     }
 }

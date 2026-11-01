@@ -8,7 +8,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Manager;
@@ -16,7 +15,12 @@ import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.User;
 
-@Repository
+/**
+ * Interface JPA para armazenamento de classes envolvidas com os usuários da
+ * aplicação
+ * 
+ * @author Avraham Ben Aram
+ */
 public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
@@ -26,12 +30,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select a from Admin a where a.active = true")
     Page<Admin> findAdmins(Pageable pageable);
 
-    @Query("select m from Manager m where m.active = true and (:institutionId is null or m.institutionId = :institutionId)")
+    @Query("select m from Manager m where m.active = true and (:institutionId is null or m.institution.id = :institutionId)")
     Page<Manager> findManagers(@Param("institutionId") UUID institutionId, Pageable pageable);
 
-    @Query("select t from Teacher t where t.active = true and (:institutionId is null or t.institutionId = :institutionId)")
+    @Query("select t from Teacher t where t.active = true and (:institutionId is null or t.institution.id = :institutionId)")
     Page<Teacher> findTeachers(@Param("institutionId") UUID institutionId, Pageable pageable);
 
-    @Query("select s from Student s where s.active = true and (:institutionId is null or s.institutionId = :institutionId)")
+    @Query("select s from Student s where s.active = true and (:institutionId is null or s.institution.id = :institutionId)")
     Page<Student> findStudents(@Param("institutionId") UUID institutionId, Pageable pageable);
 }

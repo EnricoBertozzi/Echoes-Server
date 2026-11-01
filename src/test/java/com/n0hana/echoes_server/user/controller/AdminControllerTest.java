@@ -1,6 +1,5 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.controller;
 
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -31,23 +30,23 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.n0hana.echoes_server.user.controller.AdminController;
+import com.n0hana.echoes_server.infra.security.JwtFilter;
 import com.n0hana.echoes_server.user.dto.CreateUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
-import com.n0hana.echoes_server.infra.security.JwtTokenService;
-import com.n0hana.echoes_server.user.UserRepository;
-import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
-
+import com.n0hana.echoes_server.user.service.UserInfoService;
+import com.n0hana.echoes_server.user.service.UserManagerService;
+import com.n0hana.echoes_server.user.service.UserRegisterService;
 
 @WebMvcTest(AdminController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @ActiveProfiles("test")
-@Import({SpringDataWebConfiguration.class, UserExceptionHandler.class})
+@Import({ SpringDataWebConfiguration.class, UserExceptionHandler.class })
 
 class AdminControllerTest {
 
@@ -55,50 +54,53 @@ class AdminControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private UserService service;
-    
-    @MockitoBean private JwtTokenService jwtTokenService;
-    @MockitoBean private UserRepository userRepository;
+    private UserRegisterService userRegisterService;
 
+    @MockitoBean
+    private UserInfoService userInfoService;
+
+    @MockitoBean
+    private UserManagerService userManagerService;
+
+    // Necessário para execução dos testes, o filtro barra as requisições de teste
+    @MockitoBean
+    private JwtFilter jwtFilter;
 
     private final UUID id = UUID.randomUUID();
 
     @Test
-    @DisplayName("POST /users/admin com dados válidos → 202 + pendência sem id e sem código")
+    @DisplayName("POST api/v1/users/admin com dados válidos → 202 + pendência sem id e sem código")
     void createValidReturns202PendingRegistration() throws Exception {
-        when(service.createAdmin(any(CreateUserDTO.class)))
-                .thenReturn(new PendingRegistrationDTO("Joao", "joao@example.com", UserRole.ADMIN, null));
+        when(userRegisterService.createAdmin(any(CreateUserDTO.class)))
+                .thenReturn(new PendingRegistrationDTO("Joao", "joao@example.com", UserRole.ADMIN,
+                        null));
 
-        mockMvc.perform(post("/users/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Joao\",\"email\":\"joao@example.com\"}"))
+        mockMvc.perform(post("/api/v1/users/admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Joao\",\"email\":\"joao@example.com\"}"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.name").value("Joao"))
-                .andExpect(jsonPath("$.email").value("joao@example.com"))
-                .andExpect(jsonPath("$.institutionId").value(nullValue()))
-                .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
     }
 
     @Test
-    @DisplayName("POST /users/admin com dados inválidos → 400 + mapa campo→mensagem")
+    @DisplayName("POST /api/v1/users/admin com dados inválidos → 400 + mapa campo→mensagem")
     void createInvalidReturns400WithFieldErrors() throws Exception {
-        mockMvc.perform(post("/users/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"\",\"email\":\"not-an-email\"}"))
+        mockMvc.perform(post("/api/v1/users/admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"\",\"email\":\"not-an-email\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.name").value("O nome é obrigatório"))
                 .andExpect(jsonPath("$.email").value("E-mail inválido"));
     }
 
     @Test
-    @DisplayName("GET /users/admin/{id} → 200 + UserDTO sem senha")
+    @DisplayName("GET /api/v1/users/admin/{id} → 200 + UserDTO sem senha")
     void findByIdReturns200WithoutPassword() throws Exception {
-        when(service.findAdminById(id))
+        when(userInfoService.findAdminById(id))
                 .thenReturn(new UserDTO(id, "Joao", "joao@example.com", null, UserRole.ADMIN));
 
-        mockMvc.perform(get("/users/admin/{id}", id))
+        mockMvc.perform(get("/api/v1/users/admin/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
                 .andExpect(jsonPath("$.name").value("Joao"))
@@ -107,25 +109,26 @@ class AdminControllerTest {
     }
 
     @Test
-    @DisplayName("GET /users/admin/{id} desconhecido → 404 + mensagem")
+    @DisplayName("GET /api/v1/users/admin/{id} desconhecido → 404 + mensagem")
     void findUnknownIdReturns404WithMessage() throws Exception {
-        when(service.findAdminById(id)).thenThrow(new UserNotFoundException());
+        when(userInfoService.findAdminById(id)).thenThrow(new UserNotFoundException());
 
-        mockMvc.perform(get("/users/admin/{id}", id))
+        mockMvc.perform(get("/api/v1/users/admin/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Usuário não encontrado"));
     }
 
     @Test
-    @DisplayName("GET /users/admin → 200 + página com conteúdo")
+    @DisplayName("GET /api/v1/users/admin → 200 + página com conteúdo")
     void findAllReturns200WithPageContent() throws Exception {
-        when(service.findAdmins(any(Pageable.class)))
+        when(userInfoService.findAdmins(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new UserDTO(id, "Joao", "joao@example.com", null, UserRole.ADMIN)),
+                        List.of(new UserDTO(id, "Joao", "joao@example.com", null,
+                                UserRole.ADMIN)),
                         PageRequest.of(0, 20),
                         1));
 
-        mockMvc.perform(get("/users/admin"))
+        mockMvc.perform(get("/api/v1/users/admin"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content[0].name").value("Joao"))
@@ -133,40 +136,40 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].password").doesNotExist());
 
-        verify(service).findAdmins(any(Pageable.class));
+        verify(userInfoService).findAdmins(any(Pageable.class));
     }
 
     @Test
-    @DisplayName("PATCH /users/admin/{id} válido → 200 + UserDTO sem senha")
+    @DisplayName("PATCH /api/v1/users/admin/{id} válido → 200 + UserDTO sem senha")
     void updateValidReturns200WithoutPassword() throws Exception {
-        when(service.updateAdmin(eq(id), any(UpdateUserDTO.class)))
+        when(userManagerService.updateAdmin(eq(id), any(UpdateUserDTO.class)))
                 .thenReturn(new UserDTO(id, "Joao Silva", "joao@example.com", null, UserRole.ADMIN));
 
-        mockMvc.perform(patch("/users/admin/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Joao Silva\"}"))
+        mockMvc.perform(patch("/api/v1/users/admin/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Joao Silva\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Joao Silva"))
                 .andExpect(jsonPath("$.password").doesNotExist());
     }
 
     @Test
-    @DisplayName("PATCH /users/admin/{id} com nome/e-mail em branco → 400 de validação")
+    @DisplayName("PATCH /api/v1/users/admin/{id} com nome/e-mail em branco → 400 de validação")
     void patchWithBlankFieldsReturns400() throws Exception {
-        mockMvc.perform(patch("/users/admin/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"\",\"email\":\"\"}"))
+        mockMvc.perform(patch("/api/v1/users/admin/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"\",\"email\":\"\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.name").value("O nome não pode ficar em branco"))
                 .andExpect(jsonPath("$.email").value("O e-mail não pode ficar em branco"));
     }
 
     @Test
-    @DisplayName("DELETE /users/admin/{id} → 204 e delega ao serviço")
+    @DisplayName("DELETE /api/v1/users/admin/{id} → 204 e delega ao serviço")
     void deleteReturns204AndDelegates() throws Exception {
-        mockMvc.perform(delete("/users/admin/{id}", id))
+        mockMvc.perform(delete("/api/v1/users/admin/{id}", id))
                 .andExpect(status().isNoContent());
 
-        verify(service).deleteAdmin(id);
+        verify(userManagerService).deleteAdmin(id);
     }
 }

@@ -10,7 +10,7 @@ public enum CodeType implements RedisNamespace {
     MFA(Duration.ofMinutes(15), "pending:login:"),
     PASSWORD_RESET(Duration.ofMinutes(15), "password:code:"),
     PASSWORD_TOKEN(Duration.ofMinutes(15), "password:token:"),
-    INVITE(Duration.ofMinutes(15), "registration:"),
+    INVITE(Duration.ofDays(7), "registration:"),
 
     // TTL customizado na chamada (calculado a partir da expiração do JWT)
     JWT_BLACKLIST(Duration.ofHours(2), "blacklist:token:");
