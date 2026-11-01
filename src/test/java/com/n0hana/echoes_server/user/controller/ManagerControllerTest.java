@@ -82,10 +82,6 @@ class ManagerControllerTest {
                         .content("{\"name\":\"Gestor\",\"email\":\"gestor@example.com\","
                                 + "\"institutionId\":\"" + institutionId + "\"}"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.name").value("Gestor"))
-                .andExpect(jsonPath("$.email").value("gestor@example.com"))
-                .andExpect(jsonPath("$.institutionId").value(institutionId.toString()))
-                .andExpect(jsonPath("$.role").value("MANAGER"))
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
     }

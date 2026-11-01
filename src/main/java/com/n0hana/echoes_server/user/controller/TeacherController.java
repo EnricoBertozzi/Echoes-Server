@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
-import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.service.UserInfoService;
@@ -42,8 +41,9 @@ public class TeacherController {
 
     @PostMapping
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(userRegisterService.createTeacher(dto));
+    public ResponseEntity<Void> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
+        userRegisterService.createTeacher(dto);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
     @GetMapping

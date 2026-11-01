@@ -1,6 +1,5 @@
 package com.n0hana.echoes_server.user.controller;
 
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -80,10 +79,6 @@ class AdminControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Joao\",\"email\":\"joao@example.com\"}"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.name").value("Joao"))
-                .andExpect(jsonPath("$.email").value("joao@example.com"))
-                .andExpect(jsonPath("$.institutionId").value(nullValue()))
-                .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
     }

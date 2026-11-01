@@ -41,8 +41,9 @@ public class AdminController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(userRegisterService.createAdmin(dto));
+    public ResponseEntity<Void> create(@RequestBody @Valid CreateUserDTO dto) {
+        userRegisterService.createAdmin(dto);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
     @GetMapping

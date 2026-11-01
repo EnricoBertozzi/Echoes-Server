@@ -84,10 +84,6 @@ class StudentControllerTest {
                 .content("{\"name\":\"Aluno\",\"email\":\"aluno@example.com\","
                         + "\"institutionId\":\"" + institutionId + "\"}"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.name").value("Aluno"))
-                .andExpect(jsonPath("$.email").value("aluno@example.com"))
-                .andExpect(jsonPath("$.institutionId").value(institutionId.toString()))
-                .andExpect(jsonPath("$.role").value("STUDENT"))
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
     }

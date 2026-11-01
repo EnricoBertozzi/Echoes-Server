@@ -42,8 +42,9 @@ public class StudentController {
 
     @PostMapping
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(userRegisterService.createStudent(dto));
+    public ResponseEntity<Void> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
+        userRegisterService.createStudent(dto);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
     @GetMapping
