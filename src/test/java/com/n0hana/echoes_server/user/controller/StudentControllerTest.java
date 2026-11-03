@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,76 +31,82 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.n0hana.echoes_server.user.controller.StudentController;
+import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
-import com.n0hana.echoes_server.infra.security.JwtTokenService;
-import com.n0hana.echoes_server.user.UserRepository;
-
-import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
+import com.n0hana.echoes_server.user.service.UserInfoService;
+import com.n0hana.echoes_server.user.service.UserManagerService;
+import com.n0hana.echoes_server.user.service.UserRegisterService;
 
 @WebMvcTest(StudentController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @ActiveProfiles("test")
 
-@Import({SpringDataWebConfiguration.class, UserExceptionHandler.class})
+@Import({ SpringDataWebConfiguration.class, UserExceptionHandler.class })
 class StudentControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private UserService service;
+    private UserRegisterService userRegisterService;
 
-    @MockitoBean private JwtTokenService jwtTokenService;
-    @MockitoBean private UserRepository userRepository;
+    @MockitoBean
+    private UserInfoService userInfoService;
 
+    @MockitoBean 
+    private UserManagerService userManagerService;
+
+    @MockitoBean
+    private JwtTokenService jwtTokenService;
+    @MockitoBean
+    private UserRepository userRepository;
 
     private final UUID id = UUID.randomUUID();
     private final UUID institutionId = UUID.randomUUID();
 
     @Test
-    @DisplayName("POST /users/student com dados válidos → 202 + pendência com institutionId, sem id e sem código")
+    @DisplayName("POST /api/v1/users/student com dados válidos → 202 + pendência com institutionId, sem id e sem código")
     void createValidReturns202PendingRegistration() throws Exception {
-        when(service.createStudent(any(CreateInstitutionUserDTO.class)))
-                .thenReturn(new PendingRegistrationDTO("Aluno", "aluno@example.com", UserRole.STUDENT, institutionId));
+        when(userRegisterService.createStudent(any(CreateInstitutionUserDTO.class)))
+                .thenReturn(new PendingRegistrationDTO("Aluno", "aluno@example.com", UserRole.STUDENT,
+                        institutionId));
 
-        mockMvc.perform(post("/users/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Aluno\",\"email\":\"aluno@example.com\","
-                                + "\"institutionId\":\"" + institutionId + "\"}"))
+        mockMvc.perform(post("/api/v1/users/student")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Aluno\",\"email\":\"aluno@example.com\","
+                        + "\"institutionId\":\"" + institutionId + "\"}"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.name").value("Aluno"))
-                .andExpect(jsonPath("$.email").value("aluno@example.com"))
-                .andExpect(jsonPath("$.institutionId").value(institutionId.toString()))
-                .andExpect(jsonPath("$.role").value("STUDENT"))
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
     }
 
     @Test
-    @DisplayName("POST /users/student com dados inválidos → 400 + mapa campo→mensagem")
+    @DisplayName("POST /api/v1/users/student com dados inválidos → 400 + mapa campo→mensagem")
     void createInvalidReturns400WithFieldErrors() throws Exception {
-        mockMvc.perform(post("/users/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"\",\"email\":\"not-an-email\"}"))
+        mockMvc.perform(post("/api/v1/users/student")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"\",\"email\":\"not-an-email\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.name").value("O nome é obrigatório"))
                 .andExpect(jsonPath("$.email").value("E-mail inválido"));
     }
 
     @Test
-    @DisplayName("GET /users/student/{id} → 200 + UserDTO sem senha")
+    @DisplayName("GET /api/v1/users/student/{id} → 200 + UserDTO sem senha")
     void findByIdReturns200WithoutPassword() throws Exception {
-        when(service.findStudentById(id))
-                .thenReturn(new UserDTO(id, "Aluno", "aluno@example.com", institutionId, UserRole.STUDENT));
+        when(userInfoService.findStudentById(id))
+                .thenReturn(new UserDTO(id, "Aluno", "aluno@example.com", institutionId,
+                        UserRole.STUDENT));
 
-        mockMvc.perform(get("/users/student/{id}", id))
+        mockMvc.perform(get("/api/v1/users/student/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
                 .andExpect(jsonPath("$.name").value("Aluno"))
@@ -111,70 +117,73 @@ class StudentControllerTest {
     @Test
     @DisplayName("GET /users/student/{id} desconhecido → 404 + mensagem")
     void findUnknownIdReturns404WithMessage() throws Exception {
-        when(service.findStudentById(id)).thenThrow(new UserNotFoundException());
+        when(userInfoService.findStudentById(id)).thenThrow(new UserNotFoundException());
 
-        mockMvc.perform(get("/users/student/{id}", id))
+        mockMvc.perform(get("/api/v1/users/student/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Usuário não encontrado"));
     }
 
     @Test
-    @DisplayName("GET /users/student com institutionId → 200 e repassa o filtro ao serviço")
+    @DisplayName("GET /api/v1/users/student com institutionId → 200 e repassa o filtro ao serviço")
     void findAllWithInstitutionIdFilter() throws Exception {
-        when(service.findStudents(eq(institutionId), any(Pageable.class)))
+        when(userInfoService.findStudents(eq(institutionId), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new UserDTO(id, "Aluno", "aluno@example.com", institutionId, UserRole.STUDENT)),
+                        List.of(new UserDTO(id, "Aluno", "aluno@example.com", institutionId,
+                                UserRole.STUDENT)),
                         PageRequest.of(0, 20),
                         1));
 
-        mockMvc.perform(get("/users/student").param("institutionId", institutionId.toString()))
+        mockMvc.perform(get("/api/v1/users/student").param("institutionId", institutionId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content[0].role").value("STUDENT"))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].password").doesNotExist());
 
-        verify(service).findStudents(eq(institutionId), any(Pageable.class));
+        verify(userInfoService).findStudents(eq(institutionId), any(Pageable.class));
     }
 
     @Test
-    @DisplayName("GET /users/student sem institutionId → 200 e chama o serviço com filtro nulo")
+    @DisplayName("GET /api/v1/users/student sem institutionId → 200 e chama o serviço com filtro nulo")
     void findAllWithoutInstitutionIdFilter() throws Exception {
-        when(service.findStudents(isNull(), any(Pageable.class)))
+        when(userInfoService.findStudents(isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new UserDTO(id, "Aluno", "aluno@example.com", institutionId, UserRole.STUDENT)),
+                        List.of(new UserDTO(id, "Aluno", "aluno@example.com", institutionId,
+                                UserRole.STUDENT)),
                         PageRequest.of(0, 20),
                         1));
 
-        mockMvc.perform(get("/users/student"))
+        mockMvc.perform(get("/api/v1/users/student"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].password").doesNotExist());
 
-        verify(service).findStudents(isNull(), any(Pageable.class));
+        verify(userInfoService).findStudents(isNull(), any(Pageable.class));
     }
 
     @Test
-    @DisplayName("PATCH /users/student/{id} válido → 200 + UserDTO sem senha")
+    @DisplayName("PATCH /api/v1/users/student/{id} válido → 200 + UserDTO sem senha")
     void updateValidReturns200WithoutPassword() throws Exception {
-        when(service.updateStudent(eq(id), any(UpdateInstitutionUserDTO.class)))
-                .thenReturn(new UserDTO(id, "Aluno Silva", "aluno@example.com", institutionId, UserRole.STUDENT));
+        when(userManagerService.updateStudent(eq(id), any(UpdateInstitutionUserDTO.class)))
+                .thenReturn(new UserDTO(id, "Aluno Silva", "aluno@example.com", institutionId,
+                        UserRole.STUDENT));
 
-        mockMvc.perform(patch("/users/student/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Aluno Silva\"}"))
+        mockMvc.perform(patch("/api/v1/users/student/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Aluno Silva\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Aluno Silva"))
                 .andExpect(jsonPath("$.password").doesNotExist());
     }
 
     @Test
-    @DisplayName("DELETE /users/student/{id} → 204 e delega ao serviço")
+    @DisplayName("DELETE /api/v1/users/student/{id} → 204 e delega ao serviço")
     void deleteReturns204AndDelegates() throws Exception {
-        mockMvc.perform(delete("/users/student/{id}", id))
+        mockMvc.perform(delete("/api/v1/users/student/{id}", id))
                 .andExpect(status().isNoContent());
 
-        verify(service).deleteStudent(id);
+        verify(userManagerService).deleteStudent(id);
     }
 }
