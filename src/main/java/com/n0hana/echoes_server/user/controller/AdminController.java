@@ -33,7 +33,9 @@ import lombok.RequiredArgsConstructor;
 @SecurityRequirement(name = SecurityConfig.SECURITY)
 public class AdminController {
 
-    private final UserService service;
+    private final UserInfoService userInfoService;
+    private final UserRegisterService userRegisterService;
+    private final UserManagerService userManagerService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -44,13 +46,19 @@ public class AdminController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<UserDTO>> findAll(Pageable pageable) {
-        return ResponseEntity.ok(service.findAdmins(pageable));
+        return ResponseEntity.ok(userInfoService.findAdmins(pageable));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(service.findAdminById(id));
+        return ResponseEntity.ok(userInfoService.findAdminById(id));
+    }
+
+    @GetMapping("/search/{name}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<UserDTO>> findUsersByName(@PathVariable String name, Pageable pageable) {
+        return ResponseEntity.ok(userInfoService.findAdminByName(name, pageable));
     }
 
     @PatchMapping("/{id}")

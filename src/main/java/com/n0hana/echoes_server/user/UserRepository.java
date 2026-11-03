@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Manager;
 import com.n0hana.echoes_server.user.model.Student;
@@ -34,4 +35,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("select s from Student s where s.active = true and (:institutionId is null or s.institutionId = :institutionId)")
     Page<Student> findStudents(@Param("institutionId") UUID institutionId, Pageable pageable);
+
+    @Query("select a from Admin a where a.name like %:name%")
+    Page<Admin> findAdminsByName(@Param("name") String name, Pageable pageable);
 }
