@@ -85,8 +85,7 @@ public class UserInfoService {
      *         encontrado
      */
     public UserDTO findUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(UserNotFoundException::new);
+        User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
         return UserUtils.toDTO(user);
     }
 }

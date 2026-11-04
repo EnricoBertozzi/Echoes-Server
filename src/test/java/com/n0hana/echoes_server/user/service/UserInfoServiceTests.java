@@ -3,6 +3,8 @@ package com.n0hana.echoes_server.user.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,8 +27,10 @@ import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
+import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Teacher;
+import com.n0hana.echoes_server.user.model.User;
 import com.n0hana.echoes_server.user.model.UserRole;
 
 @ExtendWith(MockitoExtension.class)
@@ -107,4 +111,30 @@ public class UserInfoServiceTests {
         return teacher;
     }
 
+    @Test
+    @DisplayName("Deve buscar um usuáro pelo e-mail")
+    void shouldFindUserByEmail() {
+        // Arrange
+        String email = "teste@email.com";
+        User user = mock(User.class);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        // Act
+        userService.findUserByEmail(email);
+
+        // Assert
+        verify(userRepository).findByEmail(email);
+    }
+
+    @Test
+    @DisplayName("Deve lançar UserNotFoundException quando o usuário não for encontrado pelo e-mail")
+    void shouldThrowUserNotFoundExceptionWhenUserNotFoundByEmail() {
+        // Arrange
+        String email = "teste@email.com";
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        
+        // Act e Assert
+        assertThrows(UserNotFoundException.class, () -> userService.findUserByEmail(email));
+    }
 }
