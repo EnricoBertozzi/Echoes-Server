@@ -2,6 +2,7 @@ package com.n0hana.echoes_server.user.service;
 
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -67,6 +68,10 @@ public class UserInfoService {
         }
 
         return type.cast(user);
+    }
+
+    public Page<UserDTO> findAdminByName(String name, Pageable pageable) {
+        return userRepository.findAdminsByName(name, pageable).map(UserUtils::toDTO);
     }
 
 }

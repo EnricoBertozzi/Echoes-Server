@@ -5,8 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -22,6 +28,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
+import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.mfa.TwoFactorDTO;
@@ -50,6 +58,9 @@ public class AuthServiceTests {
     @Mock
     private JwtTokenService jwtTokenService;
 
+    @Mock
+    private LoginAttemptService attemptService;
+
     @InjectMocks
     private AuthService authService;
 
@@ -68,6 +79,8 @@ public class AuthServiceTests {
         when(user.getPassword()).thenReturn(encodedPassword);
         when(passwordEncoder.matches(password, encodedPassword)).thenReturn(true);
         when(twoFactorService.generateCode()).thenReturn(code);
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
 
         assertDoesNotThrow(() -> authService.login(email, password));
 
@@ -108,8 +121,10 @@ public class AuthServiceTests {
         User user = mock(User.class);
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-        when(user.isAccountNonLocked()).thenReturn(true);
         when(user.getPassword()).thenReturn(encodedPassword);
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+
         when(passwordEncoder.matches(password, encodedPassword)).thenReturn(false);
 
         assertThrows(AuthFailedException.class, () -> authService.login(email, password));
@@ -126,6 +141,8 @@ public class AuthServiceTests {
         when(authRepository.findByEmail(email)).thenReturn(Optional.of(code));
         when(jwtTokenService.generate(user)).thenReturn(token);
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
 
         String result = authService.verifyMfaCode(email, code);
 
@@ -155,5 +172,169 @@ public class AuthServiceTests {
         when(authRepository.findByEmail(email)).thenReturn(Optional.of(savedCode));
 
         assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, wrongCode));
+    }
+
+    @Test
+    @DisplayName("Deve impedir o login quando o usuário está bloqueado")
+    void shouldFailedLoginWhenUserIsBlocked() {
+        // Arrange
+        String email = "teste@email.com";
+        String password = "1234567";
+
+        User user = mock(User.class);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(false);
+
+        // Act e Assert
+        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
+
+    }
+
+    @Test
+    @DisplayName("Deve impedir MFA quando o usuário estiver bloqueado")
+    void shouldRejectMfaWhenUserIsBlocked() {
+        // Arrange
+        String email = "teste@email.com";
+        String code = "123456";
+
+        User user = mock(User.class);
+
+        when(authRepository.findByEmail(email)).thenReturn(Optional.of(code));
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(false);
+
+        // Act e Assert
+        assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, code));
+
+        verify(authRepository).delete(email);
+        verify(attemptService, never()).resetLoginAttempt(anyString());
+        verify(jwtTokenService, never()).generate(any());
+    }
+
+    @Test
+    @DisplayName("Deve registrar tentativa quando a senha estiver incorreta")
+    void shouldRegisterAttemptWhenPasswordIsIncorrect() {
+        // Arrange
+        String email = "teste@email.com";
+        String password = "senhaErrada";
+        String encodedPassword = "senhaCriptografada";
+
+        User user = mock(User.class);
+
+        when(userRepository.findByEmail(email))
+                .thenReturn(Optional.of(user));
+
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getEmail()).thenReturn(email);
+        when(user.getPassword()).thenReturn(encodedPassword);
+
+        // Act e Assert
+        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
+
+        verify(attemptService).registerFailedAttempt(email);
+        verify(authRepository, never()).save(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Deve registrar tentativa quando o código MFA estiver incorreto")
+    void shouldRegisterAttemptWhenMfaCodeIsIncorrect() {
+        // Arrange
+        String email = "teste@email.com";
+        String code = "123456";
+        String wrongCode = "999999";
+
+        when(authRepository.findByEmail(email)).thenReturn(Optional.of(code));
+
+        // Act e Assert
+        assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, wrongCode));
+
+        verify(attemptService).registerFailedAttempt(email);
+        verify(jwtTokenService, never()).generate(any());
+    }
+
+    @Test
+    @DisplayName("Deve registrar falhas tanto no login quanto no MFA")
+    void shouldRegisterAttemptsAcrossLoginAndMfa() {
+        // Arrange
+        String email = "teste@email.com";
+        String password = "senhaErrada";
+        String encryptedPassword = "senhaCriptografada";
+        String code = "123456";
+        String wrongCode = "999999";
+
+        User user = mock(User.class);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getPassword()).thenReturn(encryptedPassword);
+        when(user.getEmail()).thenReturn(email);
+
+        when(authRepository.findByEmail(email)).thenReturn(Optional.of(code));
+
+        // Act e Assert
+        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
+        assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, wrongCode));
+
+        verify(attemptService, times(2)).registerFailedAttempt(email);
+        verify(attemptService, never()).resetLoginAttempt(anyString());
+    }
+
+    @Test
+    @DisplayName("Deve permitir login após o usuário ser desbloqueado")
+    void shouldAllowLoginAfterAccountUnlock() {
+        // Arrange
+        String email = "teste@email.com";
+        String password = "senha123";
+        String encodedPassword = "hash";
+
+        User user = mock(User.class);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+
+        // Primeira consulta retorna false, segunda consulta retorna true
+        when(user.isAccountNonLocked()).thenReturn(false, true);
+
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getPassword()).thenReturn(encodedPassword);
+        when(passwordEncoder.matches(password, encodedPassword)).thenReturn(true);
+        when(twoFactorService.generateCode()).thenReturn("123456");
+
+        // Act e Assert
+        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
+        assertDoesNotThrow(() -> authService.login(email, password));
+
+        verify(authRepository).save(email, "123456");
+        verify(notifier).sendMfaCode(email, "123456");
+    }
+
+    @Test
+    @DisplayName("Deve realizar logout com sucesso quando o header for válido")
+    void shouldSuccessfullyLogout() {
+        // Arrange
+        String header = "Bearer token123";
+
+        // Act
+        assertDoesNotThrow(() -> authService.logout(header));
+
+        // Assert
+        verify(jwtTokenService).invalidate(header);
+    }
+
+    @Test
+    @DisplayName("Deve lançar LogoutFailedException quando o header for inválido")
+    void shouldThrowLogoutFailedExceptionWhenHeaderIsInvalid() {
+        // Arrange
+        String header = "token123";
+
+        // Act
+        assertThrows(LogoutFailedException.class, () -> authService.logout(header));
+        assertThrows(LogoutFailedException.class, () -> authService.logout(null));
+
+        // Assert
+        verifyNoInteractions(jwtTokenService);
     }
 }
