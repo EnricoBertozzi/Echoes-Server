@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
+import com.n0hana.echoes_server.auth.exception.UserBlockedException;
 import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
@@ -62,7 +63,7 @@ public class AuthService {
 
         // Verifica se o usuário não foi bloqueado
         if (!user.isAccountNonLocked() || !user.isEnabled())
-            throw new AuthFailedException();
+            throw new UserBlockedException();
 
         // Guard Clause para verificação de senha
         if (!passwordEncoder.matches(password, user.getPassword())) {
@@ -94,13 +95,12 @@ public class AuthService {
             throw new AuthFailedException();
         }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(UserNotFoundException::new);
+        User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
 
         // Verifica se o usuário não foi bloqueado
         if (!user.isAccountNonLocked() || !user.isEnabled()) {
             authRepository.delete(email);
-            throw new AuthFailedException();
+            throw new UserBlockedException();
         }
 
         attemptService.resetLoginAttempt(user.getEmail());

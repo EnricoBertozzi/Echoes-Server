@@ -29,6 +29,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
+import com.n0hana.echoes_server.auth.exception.UserBlockedException;
 import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
@@ -100,8 +101,8 @@ public class AuthServiceTests {
     }
 
     @Test
-    @DisplayName("Deve lançar exceção AuthFailedException quando o usuário estiver bloqueado durante o login")
-    void shouldThrowAuthFailedExceptionWhenUserIsBlocked() {
+    @DisplayName("Deve lançar exceção UserBlockedException quando o usuário estiver bloqueado durante o login")
+    void shouldThrowUserBlockedExceptionWhenUserIsBlocked() {
         String email = "teste@email.com";
         String password = "senha123";
         User user = mock(User.class);
@@ -109,7 +110,7 @@ public class AuthServiceTests {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(user.isAccountNonLocked()).thenReturn(false);
 
-        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
+        assertThrows(UserBlockedException.class, () -> authService.login(email, password));
     }
 
     @Test
@@ -187,7 +188,7 @@ public class AuthServiceTests {
         when(user.isAccountNonLocked()).thenReturn(false);
 
         // Act e Assert
-        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
+        assertThrows(UserBlockedException.class, () -> authService.login(email, password));
 
     }
 
@@ -205,7 +206,7 @@ public class AuthServiceTests {
         when(user.isAccountNonLocked()).thenReturn(false);
 
         // Act e Assert
-        assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, code));
+        assertThrows(UserBlockedException.class, () -> authService.verifyMfaCode(email, code));
 
         verify(authRepository).delete(email);
         verify(attemptService, never()).resetLoginAttempt(anyString());
@@ -304,7 +305,7 @@ public class AuthServiceTests {
         when(twoFactorService.generateCode()).thenReturn("123456");
 
         // Act e Assert
-        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
+        assertThrows(UserBlockedException.class, () -> authService.login(email, password));
         assertDoesNotThrow(() -> authService.login(email, password));
 
         verify(authRepository).save(email, "123456");
