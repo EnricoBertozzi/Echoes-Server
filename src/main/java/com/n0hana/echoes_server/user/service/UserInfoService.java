@@ -74,4 +74,19 @@ public class UserInfoService {
         return userRepository.findAdminsByName(name, pageable).map(UserUtils::toDTO);
     }
 
+    /**
+     * Busca usuários por e-mail no banco de dados
+     * 
+     * @param email E-mail do usuário a ser procurado
+     * 
+     * @throws UserNotFoundException caso o e-mail não esteja cadastrado
+     * 
+     * @return {@link UserDTO} com dados do usuário
+     *         encontrado
+     */
+    public UserDTO findUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+        return UserUtils.toDTO(user);
+    }
 }
