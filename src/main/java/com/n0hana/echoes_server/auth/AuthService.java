@@ -4,14 +4,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
+import com.n0hana.echoes_server.auth.exception.UserBlockedException;
+import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service para gerenciar autenticação de usuários.
@@ -21,6 +27,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final NotifierService notifier;
@@ -29,6 +36,7 @@ public class AuthService {
     private final TwoFactorService twoFactorService;
     private final JwtTokenService jwtTokenService;
     private final AuthRepository authRepository;
+    private final LoginAttemptService attemptService;
 
     /**
      * Realiza verificação do login do usuário
@@ -46,20 +54,22 @@ public class AuthService {
      * 
      * @throws {@link AuthFailedException}
      */
+    @Transactional(dontRollbackOn = AuthFailedException.class)
     @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
     public void login(String email, String password) {
         // Verificação se o usuário existe
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthFailedException());
+                .orElseThrow(AuthFailedException::new);
 
         // Verifica se o usuário não foi bloqueado
-        if (!user.isAccountNonLocked())
-            throw new AuthFailedException();
+        if (!user.isAccountNonLocked() || !user.isEnabled())
+            throw new UserBlockedException();
 
         // Guard Clause para verificação de senha
-        if (!passwordEncoder.matches(password, user.getPassword()))
-            // TODO adicionar ratelimit
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            attemptService.registerFailedAttempt(user.getEmail());
             throw new AuthFailedException();
+        }
 
         String code = twoFactorService.generateCode();
         authRepository.save(email, code);
@@ -74,17 +84,28 @@ public class AuthService {
      * @param code  Código multifator
      */
 
-    @Auditable(action = "LOGIN_SUCESS)", entity = "User")
+    @Transactional(dontRollbackOn = AuthFailedException.class)
+    @Auditable(action = "LOGIN_SUCCESS)", entity = "User")
     public String verifyMfaCode(String email, String code) {
         String savedCode = authRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthFailedException());
+                .orElseThrow(AuthFailedException::new);
 
-        if (!savedCode.equals(code))
-            // TODO usar TwoFactorService para validar código
+        if (!savedCode.equals(code)) {
+            attemptService.registerFailedAttempt(email);
             throw new AuthFailedException();
+        }
+
+        User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
+
+        // Verifica se o usuário não foi bloqueado
+        if (!user.isAccountNonLocked() || !user.isEnabled()) {
+            authRepository.delete(email);
+            throw new UserBlockedException();
+        }
+
+        attemptService.resetLoginAttempt(user.getEmail());
 
         authRepository.delete(email);
-        User user = userRepository.findByEmail(email).get();
         return jwtTokenService.generate(user);
     }
 
@@ -96,8 +117,7 @@ public class AuthService {
     @Auditable(action = "LOGOUT", entity = "User")
     public void logout(String header) {
         if (header == null || !header.startsWith("Bearer "))
-            // TODO Alterar exceção
-            throw new AuthFailedException();
+            throw new LogoutFailedException();
 
         jwtTokenService.invalidate(header);
     }

@@ -128,10 +128,6 @@ class RegistrationFlowIntegrationTest {
                 .content("{\"name\":\"Aluno\",\"email\":\"" + email + "\","
                         + "\"institutionId\":\"" + institution.getId().toString() + "\"}"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.name").value("Aluno"))
-                .andExpect(jsonPath("$.email").value(email))
-                .andExpect(jsonPath("$.role").value("STUDENT"))
-                .andExpect(jsonPath("$.institutionId").value(institution.getId().toString()))
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
 

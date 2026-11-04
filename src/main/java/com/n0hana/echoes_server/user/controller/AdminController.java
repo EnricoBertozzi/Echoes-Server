@@ -1,4 +1,4 @@
-\package com.n0hana.echoes_server.user.controller;
+package com.n0hana.echoes_server.user.controller;
 
 import java.util.UUID;
 
@@ -31,8 +31,8 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/users/admin")
-@RequiredArgsConstructor
 @SecurityRequirement(name = SecurityConfig.SECURITY)
+@RequiredArgsConstructor
 public class AdminController {
 
     private final UserInfoService userInfoService;
