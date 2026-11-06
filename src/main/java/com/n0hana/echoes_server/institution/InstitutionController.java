@@ -57,8 +57,8 @@ public class InstitutionController {
      * @return {@link ResponseEntity} contendo as instituições cadastradas e o
      *         status HTTP 200 (SUCCESS).
      */
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<InstitutionDTO>> findAll(
         @RequestParam(required = false) String name,
         @RequestParam(defaultValue = "0") int page,
@@ -79,7 +79,7 @@ public class InstitutionController {
      *         (SUCCESS).
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('MANAGER') and @guard.isInstituicaoUsuario(#id))")
     public ResponseEntity<InstitutionDTO> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(InstitutionDTO.fromModel(service.findById(id)));
     }

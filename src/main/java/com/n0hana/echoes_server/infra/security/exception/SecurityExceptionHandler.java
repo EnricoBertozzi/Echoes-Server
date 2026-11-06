@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.infra.security.exception;
 
+import org.springframework.core.annotation.Order;
+import org.springframework.core.Ordered;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  //Requisições bloqueadas no filter-chain
 //não expõe o motivo real "role exigida, URL, ID de usuário mensagens 
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class SecurityExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
