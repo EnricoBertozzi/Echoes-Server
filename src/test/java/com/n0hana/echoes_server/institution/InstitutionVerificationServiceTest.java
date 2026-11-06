@@ -23,6 +23,8 @@ import com.n0hana.echoes_server.cnpj.exception.CnpjNaoEncontradoException;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.institution.InstitutionVerificationService.VerificationOutcome;
 import com.n0hana.echoes_server.notifier.InstitutionNotifier;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
+
 
 @ExtendWith(MockitoExtension.class)
 class InstitutionVerificationServiceTest {

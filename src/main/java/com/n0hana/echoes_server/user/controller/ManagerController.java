@@ -37,30 +37,33 @@ public class ManagerController {
     private final UserService service;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') and @guard.isInstituicaoUsuario(#dto.institutionId())")
     public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createManager(dto));
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') and @guard.isInstituicaoUsuario(#institutionId)")
     public ResponseEntity<Page<UserDTO>> findAll(
             @RequestParam(required = false) UUID institutionId, Pageable pageable) {
         return ResponseEntity.ok(service.findManagers(institutionId, pageable));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@guard.canAccess(#id)")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(service.findManagerById(id));
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') and @guard.canAccess(#id)"
+            + " and (#dto.institutionId() == null or @guard.isInstituicaoUsuario(#dto.institutionId()))")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
         return ResponseEntity.ok(service.updateManager(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') and @guard.canAccess(#id)")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.deleteManager(id);
         return ResponseEntity.noContent().build();

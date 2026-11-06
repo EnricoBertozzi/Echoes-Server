@@ -56,6 +56,8 @@ import com.n0hana.echoes_server.user.model.Manager;
 import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.UserRole;
+import java.sql.SQLIntegrityConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTests {
@@ -554,5 +556,24 @@ class UserServiceTests {
         assertThrows(RequiredTermsNotAcceptedException.class,
                 () -> userService.completeRegistration(dto));
     }
+        
 
+    @Test
+    @DisplayName("Corrida de e-mail entre check e insert é convertida em EmailAlreadyInUseException")
+        void emailRaceConditionIsConvertedToConflict() {
+        when(pendingRegistrationRepository.findByEmail("joao@example.com"))
+            .thenReturn(Optional.of(pendingFor("joao@example.com", "STUDENT", null, 0)));
+        when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
+        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
+        when(userRepository.save(any(Student.class)))
+            .thenThrow(new DataIntegrityViolationException("could not execute statement",
+                    new SQLIntegrityConstraintViolationException(
+                            "Duplicate entry 'joao@example.com' for key 'users.UK...'",
+                            "23000", 1062)));
+
+        assertThrows(EmailAlreadyInUseException.class, () -> userService.completeRegistration(
+            new CompleteRegistrationDTO("joao@example.com", RAW_PASSWORD, GENERATED_CODE, ALL_REQUIRED_TERMS)));
+
+         verify(pendingRegistrationRepository, never()).deleteByEmail(anyString());
+    }
 }

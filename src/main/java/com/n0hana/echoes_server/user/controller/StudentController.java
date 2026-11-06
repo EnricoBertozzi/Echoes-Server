@@ -37,30 +37,33 @@ public class StudentController {
     private final UserService service;
 
     @PostMapping
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasRole('MANAGER') and @guard.isInstituicaoUsuario(#dto.institutionId())")
     public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createStudent(dto));
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TEACHER') and @guard.isInstituicaoUsuario(#institutionId)")
     public ResponseEntity<Page<UserDTO>> findAll(
             @RequestParam(required = false) UUID institutionId, Pageable pageable) {
         return ResponseEntity.ok(service.findStudents(institutionId, pageable));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@guard.canAccess(#id)")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(service.findStudentById(id));
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT') and @guard.canAccess(#id)"
+            + " and (#dto.institutionId() == null or @guard.isInstituicaoUsuario(#dto.institutionId()))")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
         return ResponseEntity.ok(service.updateStudent(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT') and @guard.canAccess(#id)")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.deleteStudent(id);
         return ResponseEntity.noContent().build();

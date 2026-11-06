@@ -41,7 +41,9 @@ public class JwtFilter extends OncePerRequestFilter {
         if (token != null && !jwtTokenService.isRevoked(token)) {
             try {
                 UUID userId = UUID.fromString(jwtTokenService.validate(token));
-                userRepository.findById(userId).ifPresent(user -> {
+                userRepository.findById(userId)
+                        .filter(user -> user.isEnabled() && user.isAccountNonLocked())
+                        .ifPresent(user -> {
                     var auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 });
