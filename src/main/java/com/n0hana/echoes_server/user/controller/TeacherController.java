@@ -40,31 +40,33 @@ public class TeacherController {
     private final UserManagerService userManagerService;
 
     @PostMapping
-    @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<Void> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        userRegisterService.createTeacher(dto);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+    @PreAuthorize("hasRole('MANAGER') and @guard.isInstituicaoUsuario(#dto.institutionId())")
+    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createTeacher(dto));
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') and @guard.isInstituicaoUsuario(#institutionId)")
     public ResponseEntity<Page<UserDTO>> findAll(
             @RequestParam(required = false) UUID institutionId, Pageable pageable) {
         return ResponseEntity.ok(userInfoService.findTeachers(institutionId, pageable));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@guard.canAccess(#id)")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(userInfoService.findTeacherById(id));
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'TEACHER') and @guard.canAccess(#id)"
+            + " and (#dto.institutionId() == null or @guard.isInstituicaoUsuario(#dto.institutionId()))")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
         return ResponseEntity.ok(userManagerService.updateTeacher(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'TEACHER') and @guard.canAccess(#id)")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         userManagerService.deleteTeacher(id);
         return ResponseEntity.noContent().build();

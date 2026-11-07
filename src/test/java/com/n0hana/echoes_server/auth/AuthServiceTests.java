@@ -27,6 +27,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.n0hana.echoes_server.auth.attempt.AttemptScope;
+import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
 import com.n0hana.echoes_server.auth.exception.UserBlockedException;

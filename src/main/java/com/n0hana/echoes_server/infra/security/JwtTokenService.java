@@ -2,8 +2,6 @@ package com.n0hana.echoes_server.infra.security;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,7 +84,7 @@ public class JwtTokenService {
      * @return {@link Instant} com o horário de expiração do token
      */
     private Instant genExpirationDate() {
-        return LocalDateTime.now().plusHours(2).toInstant(ZoneOffset.of("-03:00"));
+        return Instant.now().plus(Duration.ofHours(2));
     }
 
     /**
