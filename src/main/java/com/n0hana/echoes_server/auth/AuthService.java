@@ -1,25 +1,23 @@
 package com.n0hana.echoes_server.auth;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Duration;
-import java.time.Instant;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.n0hana.echoes_server.auth.attempt.AttemptScope;
-import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
+import com.n0hana.echoes_server.auth.exception.UserBlockedException;
+import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
-import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.TwoFactorNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service para gerenciar autenticação de usuários.
@@ -29,15 +27,16 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
-    private final TwoFactorNotifier notifier;
+    private final NotifierService notifier;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final TwoFactorService twoFactorService;
     private final JwtTokenService jwtTokenService;
     private final AuthRepository authRepository;
-    private final AttemptService attempts;
+    private final LoginAttemptService attemptService;
 
     /**
      * Realiza verificação do login do usuário
@@ -54,28 +53,28 @@ public class AuthService {
      * @param password Senha do usuário
      * 
      * @throws {@link AuthFailedException}
-     * @throws {@link TooManyAttemptsException} após 5 falhas em 15 minutos
      */
+    @Transactional(dontRollbackOn = AuthFailedException.class)
     @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
     public void login(String email, String password) {
-        // estourou o limite, nem consulta o banco
-        attempts.assertNotBlocked(AttemptScope.LOGIN, email);
+        // Verificação se o usuário existe
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(AuthFailedException::new);
 
-        // e-mail inexistente, conta bloqueada e senha errada contam igual e não dizem qual foi
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null
-                || !user.isAccountNonLocked()
-                || !passwordEncoder.matches(password, user.getPassword())) {
-            attempts.register(AttemptScope.LOGIN, email);
+        // Verifica se o usuário não foi bloqueado
+        if (!user.isAccountNonLocked() || !user.isEnabled())
+            throw new UserBlockedException();
+
+        // Guard Clause para verificação de senha
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            attemptService.registerFailedAttempt(user.getEmail());
             throw new AuthFailedException();
         }
-
-        attempts.clear(AttemptScope.LOGIN, email);
 
         String code = twoFactorService.generateCode();
         authRepository.save(email, code);
 
-        notifier.send(new TwoFactorDTO(email, code, Instant.now().plus(Duration.ofMinutes(15))));
+        notifier.sendMfaCode(email, code);
     }
 
     /**
@@ -83,35 +82,31 @@ public class AuthService {
      * 
      * @param email Email do usuário
      * @param code  Código multifator
-     * 
-     * @throws {@link AuthFailedException}
-     * @throws {@link TooManyAttemptsException} após 5 erros em 15 minutos
      */
 
-    @Auditable(action = "LOGIN_SUCESS)", entity = "User")
+    @Transactional(dontRollbackOn = AuthFailedException.class)
+    @Auditable(action = "LOGIN_SUCCESS)", entity = "User")
     public String verifyMfaCode(String email, String code) {
-        attempts.assertNotBlocked(AttemptScope.MFA, email);
+        String savedCode = authRepository.findByEmail(email)
+                .orElseThrow(AuthFailedException::new);
 
-        String savedCode = authRepository.findByEmail(email).orElse(null);
-
-        if (savedCode == null || !sameCode(savedCode, code)) {
-            // no limite o código morre e o contador segue valendo, então só um novo login libera
-            if (attempts.register(AttemptScope.MFA, email))
-                authRepository.delete(email);
+        if (!savedCode.equals(code)) {
+            attemptService.registerFailedAttempt(email);
             throw new AuthFailedException();
         }
 
-        authRepository.delete(email);
-        attempts.clear(AttemptScope.MFA, email);
-        User user = userRepository.findByEmail(email).get();
-        return jwtTokenService.generate(user);
-    }
+        User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
 
-    // compara em tempo constante pra não vazar acerto por tempo de resposta
-    private boolean sameCode(String saved, String received) {
-        return received != null && MessageDigest.isEqual(
-                saved.getBytes(StandardCharsets.UTF_8),
-                received.getBytes(StandardCharsets.UTF_8));
+        // Verifica se o usuário não foi bloqueado
+        if (!user.isAccountNonLocked() || !user.isEnabled()) {
+            authRepository.delete(email);
+            throw new UserBlockedException();
+        }
+
+        attemptService.resetLoginAttempt(user.getEmail());
+
+        authRepository.delete(email);
+        return jwtTokenService.generate(user);
     }
 
     /**
@@ -122,8 +117,7 @@ public class AuthService {
     @Auditable(action = "LOGOUT", entity = "User")
     public void logout(String header) {
         if (header == null || !header.startsWith("Bearer "))
-            // TODO Alterar exceção
-            throw new AuthFailedException();
+            throw new LogoutFailedException();
 
         jwtTokenService.invalidate(header);
     }

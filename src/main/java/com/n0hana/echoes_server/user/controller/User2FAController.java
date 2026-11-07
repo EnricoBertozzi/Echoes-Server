@@ -1,4 +1,4 @@
-package com.n0hana.echoes_server.user;
+package com.n0hana.echoes_server.user.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,19 +9,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.user.dto.CompleteRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.service.UserRegisterService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class User2FAController {
 
-    private final UserService service;
+    private final UserRegisterService userRegisterService;
 
     @PostMapping("/2fa")
     public ResponseEntity<UserDTO> completeRegistration(@RequestBody @Valid CompleteRegistrationDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.completeRegistration(dto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userRegisterService.completeRegistration(dto));
     }
 }

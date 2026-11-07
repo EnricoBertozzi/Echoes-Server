@@ -4,15 +4,14 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.auth.attempt.AttemptScope;
 import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.EmailPasswordNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
@@ -29,23 +28,26 @@ import jakarta.transaction.Transactional;
 public class PasswordService {
 
     // TODO alterar todos os UserRepository por UserService
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private PasswordCodeRepository codeRepository;
+    private final PasswordCodeRepository codeRepository;
 
-    @Autowired
-    private PasswordTokenRepository tokenRepository;
+    private final PasswordTokenRepository tokenRepository;
 
-    @Autowired
-    private TwoFactorService twoFactorService;
+    private final TwoFactorService twoFactorService;
 
-    @Autowired
-    private EmailPasswordNotifier notifier;
+    private final NotifierService notifier;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+
+    PasswordService(UserRepository userRepository, PasswordCodeRepository codeRepository, PasswordTokenRepository tokenRepository, TwoFactorService twoFactorService, NotifierService notifier, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.codeRepository = codeRepository;
+        this.tokenRepository = tokenRepository;
+        this.twoFactorService = twoFactorService;
+        this.notifier = notifier;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Autowired
     private AttemptService attempts;
@@ -66,7 +68,7 @@ public class PasswordService {
         String code = twoFactorService.generateCode();
 
         codeRepository.save(email, code);
-        notifier.send(email, code);
+        notifier.sendPasswordReset(email, code);
     }
 
     /**
