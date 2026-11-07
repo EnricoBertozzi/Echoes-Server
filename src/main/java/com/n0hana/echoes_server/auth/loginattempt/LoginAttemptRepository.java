@@ -1,6 +1,5 @@
 package com.n0hana.echoes_server.auth.loginattempt;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;

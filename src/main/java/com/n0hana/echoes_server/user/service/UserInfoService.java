@@ -2,7 +2,6 @@ package com.n0hana.echoes_server.user.service;
 
 import java.util.UUID;
 
-import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;

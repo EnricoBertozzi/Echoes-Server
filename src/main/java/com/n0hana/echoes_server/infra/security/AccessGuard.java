@@ -6,6 +6,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import com.n0hana.echoes_server.institution.InstitutionModel;
+import com.n0hana.echoes_server.institution.InstitutionRepository;
+import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Manager;
 import com.n0hana.echoes_server.user.model.Student;
@@ -20,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class AccessGuard {
 
     private final UserRepository userRepository;
+    private final InstitutionRepository institutionRepository;
 
     /** admin, o próprio usuário ou manager da mesma instituição */
     public boolean canAccess(UUID targetId) {
@@ -47,7 +51,7 @@ public class AccessGuard {
             return false;
         }
 
-        UUID instituicaoUser = instituicaoDe(userLogged);
+        InstitutionModel instituicaoUser = instituicaoDe(userLogged);
 
         // manager sem instituição, nega
         return instituicaoUser != null
@@ -65,7 +69,10 @@ public class AccessGuard {
         if (auth == null || !(auth.getPrincipal() instanceof User) || institutionId == null) {
             return false;
         }
-        return institutionId.equals(instituicaoDe((User) auth.getPrincipal()));
+
+        InstitutionModel institution = institutionRepository.findById(institutionId).orElseThrow(InstitutionNotFoundException::new);
+        InstitutionModel studentInstitution = instituicaoDe((User) auth.getPrincipal());
+        return institution.getId().equals(studentInstitution.getId());
     }
 
     private boolean isAdmin(Authentication auth) {
@@ -74,15 +81,15 @@ public class AccessGuard {
     }
 
     // institutionId fica nas subclasses, admin não tem
-    private UUID instituicaoDe(User usuario) {
+    private InstitutionModel instituicaoDe(User usuario) {
         if (usuario instanceof Manager manager) {
-            return manager.getInstitutionId();
+            return manager.getInstitution();
         }
         if (usuario instanceof Teacher teacher) {
-            return teacher.getInstitutionId();
+            return teacher.getInstitution();
         }
         if (usuario instanceof Student student) {
-            return student.getInstitutionId();
+            return student.getInstitution();
         }
         return null; // admin
     }

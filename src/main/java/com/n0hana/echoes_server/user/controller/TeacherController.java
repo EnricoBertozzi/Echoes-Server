@@ -41,8 +41,9 @@ public class TeacherController {
 
     @PostMapping
     @PreAuthorize("hasRole('MANAGER') and @guard.isInstituicaoUsuario(#dto.institutionId())")
-    public ResponseEntity<PendingRegistrationDTO> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.createTeacher(dto));
+    public ResponseEntity<Void> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
+        userRegisterService.createTeacher(dto);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
     @GetMapping

@@ -4,6 +4,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.auth.exception.InvalidMfaCodeException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
 import com.n0hana.echoes_server.auth.exception.UserBlockedException;
 import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
@@ -92,7 +93,7 @@ public class AuthService {
 
         if (!savedCode.equals(code)) {
             attemptService.registerFailedAttempt(email);
-            throw new AuthFailedException();
+            throw new InvalidMfaCodeException();
         }
 
         User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);

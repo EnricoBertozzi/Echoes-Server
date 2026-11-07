@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +15,8 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.user.model.User;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Service para manipulação e verificação de tokens JWT
  * 
@@ -23,6 +24,7 @@ import com.n0hana.echoes_server.user.model.User;
  * @since 0.1.1
  */
 @Service
+@RequiredArgsConstructor
 public class JwtTokenService {
 
     @Value("${api.security.token.secret}")
@@ -30,8 +32,7 @@ public class JwtTokenService {
 
     private String ISSUER = "echoes-server";
 
-    @Autowired
-    private JwtBlackListRepository blackListRepository;
+    private final JwtBlackListRepository blackListRepository;
 
     /**
      * Gera o token JWT para autenticação de usuários no sistema

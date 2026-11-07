@@ -2,12 +2,14 @@ package com.n0hana.echoes_server.infra.security;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,6 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.n0hana.echoes_server.institution.InstitutionModel;
+import com.n0hana.echoes_server.institution.InstitutionRepository;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Manager;
@@ -28,11 +32,11 @@ class AccessGuardTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private InstitutionRepository institutionRepository;
+
     @InjectMocks
     private AccessGuard guard;
-
-    private final UUID institution = UUID.randomUUID();
-    private final UUID other = UUID.randomUUID();
 
     @AfterEach
     void clear() {
@@ -40,50 +44,79 @@ class AccessGuardTest {
     }
 
     @Test
+    @DisplayName("Verifica o acesso de usuários admin a qualquer instituição")
     void adminAccessesAnything() {
+        // Arrange
+        InstitutionModel institution = mock(InstitutionModel.class);
+        when(institution.getId()).thenReturn(UUID.randomUUID());
         loginAs(new Admin());
 
+        // Act e Assert
         assertTrue(guard.canAccess(UUID.randomUUID()));
-        assertTrue(guard.isInstituicaoUsuario(other));
+        assertTrue(guard.isInstituicaoUsuario(institution.getId()));
     }
 
     @Test
+    @DisplayName("Verifica se o estudante pode acessar apenas seus dados")
     void studentAccessesOnlyHimself() {
-        Student me = student(institution);
-        loginAs(me);
+        // Arrange
+        InstitutionModel institution = mock(InstitutionModel.class);
+        Student student = student(institution);
+        loginAs(student);
 
-        assertTrue(guard.canAccess(me.getId()));
+        // Act e Assert
+        assertTrue(guard.canAccess(student.getId()));
         assertFalse(guard.canAccess(UUID.randomUUID()));
     }
 
     @Test
+    @DisplayName("Verifica se o usuário pode acessar apenas sua instituição")
     void managerAccessesOnlyOwnInstitution() {
+        // Arrange
+        InstitutionModel institution = mock(InstitutionModel.class);
+        InstitutionModel other = mock(InstitutionModel.class);
+
         Manager manager = new Manager();
         manager.setId(UUID.randomUUID());
-        manager.setInstitutionId(institution);
-        Student mine = student(institution);
-        Student foreign = student(other);
-        when(userRepository.findById(mine.getId())).thenReturn(Optional.of(mine));
-        when(userRepository.findById(foreign.getId())).thenReturn(Optional.of(foreign));
+        manager.setInstitution(institution);
+
+        Student student = student(institution);
+        Student foreignStudent = student(other);
+
+        when(institution.getId()).thenReturn(UUID.randomUUID());
+        when(other.getId()).thenReturn(UUID.randomUUID());
+
+        when(userRepository.findById(student.getId())).thenReturn(Optional.of(student));
+        when(userRepository.findById(foreignStudent.getId())).thenReturn(Optional.of(foreignStudent));
+        when(institutionRepository.findById(student.getInstitution().getId())).thenReturn(Optional.of(student.getInstitution()));
+        when(institutionRepository.findById(foreignStudent.getInstitution().getId())).thenReturn(Optional.of(foreignStudent.getInstitution()));
+
         loginAs(manager);
 
-        assertTrue(guard.canAccess(mine.getId()));
-        assertFalse(guard.canAccess(foreign.getId()));
-        assertTrue(guard.isInstituicaoUsuario(institution));
-        assertFalse(guard.isInstituicaoUsuario(other));
+        // Act e Assert
+        assertTrue(guard.canAccess(student.getId()));
+        assertFalse(guard.canAccess(foreignStudent.getId()));
+        assertTrue(guard.isInstituicaoUsuario(institution.getId()));
+        assertFalse(guard.isInstituicaoUsuario(other.getId()));
         assertFalse(guard.isInstituicaoUsuario(null));
     }
 
     @Test
+    @DisplayName("Verifica o acesso negado a usuários não autenticados")
     void withoutLoginEverythingIsDenied() {
+        // Arrange
+        InstitutionModel institution = mock(InstitutionModel.class);
+        when(institution.getId()).thenReturn(UUID.randomUUID());
+
+        // Act e Assert
         assertFalse(guard.canAccess(UUID.randomUUID()));
-        assertFalse(guard.isInstituicaoUsuario(institution));
+        assertFalse(guard.isInstituicaoUsuario(institution.getId()));
     }
 
-    private Student student(UUID institutionId) {
+    private Student student(InstitutionModel institution) {
         Student student = new Student();
         student.setId(UUID.randomUUID());
-        student.setInstitutionId(institutionId);
+        student.setInstitution(institution);
         return student;
     }
 

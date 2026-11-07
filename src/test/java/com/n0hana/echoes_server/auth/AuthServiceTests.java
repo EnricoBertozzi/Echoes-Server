@@ -2,12 +2,9 @@ package com.n0hana.echoes_server.auth;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -15,27 +12,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.time.Instant;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.n0hana.echoes_server.auth.attempt.AttemptScope;
-import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.auth.exception.InvalidMfaCodeException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
 import com.n0hana.echoes_server.auth.exception.UserBlockedException;
 import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
-import com.n0hana.echoes_server.mfa.TwoFactorDTO;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.User;
@@ -166,15 +159,15 @@ public class AuthServiceTests {
     }
 
     @Test
-    @DisplayName("Deve lançar a exceção AuthFailedException quando o código multifator estiver incorreto")
-    void shouldThrowAuthFailedExceptionWhenCodeIsIncorrect() {
+    @DisplayName("Deve lançar a exceção InvalidMfaCodeException quando o código multifator estiver incorreto")
+    void shouldThrowInvalidMfaCodeExceptionWhenCodeIsIncorrect() {
         String email = "teste@email.com";
         String savedCode = "123456";
         String wrongCode = "987654";
 
         when(authRepository.findByEmail(email)).thenReturn(Optional.of(savedCode));
 
-        assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, wrongCode));
+        assertThrows(InvalidMfaCodeException.class, () -> authService.verifyMfaCode(email, wrongCode));
     }
 
     @Test
@@ -251,7 +244,7 @@ public class AuthServiceTests {
         when(authRepository.findByEmail(email)).thenReturn(Optional.of(code));
 
         // Act e Assert
-        assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, wrongCode));
+        assertThrows(InvalidMfaCodeException.class, () -> authService.verifyMfaCode(email, wrongCode));
 
         verify(attemptService).registerFailedAttempt(email);
         verify(jwtTokenService, never()).generate(any());
@@ -280,7 +273,7 @@ public class AuthServiceTests {
 
         // Act e Assert
         assertThrows(AuthFailedException.class, () -> authService.login(email, password));
-        assertThrows(AuthFailedException.class, () -> authService.verifyMfaCode(email, wrongCode));
+        assertThrows(InvalidMfaCodeException.class, () -> authService.verifyMfaCode(email, wrongCode));
 
         verify(attemptService, times(2)).registerFailedAttempt(email);
         verify(attemptService, never()).resetLoginAttempt(anyString());

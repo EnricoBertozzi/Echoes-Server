@@ -1,7 +1,7 @@
 package com.n0hana.echoes_server.infra.notifier;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -25,9 +25,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.n0hana.echoes_server.infra.notifier.message.EmailMessage;
 
-import jakarta.mail.BodyPart;
 import jakarta.mail.Message;
-import jakarta.mail.Multipart;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;

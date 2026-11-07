@@ -17,6 +17,7 @@ import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service para alteração de senhas dos usuários
@@ -25,9 +26,9 @@ import jakarta.transaction.Transactional;
  * @since 0.1.1
  */
 @Service
+@RequiredArgsConstructor
 public class PasswordService {
 
-    // TODO alterar todos os UserRepository por UserService
     private final UserRepository userRepository;
 
     private final PasswordCodeRepository codeRepository;
@@ -40,17 +41,7 @@ public class PasswordService {
 
     private final PasswordEncoder passwordEncoder;
 
-    PasswordService(UserRepository userRepository, PasswordCodeRepository codeRepository, PasswordTokenRepository tokenRepository, TwoFactorService twoFactorService, NotifierService notifier, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.codeRepository = codeRepository;
-        this.tokenRepository = tokenRepository;
-        this.twoFactorService = twoFactorService;
-        this.notifier = notifier;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    @Autowired
-    private AttemptService attempts;
+    private final AttemptService attempts;
 
     /**
      * Cria a solicitação de redefinição de senha para confirmação do multifator

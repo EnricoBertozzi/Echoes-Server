@@ -19,4 +19,9 @@ public class AuthExceptionHandler {
     public ResponseEntity<Map<String, String>> handleTooManyAttempts(TooManyAttemptsException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(InvalidMfaCodeException.class)
+    public  ResponseEntity<Map<String, String>> handleInvalidMfaCodeException(InvalidMfaCodeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
 }

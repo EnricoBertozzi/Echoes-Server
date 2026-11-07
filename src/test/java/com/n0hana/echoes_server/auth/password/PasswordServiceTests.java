@@ -22,8 +22,8 @@ import com.n0hana.echoes_server.auth.attempt.AttemptScope;
 import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.auth.exception.TooManyAttemptsException;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
-import com.n0hana.echoes_server.notifier.EmailPasswordNotifier;
 import com.n0hana.echoes_server.user.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,11 +38,11 @@ class PasswordServiceTests {
     @Mock
     private TwoFactorService twoFactorService;
     @Mock
-    private EmailPasswordNotifier notifier;
-    @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
     private AttemptService attempts;
+    @Mock
+    private NotifierService notifier;
 
     @InjectMocks
     private PasswordService service;
@@ -114,7 +114,7 @@ class PasswordServiceTests {
         service.request(email);
 
         verify(attempts).register(AttemptScope.PASSWORD_FORGOT, email);
-        verify(notifier, never()).send(anyString(), anyString());
+        verify(notifier, never()).sendPasswordReset(anyString(), anyString());
     }
 
     @Test
@@ -126,7 +126,7 @@ class PasswordServiceTests {
         service.request(email);
 
         verify(codeRepository).save(email, "123456");
-        verify(notifier).send(email, "123456");
+        verify(notifier).sendPasswordReset(email, "123456");
     }
 
     @Test
@@ -137,7 +137,7 @@ class PasswordServiceTests {
 
         assertThrows(TooManyAttemptsException.class, () -> service.request(email));
 
-        verify(notifier, never()).send(anyString(), anyString());
+        verify(notifier, never()).sendPasswordReset(anyString(), anyString());
         verify(userRepository, never()).existsByEmail(anyString());
     }
 }

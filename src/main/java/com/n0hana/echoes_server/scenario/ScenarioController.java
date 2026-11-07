@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.scenario;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +27,7 @@ import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioUpdate;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Controlador REST responsável pelo gerenciamento de cenários.
@@ -39,10 +39,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 @RestController
 @RequestMapping("/api/v1/scenarios")
 @SecurityRequirement(name = SecurityConfig.SECURITY)
+@RequiredArgsConstructor
 public class ScenarioController {
 
-  @Autowired
-  private ScenarioService scenarioService;
+  private final ScenarioService scenarioService;
 
   /**
    * Cria um novo cenário clínico no sistema

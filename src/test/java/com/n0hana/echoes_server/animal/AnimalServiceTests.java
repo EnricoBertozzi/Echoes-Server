@@ -3,11 +3,9 @@ package com.n0hana.echoes_server.animal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,10 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-
-import com.n0hana.echoes_server.animal.AnimalModel;
 
 @ExtendWith(MockitoExtension.class)
 public class AnimalServiceTests {
@@ -131,17 +126,4 @@ public class AnimalServiceTests {
         assertTrue(list.isEmpty());
     }
 
-    @Test
-    @DisplayName("Vericica a alteração de dados de um animal")
-    public void verifyForChangesInAnimal() {
-        // Arrage
-        UUID id = UUID.fromString("1111-2222-3333-4444-555555555555");
-        
-        AnimalModel animal = AnimalModel.builder()
-        .id(id)
-        .name("Cachorro Juvenil")
-        .description("Modelo de Canino Juvenil")
-        .model("Tches")
-        .build();
-    }
 }

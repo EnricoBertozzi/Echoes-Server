@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.animal;
 import java.util.List;
 import java.util.UUID;
 import com.n0hana.echoes_server.infra.logs.Auditable;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -11,12 +10,13 @@ import org.springframework.stereotype.Service;
 import com.n0hana.echoes_server.animal.exception.AnimalNotFoundException;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class AnimalService {
 
-  @Autowired
-  private AnimalRepository animalRepository;
+  private final AnimalRepository animalRepository;
 
   public List<AnimalModel> findAllAnimals(int page, int size) {
     return animalRepository
