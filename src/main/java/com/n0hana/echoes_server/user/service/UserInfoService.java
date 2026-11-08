@@ -69,6 +69,10 @@ public class UserInfoService {
         return type.cast(user);
     }
 
+    public Page<UserDTO> findByInstitution(UUID institutionId, Pageable pageable) {
+        return userRepository.findByInstitution(institutionId, pageable).map(UserUtils::toDTO);
+    }
+
     public Page<UserDTO> findAdminByName(String name, Pageable pageable) {
         return userRepository.findAdminsByName(name, pageable).map(UserUtils::toDTO);
     }
