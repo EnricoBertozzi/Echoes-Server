@@ -13,14 +13,6 @@ import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.device.exception.InvalidDevicePublicKeyException;
 
-/**
- * Interpreta a chave pública EC armazenada no cadastro do dispositivo.
- *
- * <p>
- * A chave é persistida como texto PEM no banco de dados. Este serviço apenas a
- * converte para {@link ECPublicKey}, usada na validação das assinaturas ES256.
- * </p>
- */
 @Service
 public class DevicePublicKeyService {
 
@@ -31,17 +23,14 @@ public class DevicePublicKeyService {
    *
    * @param pem conteúdo PEM da chave pública
    * @return {@link ECPublicKey} pronta para validar assinaturas ES256
+   * @throws InvalidDevicePublicKeyException quando o PEM não é uma chave EC P-256 válida
    */
   public ECPublicKey parse(String pem) {
     if (pem == null || pem.isBlank())
       throw new InvalidDevicePublicKeyException();
 
-    String publicKeyContent = pem
-        .replace("-----BEGIN PUBLIC KEY-----", "")
-        .replace("-----END PUBLIC KEY-----", "")
-        .replaceAll("\\s", "");
-
     try {
+      String publicKeyContent = sanitizePem(pem);
       byte[] decoded = Base64.getDecoder().decode(publicKeyContent);
       PublicKey publicKey = KeyFactory.getInstance("EC")
           .generatePublic(new X509EncodedKeySpec(decoded));
@@ -58,6 +47,19 @@ public class DevicePublicKeyService {
     } catch (Exception exception) {
       throw new InvalidDevicePublicKeyException();
     }
+  }
+
+  private String sanitizePem(String pem) {
+    String content = pem
+        .replace("-----BEGIN PUBLIC KEY-----", "")
+        .replace("-----END PUBLIC KEY-----", "")
+        // Remove quebras de linha efetivas e retorno de carro
+        .replaceAll("\\s", "")
+        // Remove sequência literal \n (barra+n) que algumas plataformas enviam
+        .replace("\\n", "")
+        .replace("\\r", "");
+
+    return content.trim();
   }
 
   private boolean isP256(ECPublicKey publicKey) {
