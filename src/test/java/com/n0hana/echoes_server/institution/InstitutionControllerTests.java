@@ -38,6 +38,9 @@ import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundExcepti
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
 import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
+import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.model.UserRole;
+import com.n0hana.echoes_server.user.service.UserInfoService;
 
 
 @WebMvcTest(InstitutionController.class)
@@ -65,6 +68,9 @@ public class InstitutionControllerTests {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private UserInfoService userInfoService;
 
     @Test
     @DisplayName("POST /api/v1/institutions com dados válidos (201 Created)")
@@ -279,6 +285,21 @@ public class InstitutionControllerTests {
                 .andExpect(status().isNoContent());
 
         verify(service).delete(uuid);
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/users lista os usuários da instituição (200 OK)")
+    void shouldFindInstitutionUsers() throws Exception {
+        UUID institutionId = UUID.randomUUID();
+        UserDTO user = new UserDTO(UUID.randomUUID(), "Aluno", "aluno@teste.com", institutionId, UserRole.STUDENT);
+
+        when(userInfoService.findByInstitution(eq(institutionId), any()))
+                .thenReturn(new PageImpl<>(List.of(user)));
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/users", institutionId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].email").value("aluno@teste.com"))
+                .andExpect(jsonPath("$.content[0].institutionId").value(institutionId.toString()));
     }
 
     private InstitutionModel createTestModel(UUID id) {

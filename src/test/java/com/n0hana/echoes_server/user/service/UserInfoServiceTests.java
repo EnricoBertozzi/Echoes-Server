@@ -90,6 +90,21 @@ public class UserInfoServiceTests {
         assertThrows(InvalidUserTypeException.class, () -> userService.findStudentById(id));
     }
 
+    @Test
+    @DisplayName("Usuários da instituição: repassa o id ao repositório e mapeia para UserDTO")
+    void shouldFindUsersByInstitution() {
+        UUID institutionId = UUID.randomUUID();
+        Teacher teacher = newTeacher("Prof", "prof@example.com", institutionId);
+        when(userRepository.findByInstitution(institutionId, pageable))
+                .thenReturn(new PageImpl<>(List.of(teacher), pageable, 1));
+
+        Page<UserDTO> result = userService.findByInstitution(institutionId, pageable);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals(institutionId, result.getContent().get(0).institutionId());
+        assertEquals(UserRole.TEACHER, result.getContent().get(0).role());
+    }
+
     private Admin newAdmin(String name, String email) {
         Admin admin = new Admin();
         admin.setId(UUID.randomUUID());
