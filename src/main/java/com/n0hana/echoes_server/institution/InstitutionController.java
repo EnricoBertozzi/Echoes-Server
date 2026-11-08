@@ -22,6 +22,9 @@ import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.service.UserInfoService;
 
 /**
  * Controlador REST responsável pelo gerenciamento de instituições.
@@ -38,6 +41,7 @@ import lombok.RequiredArgsConstructor;
 public class InstitutionController {
 
     private final InstitutionService service;
+    private final UserInfoService userInfoService;
 
     /**
      * Registra uma nova instituição no sistema.
@@ -122,6 +126,14 @@ public class InstitutionController {
     public ResponseEntity<Void> toggleStatus(@PathVariable UUID id) {
         service.toggleStatus(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // lista os usuarios da instituicao
+    // admin consulta qualquer uma e os demais apenas a propria
+    @GetMapping("/{id}/users")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TEACHER', 'STUDENT') and @guard.isInstituicaoUsuario(#id)")
+    public ResponseEntity<Page<UserDTO>> findUsers(@PathVariable UUID id, Pageable pageable) {
+        return ResponseEntity.ok(userInfoService.findByInstitution(id, pageable));
     }
 
     /**
