@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
+import com.n0hana.echoes_server.user.dto.UserDTO;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -68,13 +69,13 @@ public class InstitutionController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<InstitutionDTO>> findAll(
-        @RequestParam(required = false) String name,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size,
-        @RequestParam(defaultValue = "name,asc") String sort) {
-    Page<InstitutionDTO> result = service
-            .findAll(name, size, page, sort)
-            .map(InstitutionDTO::fromModel);
+            @RequestParam(required = false) String name,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "name,asc") String sort) {
+        Page<InstitutionDTO> result = service
+                .findAll(name, size, page, sort)
+                .map(InstitutionDTO::fromModel);
 
         return ResponseEntity.ok(result);
     }
@@ -137,5 +138,38 @@ public class InstitutionController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Busca por usuários membros de uma instituição
+     * 
+     * return {@link ResponseEntity} com os usuários membros da instituição com
+     * status HTTP 200 (OK)
+     */
+    @GetMapping("/{id}/users")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<Page<UserDTO>> findUsersByInstitution(
+            @PathVariable("id") UUID id,
+            @RequestParam("page") Integer page,
+            @RequestParam("size") Integer size) {
+        Page<UserDTO> p = service.findUsersByInstitutionId(id, page, size);
+        return ResponseEntity.ok(p);
+    }
+
+    /**
+     * Busca por usuários membros de uma instituição
+     * 
+     * return {@link ResponseEntity} com os usuários membros da instituição com
+     * status HTTP 200 (OK)
+     */
+    @GetMapping("/{id}/users/search")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<Page<UserDTO>> findUsersByNameInInstitution(
+            @PathVariable("id") UUID id,
+            @RequestParam("name") String name,
+            @RequestParam("page") Integer page,
+            @RequestParam("size") Integer size) {
+        Page<UserDTO> p = service.findUsersByNameInInstitution(id, name, page, size);
+        return ResponseEntity.ok(p);
     }
 }

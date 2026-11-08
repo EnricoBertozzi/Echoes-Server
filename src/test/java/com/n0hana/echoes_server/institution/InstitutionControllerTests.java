@@ -34,17 +34,19 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
+import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.UserRepository;
-import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
-import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
-
+import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.model.UserRole;
+import com.n0hana.echoes_server.user.service.UserInfoService;
 
 @WebMvcTest(InstitutionController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @ActiveProfiles("test")
-@Import({InstitutionControllerTests.PageConfig.class, InstitutionExceptionHandler.class})
+@Import({ InstitutionControllerTests.PageConfig.class, InstitutionExceptionHandler.class })
 public class InstitutionControllerTests {
     @TestConfiguration
     @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
@@ -65,6 +67,9 @@ public class InstitutionControllerTests {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private UserInfoService userInfoService;
 
     @Test
     @DisplayName("POST /api/v1/institutions com dados válidos (201 Created)")
@@ -114,9 +119,6 @@ public class InstitutionControllerTests {
                 .andExpect(status().isBadRequest());
     }
 
-        
-
-
     @Test
     @DisplayName("POST /api/v1/institutions com cnpj/e-mail já cadastrado (409 Conflict)")
     void shouldThrowAlreadyExistsExceptionInCreateInstitution() throws Exception {
@@ -142,7 +144,6 @@ public class InstitutionControllerTests {
                 .andExpect(jsonPath("$.message")
                         .value("Instituição já cadastrada com este CNPJ ou E-mail."));
     }
-
 
     @Test
     @DisplayName("GET /api/v1/institutions retorna envelope paginado (200 OK)")
@@ -225,7 +226,8 @@ public class InstitutionControllerTests {
         UUID uuid = UUID.randomUUID();
 
         when(service.findById(uuid))
-                .thenThrow(new InstitutionNotFoundException("Instituição não encontrada com ID: " + uuid));
+                .thenThrow(new InstitutionNotFoundException(
+                        "Instituição não encontrada com ID: " + uuid));
 
         mockMvc.perform(get("/api/v1/institutions/{id}", uuid))
                 .andExpect(status().isNotFound())
@@ -281,6 +283,94 @@ public class InstitutionControllerTests {
         verify(service).delete(uuid);
     }
 
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/users - Deve buscar por usuários de uma instituição")
+    void shouldFindUsersInInstitution() throws Exception {
+        UUID id = UUID.randomUUID();
+        Integer pageNumber = 0;
+        Integer size = 2;
+
+        List<UserDTO> list = List.of(
+                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+
+        Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 2);
+
+        when(service.findUsersByInstitutionId(id, pageNumber, size)).thenReturn(page);
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/users", id)
+                .param("page", pageNumber.toString())
+                .param("size", size.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/users - Retorna código 404 quando instituição não existe")
+    void shouldThrowNotFoundInFindUsersInInstitutionAndReturns404() throws Exception {
+        UUID id = UUID.randomUUID();
+        Integer pageNumber = 0;
+        Integer size = 2;
+
+        InstitutionNotFoundException ex = new InstitutionNotFoundException();
+
+        when(service.findUsersByInstitutionId(id, pageNumber, size))
+                .thenThrow(ex);
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/users", id)
+                .param("page", pageNumber.toString())
+                .param("size", size.toString()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(ex.getMessage()));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/users/search - Deve buscar usuários por nome de uma instituição")
+    void shouldFindUsersByNameInInstitution() throws Exception {
+        UUID id = UUID.randomUUID();
+        Integer pageNumber = 0;
+        Integer size = 2;
+        String name = "example";
+
+        List<UserDTO> list = List.of(
+                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+
+        Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 2);
+
+        when(service.findUsersByNameInInstitution(id, name, pageNumber, size)).thenReturn(page);
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/users/search", id)
+                .param("name", name)
+                .param("page", pageNumber.toString())
+                .param("size", size.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/users/search - Retorna código 404 quando instituição não existe")
+    void shouldThrowNotFoundInFindUsersByNameInInstitutionAndReturns404() throws Exception {
+        UUID id = UUID.randomUUID();
+        Integer pageNumber = 0;
+        Integer size = 2;
+        String name = "example";
+
+        InstitutionNotFoundException ex = new InstitutionNotFoundException();
+
+        when(service.findUsersByNameInInstitution(id, name, pageNumber, size))
+                .thenThrow(ex);
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/users/search", id)
+                .param("name", name)
+                .param("page", pageNumber.toString())
+                .param("size", size.toString()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(ex.getMessage()));
+    }
+
     private InstitutionModel createTestModel(UUID id) {
         return InstitutionModel.builder()
                 .id(id)
@@ -294,4 +384,5 @@ public class InstitutionControllerTests {
                 .deleted(false)
                 .build();
     }
+
 }
