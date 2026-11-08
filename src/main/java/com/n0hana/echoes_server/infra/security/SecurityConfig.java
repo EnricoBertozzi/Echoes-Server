@@ -14,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.n0hana.echoes_server.animal.AnimalJwtService;
+
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 
@@ -28,11 +30,11 @@ public class SecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
-    @Autowired
-    private AnimalJwtFilter animalJwtFilter;
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, AnimalJwtService animalJwtService)
+            throws Exception {
+        AnimalJwtFilter animalJwtFilter = new AnimalJwtFilter(animalJwtService);
+
         return httpSecurity
           .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())

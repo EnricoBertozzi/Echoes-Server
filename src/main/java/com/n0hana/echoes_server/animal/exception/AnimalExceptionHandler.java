@@ -22,4 +22,14 @@ public class AnimalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleNotFound(AnimalNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler({ InvalidPublicKeyException.class, InvalidAnimalMacException.class })
+    public ResponseEntity<Map<String, String>> handleInvalidData(RuntimeException ex) {
+        return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(AnimalMacAlreadyInUseException.class)
+    public ResponseEntity<Map<String, String>> handleMacAlreadyInUse(AnimalMacAlreadyInUseException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
 }

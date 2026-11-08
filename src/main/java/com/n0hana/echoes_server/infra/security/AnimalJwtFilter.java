@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.n0hana.echoes_server.animal.AnimalJwtService;
@@ -19,7 +18,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
-@Component
 @RequiredArgsConstructor
 public class AnimalJwtFilter extends OncePerRequestFilter {
 
@@ -43,48 +41,51 @@ public class AnimalJwtFilter extends OncePerRequestFilter {
 
         String token = authorization.substring(7);
 
+        String issuer;
         try {
-            SignedJWT signedJWT = SignedJWT.parse(token);
-
-            String issuer = signedJWT
+            issuer = SignedJWT.parse(token)
                     .getJWTClaimsSet()
                     .getIssuer();
-
-            // Não processa tokens de usuários
-            if (!"echoes-device".equals(issuer)) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            // Valida assinatura e claims do ESP32
-            AnimalModel animal =
-                    animalJwtService.validateToken(token);
-
-            var authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            animal,
-                            null,
-                            java.util.List.of(
-                                    new SimpleGrantedAuthority(
-                                            "ROLE_DEVICE"
-                                    )
-                            )
-                    );
-
-            SecurityContextHolder
-                    .getContext()
-                    .setAuthentication(authentication);
-
-            filterChain.doFilter(request, response);
-
         } catch (Exception exception) {
+            // Token malformado: deixa os demais filtros tratarem
+            filterChain.doFilter(request, response);
+            return;
+        }
 
+        // Não processa tokens de usuários
+        if (!AnimalJwtService.DEVICE_ISSUER.equals(issuer)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        AnimalModel animal;
+        try {
+            // Valida assinatura e claims do dispositivo
+            animal = animalJwtService.validateToken(token);
+        } catch (Exception exception) {
             SecurityContextHolder.clearContext();
 
             response.sendError(
                     HttpServletResponse.SC_UNAUTHORIZED,
-                    "Invalid device token"
-            );
+                    "Invalid device token");
+            return;
         }
+
+        var authentication =
+                new UsernamePasswordAuthenticationToken(
+                        animal,
+                        null,
+                        java.util.List.of(
+                                new SimpleGrantedAuthority(
+                                        "ROLE_DEVICE"
+                                )
+                        )
+                );
+
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(authentication);
+
+        filterChain.doFilter(request, response);
     }
 }

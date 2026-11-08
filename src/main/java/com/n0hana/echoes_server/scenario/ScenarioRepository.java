@@ -34,4 +34,15 @@ public interface ScenarioRepository extends JpaRepository<ScenarioModel, UUID> {
    * @return {@link Page} com cenários que atendam ao predicado.
    */
   Page<ScenarioModel> findAllScenariosByNameContaining(String name, Pageable pageable);
+
+  /**
+   * Busca os cenários do animal identificado pelo MAC.
+   */
+  Page<ScenarioModel> findAllScenariosByAuscultationPointAnimalMac(String mac, Pageable pageable);
+
+  /**
+   * Busca os cenários do animal identificado pelo MAC filtrando por nome.
+   */
+  Page<ScenarioModel> findAllScenariosByNameContainingAndAuscultationPointAnimalMac(
+      String name, String mac, Pageable pageable);
 }

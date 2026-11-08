@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.animal;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -9,4 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AnimalRepository extends JpaRepository<AnimalModel, UUID> {
 
   Page<AnimalModel> findByNameContaining(String name, Pageable pageable);
+
+  Optional<AnimalModel> findByMac(String mac);
 }

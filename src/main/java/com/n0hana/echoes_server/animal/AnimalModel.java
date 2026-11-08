@@ -32,6 +32,7 @@ public class AnimalModel {
 
   private String model;
 
+  @Column(name = "mac", unique = true)
   private String mac;
 
   @Column(name = "public_key", columnDefinition = "TEXT")
@@ -49,6 +50,8 @@ public class AnimalModel {
     private String name;
     private String description;
     private String model;
+    private String mac;
+    private String publicKey;
 
     public AnimalModelBuilder id(UUID id) {
       this.id = id;
@@ -70,12 +73,24 @@ public class AnimalModel {
       return this;
     }
 
+    public AnimalModelBuilder mac(String mac) {
+      this.mac = mac;
+      return this;
+    }
+
+    public AnimalModelBuilder publicKey(String publicKey) {
+      this.publicKey = publicKey;
+      return this;
+    }
+
     public AnimalModel build() {
       AnimalModel animal = new AnimalModel();
       animal.setId(this.id);
       animal.setDescription(this.description);
       animal.setName(this.name);
       animal.setModel(this.model);
+      animal.setMac(this.mac);
+      animal.setPublicKey(this.publicKey);
       return animal;
     }
   }

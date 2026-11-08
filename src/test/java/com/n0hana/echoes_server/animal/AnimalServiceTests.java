@@ -3,10 +3,10 @@ package com.n0hana.echoes_server.animal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -18,8 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.mock.web.MockMultipartFile;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
 
@@ -28,6 +28,9 @@ public class AnimalServiceTests {
 
     @Mock
     private AnimalRepository animalRepository;
+
+    @Mock
+    private AnimalPublicKeyService publicKeyService;
 
     @InjectMocks
     private AnimalService animalService;
@@ -41,15 +44,45 @@ public class AnimalServiceTests {
                 .name("Labrador")
                 .description("Cão labrador para ausculta pulmonar e cardiaca")
                 .model("Tches")
+                .mac("AA:BB:CC:DD:EE:FF")
                 .build();
 
+        MockMultipartFile publicKeyFile = new MockMultipartFile(
+                "publicKey",
+                "public-key.pem",
+                "text/plain",
+                "-----BEGIN PUBLIC KEY-----conteudo-----END PUBLIC KEY-----".getBytes());
+
+        when(publicKeyService.readFrom(publicKeyFile)).thenReturn("-----BEGIN PUBLIC KEY-----conteudo-----END PUBLIC KEY-----");
+        when(animalRepository.findByMac(animal.getMac())).thenReturn(Optional.empty());
         when(animalRepository.save(animal)).thenReturn(animal);
 
         // Act
-        AnimalModel savedAnimal = animalService.save(animal);
+        AnimalModel savedAnimal = animalService.save(animal, publicKeyFile);
 
         // Assert
         assertEquals(animal, savedAnimal);
+        assertEquals("-----BEGIN PUBLIC KEY-----conteudo-----END PUBLIC KEY-----", savedAnimal.getPublicKey());
+    }
+
+    @Test
+    @DisplayName("Busca animal pelo MAC informado no token do dispositivo")
+    public void shouldFindAnimalByMac() {
+        // Arrange
+        AnimalModel animal = AnimalModel.builder()
+                .name("Labrador")
+                .description("Cão labrador para ausculta pulmonar e cardiaca")
+                .model("Tches")
+                .mac("AA:BB:CC:DD:EE:FF")
+                .build();
+
+        when(animalRepository.findByMac(animal.getMac())).thenReturn(Optional.of(animal));
+
+        // Act
+        AnimalModel foundAnimal = animalService.findAnimalByMac(animal.getMac());
+
+        // Assert
+        assertEquals(animal, foundAnimal);
     }
 
     @Test
