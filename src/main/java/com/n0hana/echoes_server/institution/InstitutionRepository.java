@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 /**
  * Repositorio JPA para armazenamento das instituições da aplicação.
  * 
