@@ -14,6 +14,7 @@ import org.javers.spring.annotation.JaversSpringDataAuditable;
  * @since 0.1.0
  * @author Miguel Santana da Costa
  */
+@JaversSpringDataAuditable
 public interface InstitutionRepository extends JpaRepository<InstitutionModel, UUID> {
 
     boolean existsByCnpjOrEmail(String cnpj, String email);

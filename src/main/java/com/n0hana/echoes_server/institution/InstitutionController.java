@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
 /**
  * Controlador REST responsável pelo gerenciamento de instituições.
  * 
@@ -38,6 +39,8 @@ import lombok.RequiredArgsConstructor;
 public class InstitutionController {
 
     private final InstitutionService service;
+
+    private final InstitutionHistoryService historyService;
 
     /**
      * Registra uma nova instituição no sistema.
@@ -137,5 +140,15 @@ public class InstitutionController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+
+        // histórico de alterações da instituição, só para admin
+    // mostra quem mudou, quando e como estava antes
+    @GetMapping("/{id}/history")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InstitutionChangeDTO>> findHistory(
+            @PathVariable UUID id, @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(historyService.findHistory(id, limit));
     }
 }
