@@ -11,9 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.n0hana.echoes_server.animal.AnimalModel;
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 import com.n0hana.echoes_server.auscultation.AuscultationPointService;
+import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
 import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
@@ -76,19 +76,22 @@ public class ScenarioService {
    * Busca os cenários de um ponto garantindo que ele pertence ao animal do
    * dispositivo autenticado, quando houver um.
    */
-  public List<ScenarioModel> findScenariosByPoint(UUID id, int page, int size, AnimalModel device) {
+  public List<ScenarioModel> findScenariosByPoint(UUID id, int page, int size, DeviceModel device) {
     auscultationPointService.findPointById(id, device);
     return findScenariosByPoint(id, page, size);
   }
 
   /**
-   * Busca todos os cenários do animal identificado pelo MAC presente no token do
-   * dispositivo.
+   * Busca todos os cenários do animal associado ao dispositivo autenticado. Um
+   * dispositivo sem animal associado não enxerga nenhum cenário.
    */
-  public List<ScenarioModel> findScenariosByAnimalMac(int page, int size, String mac) {
+  public List<ScenarioModel> findScenariosByDevice(int page, int size, DeviceModel device) {
+    if (device == null || device.getAnimal() == null)
+      return List.of();
+
     return scenarioRepository
-        .findAllScenariosByAuscultationPointAnimalMac(
-            mac,
+        .findAllScenariosByAuscultationPointAnimalId(
+            device.getAnimal().getId(),
             PageRequest.of(page, size, Sort.by("name")))
         .toList();
   }
@@ -111,13 +114,16 @@ public class ScenarioService {
   }
 
   /**
-   * Filtra cenários do animal autenticado pelo MAC.
+   * Filtra cenários do animal associado ao dispositivo autenticado.
    */
-  public List<ScenarioModel> findScenariosByNameForDevice(int page, int size, String name, String mac) {
+  public List<ScenarioModel> findScenariosByNameForDevice(int page, int size, String name, DeviceModel device) {
+    if (device == null || device.getAnimal() == null)
+      return List.of();
+
     return scenarioRepository
-        .findAllScenariosByNameContainingAndAuscultationPointAnimalMac(
+        .findAllScenariosByNameContainingAndAuscultationPointAnimalId(
             name,
-            mac,
+            device.getAnimal().getId(),
             PageRequest.of(page, size, Sort.by("name")))
         .toList();
   }
@@ -137,7 +143,7 @@ public class ScenarioService {
    * Busca o cenário garantindo que ele pertence ao animal do dispositivo
    * autenticado, quando houver um.
    */
-  public ScenarioModel findScenarioById(UUID id, AnimalModel device) {
+  public ScenarioModel findScenarioById(UUID id, DeviceModel device) {
     ScenarioModel scenario = findScenarioById(id);
 
     if (device != null) {

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.n0hana.echoes_server.animal.AnimalModel;
 import com.n0hana.echoes_server.animal.AnimalService;
 import com.n0hana.echoes_server.auscultation.exception.AuscultationPotionNotFound;
+import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 
 import jakarta.transaction.Transactional;
@@ -38,12 +39,14 @@ public class AuscultationPointService {
     }
 
     /**
-     * Busca os pontos do animal identificado pelo MAC presente no token do
-     * dispositivo.
+     * Busca os pontos do animal associado ao dispositivo autenticado. Um
+     * dispositivo sem animal associado não enxerga nenhum ponto.
      */
-    public List<AuscultationPointModel> findAllPointsByAnimalMac(int page, int size, String mac) {
-        AnimalModel animal = animalService.findAnimalByMac(mac);
-        return findAllPointsByAnimal(page, size, animal.getId());
+    public List<AuscultationPointModel> findAllPointsByDevice(int page, int size, DeviceModel device) {
+        if (device == null || device.getAnimal() == null)
+            return List.of();
+
+        return findAllPointsByAnimal(page, size, device.getAnimal().getId());
     }
 
     public AuscultationPointModel findPointById(UUID id) {
@@ -53,9 +56,9 @@ public class AuscultationPointService {
 
     /**
      * Busca o ponto garantindo que, quando a requisição parte de um dispositivo,
-     * ele pertence ao animal autenticado.
+     * ele pertence ao animal associado ao dispositivo.
      */
-    public AuscultationPointModel findPointById(UUID id, AnimalModel device) {
+    public AuscultationPointModel findPointById(UUID id, DeviceModel device) {
         AuscultationPointModel point = this.findPointById(id);
         assertOwnedBy(point, device);
         return point;
@@ -63,10 +66,22 @@ public class AuscultationPointService {
 
     @Transactional
     @Auditable(action = "CREATE", entity = "Point")
-    public void newAuscultationPoint(AuscultationPointModel point, AnimalModel device) {
-        UUID animalId = device != null
-                ? device.getId()
-                : point.getAnimal().getId();
+    public void newAuscultationPoint(AuscultationPointModel point, DeviceModel device) {
+        UUID animalId;
+
+        if (device != null) {
+            if (device.getAnimal() == null)
+                throw new AccessDeniedException("Dispositivo sem animal associado");
+
+            animalId = device.getAnimal().getId();
+        } else {
+            animalId = point.getAnimal() != null
+                    ? point.getAnimal().getId()
+                    : null;
+        }
+
+        if (animalId == null)
+            throw new IllegalArgumentException("Animal é obrigatório");
 
         AnimalModel animal = animalService.findAnimalById(animalId);
 
@@ -76,7 +91,7 @@ public class AuscultationPointService {
 
     @Transactional
     @Auditable(action = "UPDATE", entity = "Point")
-    public void updateAuscultationPoint(UUID id, AuscultationPointModel point, AnimalModel device) {
+    public void updateAuscultationPoint(UUID id, AuscultationPointModel point, DeviceModel device) {
         AuscultationPointModel savedPoint = this.findPointById(id, device);
 
         if (point.getPosition() != null && !Objects.equals(savedPoint.getPosition(), point.getPosition()))
@@ -87,7 +102,7 @@ public class AuscultationPointService {
 
     @Transactional
     @Auditable(action = "DELETE", entity = "Point")
-    public void deleteAuscultationPoint(UUID id, AnimalModel device) {
+    public void deleteAuscultationPoint(UUID id, DeviceModel device) {
         AuscultationPointModel point = this.findPointById(id, device);
 
         pointRepository.delete(point);
@@ -100,12 +115,13 @@ public class AuscultationPointService {
                 .orElseThrow(() -> new AuscultationPotionNotFound());
     }
 
-    private void assertOwnedBy(AuscultationPointModel point, AnimalModel device) {
+    private void assertOwnedBy(AuscultationPointModel point, DeviceModel device) {
         if (device == null)
             return;
 
-        boolean belongsToDevice = point.getAnimal() != null
-                && device.getId().equals(point.getAnimal().getId());
+        boolean belongsToDevice = device.getAnimal() != null
+                && point.getAnimal() != null
+                && device.getAnimal().getId().equals(point.getAnimal().getId());
 
         if (!belongsToDevice)
             throw new AccessDeniedException("Ponto de ausculta não pertence ao dispositivo autenticado");

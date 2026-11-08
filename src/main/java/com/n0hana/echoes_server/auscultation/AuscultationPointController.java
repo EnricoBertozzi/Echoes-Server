@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.n0hana.echoes_server.animal.AnimalModel;
+import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,7 +34,7 @@ public class AuscultationPointController {
   @PostMapping
   @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE')")
   public ResponseEntity<Void> newPoint(@RequestBody AuscultationPointDTO.PointRegister dto,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
     pointService.newAuscultationPoint(dto.toModel(), device);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
@@ -57,9 +57,9 @@ public class AuscultationPointController {
   @PreAuthorize("hasRole('DEVICE')")
   public ResponseEntity<List<AuscultationPointDTO.PointInfo>> findMyPoints(@RequestParam int page,
       @RequestParam int size,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
     List<AuscultationPointDTO.PointInfo> list = pointService
-        .findAllPointsByAnimalMac(page, size, device.getMac())
+        .findAllPointsByDevice(page, size, device)
         .stream()
         .map(AuscultationPointDTO.PointInfo::from)
         .toList();
@@ -68,7 +68,7 @@ public class AuscultationPointController {
 
   @GetMapping("/{id}")
   public ResponseEntity<AuscultationPointDTO.PointInfo> findPointById(@PathVariable("id") UUID id,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
     return ResponseEntity.ok(
       AuscultationPointDTO.PointInfo.from(pointService.findPointById(id, device))
     );
@@ -77,7 +77,7 @@ public class AuscultationPointController {
   @PatchMapping("/{id}")
   @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE')")
   public ResponseEntity<Void> updatePoint(@PathVariable UUID id, @RequestBody AuscultationPointDTO.PointUpdate dto,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
     pointService.updateAuscultationPoint(id, dto.toModel(), device);
 
     return ResponseEntity.ok().build();
@@ -86,7 +86,7 @@ public class AuscultationPointController {
   @DeleteMapping("/{id}")
   @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE')")
   public ResponseEntity<Void> deletePoint(@PathVariable UUID id,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
     pointService.deleteAuscultationPoint(id, device);
     return ResponseEntity.ok().build();
   }

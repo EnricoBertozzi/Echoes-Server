@@ -1,14 +1,15 @@
 package com.n0hana.echoes_server.infra.security;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.n0hana.echoes_server.animal.AnimalJwtService;
-import com.n0hana.echoes_server.animal.AnimalModel;
+import com.n0hana.echoes_server.device.DeviceJwtService;
+import com.n0hana.echoes_server.device.DeviceModel;
 
 import com.nimbusds.jwt.SignedJWT;
 
@@ -19,9 +20,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class AnimalJwtFilter extends OncePerRequestFilter {
+public class DeviceJwtFilter extends OncePerRequestFilter {
 
-    private final AnimalJwtService animalJwtService;
+    private final DeviceJwtService deviceJwtService;
 
     @Override
     protected void doFilterInternal(
@@ -53,15 +54,15 @@ public class AnimalJwtFilter extends OncePerRequestFilter {
         }
 
         // Não processa tokens de usuários
-        if (!AnimalJwtService.DEVICE_ISSUER.equals(issuer)) {
+        if (!DeviceJwtService.DEVICE_ISSUER.equals(issuer)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        AnimalModel animal;
+        DeviceModel device;
         try {
             // Valida assinatura e claims do dispositivo
-            animal = animalJwtService.validateToken(token);
+            device = deviceJwtService.validateToken(token);
         } catch (Exception exception) {
             SecurityContextHolder.clearContext();
 
@@ -73,9 +74,9 @@ public class AnimalJwtFilter extends OncePerRequestFilter {
 
         var authentication =
                 new UsernamePasswordAuthenticationToken(
-                        animal,
+                        device,
                         null,
-                        java.util.List.of(
+                        List.of(
                                 new SimpleGrantedAuthority(
                                         "ROLE_DEVICE"
                                 )

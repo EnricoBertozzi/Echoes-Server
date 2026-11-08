@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.n0hana.echoes_server.animal.AnimalModel;
+import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioInfo;
 import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioRegister;
@@ -78,7 +78,7 @@ public class ScenarioController {
   public ResponseEntity<List<ScenarioInfo>> findAllScenariosByPoint(@RequestParam int page,
       @RequestParam int size,
       @RequestParam UUID id,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
     List<ScenarioInfo> list = scenarioService.findScenariosByPoint(id, page, size, device)
         .stream()
         .map(ScenarioInfo::from)
@@ -94,8 +94,8 @@ public class ScenarioController {
   @PreAuthorize("hasRole('DEVICE')")
   public ResponseEntity<List<ScenarioInfo>> findMyScenarios(@RequestParam int page,
       @RequestParam int size,
-      @AuthenticationPrincipal AnimalModel device) {
-    List<ScenarioInfo> list = scenarioService.findScenariosByAnimalMac(page, size, device.getMac())
+      @AuthenticationPrincipal DeviceModel device) {
+    List<ScenarioInfo> list = scenarioService.findScenariosByDevice(page, size, device)
         .stream()
         .map(ScenarioInfo::from)
         .toList();
@@ -115,9 +115,9 @@ public class ScenarioController {
   public ResponseEntity<List<ScenarioInfo>> findAllScenariosByName(@RequestParam int page,
       @RequestParam int size,
       @RequestParam String name,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
     List<ScenarioModel> scenarios = device != null
-        ? scenarioService.findScenariosByNameForDevice(page, size, name, device.getMac())
+        ? scenarioService.findScenariosByNameForDevice(page, size, name, device)
         : scenarioService.findScenariosByName(page, size, name);
 
     List<ScenarioInfo> list = scenarios.stream()
@@ -135,7 +135,7 @@ public class ScenarioController {
    */
   @GetMapping("/{id}")
   public ResponseEntity<ScenarioInfo> findScenarioById(@PathVariable("id") UUID id,
-      @AuthenticationPrincipal AnimalModel device) {
+      @AuthenticationPrincipal DeviceModel device) {
 
     ScenarioInfo dto = ScenarioInfo.from(scenarioService.findScenarioById(id, device));
     return ResponseEntity.ok(dto);

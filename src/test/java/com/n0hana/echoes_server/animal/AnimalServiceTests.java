@@ -2,7 +2,10 @@ package com.n0hana.echoes_server.animal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -19,9 +22,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.mock.web.MockMultipartFile;
 
-import com.n0hana.echoes_server.animal.AnimalModel;
+import com.n0hana.echoes_server.animal.exception.AnimalNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 public class AnimalServiceTests {
@@ -29,66 +31,54 @@ public class AnimalServiceTests {
     @Mock
     private AnimalRepository animalRepository;
 
-    @Mock
-    private AnimalPublicKeyService publicKeyService;
-
     @InjectMocks
     private AnimalService animalService;
 
     @Test
-    @DisplayName("Cadastro de novo animal com pontos de ausculta e cenários")
-    public void saveNewAnimalInDatabase() {
-        // Arrange
-
+    @DisplayName("Cadastra um modelo de animal no banco de dados")
+    void shouldSaveAnimal() {
         AnimalModel animal = AnimalModel.builder()
-                .name("Labrador")
-                .description("Cão labrador para ausculta pulmonar e cardiaca")
-                .model("Tches")
-                .mac("AA:BB:CC:DD:EE:FF")
+                .name("Cachorro")
+                .description("Modelo canino para ausculta")
+                .model("Canino")
                 .build();
 
-        MockMultipartFile publicKeyFile = new MockMultipartFile(
-                "publicKey",
-                "public-key.pem",
-                "text/plain",
-                "-----BEGIN PUBLIC KEY-----conteudo-----END PUBLIC KEY-----".getBytes());
-
-        when(publicKeyService.readFrom(publicKeyFile)).thenReturn("-----BEGIN PUBLIC KEY-----conteudo-----END PUBLIC KEY-----");
-        when(animalRepository.findByMac(animal.getMac())).thenReturn(Optional.empty());
         when(animalRepository.save(animal)).thenReturn(animal);
 
-        // Act
-        AnimalModel savedAnimal = animalService.save(animal, publicKeyFile);
+        AnimalModel savedAnimal = animalService.save(animal);
 
-        // Assert
         assertEquals(animal, savedAnimal);
-        assertEquals("-----BEGIN PUBLIC KEY-----conteudo-----END PUBLIC KEY-----", savedAnimal.getPublicKey());
+        verify(animalRepository).save(animal);
     }
 
     @Test
-    @DisplayName("Busca animal pelo MAC informado no token do dispositivo")
-    public void shouldFindAnimalByMac() {
-        // Arrange
+    @DisplayName("Busca animal pelo id")
+    void shouldFindAnimalById() {
+        UUID id = UUID.randomUUID();
         AnimalModel animal = AnimalModel.builder()
-                .name("Labrador")
-                .description("Cão labrador para ausculta pulmonar e cardiaca")
-                .model("Tches")
-                .mac("AA:BB:CC:DD:EE:FF")
+                .id(id)
+                .name("Gato")
                 .build();
 
-        when(animalRepository.findByMac(animal.getMac())).thenReturn(Optional.of(animal));
+        when(animalRepository.findById(id)).thenReturn(Optional.of(animal));
 
-        // Act
-        AnimalModel foundAnimal = animalService.findAnimalByMac(animal.getMac());
+        AnimalModel foundAnimal = animalService.findAnimalById(id);
 
-        // Assert
         assertEquals(animal, foundAnimal);
     }
 
     @Test
-    @DisplayName("Verifica a quantidade de elementos retornadas em um page")
-    public void verifyFindAnimalsByNameWithPageSize() {
-        // Arrange
+    @DisplayName("Lança exceção ao buscar animal inexistente")
+    void shouldThrowWhenAnimalDoesNotExist() {
+        UUID id = UUID.randomUUID();
+        when(animalRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(AnimalNotFoundException.class, () -> animalService.findAnimalById(id));
+    }
+
+    @Test
+    @DisplayName("Verifica a quantidade de elementos retornadas em uma página")
+    void verifyFindAnimalsByNameWithPageSize() {
         AnimalModel animal1 = AnimalModel.builder()
                 .name("Cachorro Juvenil")
                 .description("Modelo Canino Juvenil")
@@ -120,23 +110,16 @@ public class AnimalServiceTests {
                         Sort.by("name"))))
                 .thenReturn(mockPage);
 
-        // Act
         List<AnimalModel> list = animalService.findAnimalsByName(name, page, size);
 
-        // Assert
         assertNotNull(list);
-
-        // Verifica se a pagina retornada possui os dois elementos
         assertEquals(2, list.size());
-
-        // Verifica se todos os elementos foram retornados
         assertEquals(expectedAnimals, list);
     }
 
     @Test
     @DisplayName("Verifica retorno vazio de busca além da quantidade de elementos")
-    public void verifyFindAnimalsByNameWithPageOutOfBounds() {
-        // Arrange
+    void verifyFindAnimalsByNameWithPageOutOfBounds() {
         int page = 5;
         int size = 2;
         String name = "Cachorro";
@@ -154,27 +137,56 @@ public class AnimalServiceTests {
                         Sort.by("name"))))
                 .thenReturn(mockPage);
 
-        // Act
         List<AnimalModel> list = animalService.findAnimalsByName(name, page, size);
 
-        // Assert
         assertNotNull(list);
-
-        // Verifica se não há elementos na lista
         assertTrue(list.isEmpty());
     }
 
     @Test
-    @DisplayName("Vericica a alteração de dados de um animal")
-    public void verifyForChangesInAnimal() {
-        // Arrage
-        UUID id = UUID.fromString("1111-2222-3333-4444-555555555555");
-        
-        AnimalModel animal = AnimalModel.builder()
-        .id(id)
-        .name("Cachorro Juvenil")
-        .description("Modelo de Canino Juvenil")
-        .model("Tches")
-        .build();
+    @DisplayName("Altera apenas os campos informados de um animal")
+    void shouldUpdateOnlyProvidedFields() {
+        UUID id = UUID.randomUUID();
+        AnimalModel savedAnimal = AnimalModel.builder()
+                .id(id)
+                .name("Cachorro Juvenil")
+                .description("Modelo de Canino Juvenil")
+                .model("Tches")
+                .build();
+
+        AnimalModel update = AnimalModel.builder()
+                .name("Cachorro Adulto")
+                .build();
+
+        when(animalRepository.findById(id)).thenReturn(Optional.of(savedAnimal));
+
+        animalService.updateAnimal(id, update);
+
+        assertEquals("Cachorro Adulto", savedAnimal.getName());
+        assertEquals("Modelo de Canino Juvenil", savedAnimal.getDescription());
+        assertEquals("Tches", savedAnimal.getModel());
+        verify(animalRepository).save(savedAnimal);
+    }
+
+    @Test
+    @DisplayName("Remove um animal existente")
+    void shouldDeleteAnimal() {
+        UUID id = UUID.randomUUID();
+        when(animalRepository.findById(id)).thenReturn(Optional.of(AnimalModel.builder().id(id).build()));
+
+        animalService.deleteAnimal(id);
+
+        verify(animalRepository).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("Não remove animal inexistente")
+    void shouldNotDeleteMissingAnimal() {
+        UUID id = UUID.randomUUID();
+        when(animalRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(AnimalNotFoundException.class, () -> animalService.deleteAnimal(id));
+
+        verify(animalRepository, never()).deleteById(id);
     }
 }
