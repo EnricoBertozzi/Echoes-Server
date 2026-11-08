@@ -14,23 +14,23 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class InstitutionJaversBaseline{
+public class InstitutionJaversBaseline {
+
     private final InstitutionRepository repository;
     private final Javers javers;
 
-    //registra o estado atual das intituições que ainda não historico
-
+    // registra o estado atual das instituições que ainda não têm histórico
+    // assim a primeira alteração de uma instituição antiga mostra o antes
     @EventListener(ApplicationReadyEvent.class)
-    public void run(){
+    public void run() {
         try {
-            for(InstitutionModel institution : repository.findAll()){
-                if(javers.getLatestSnapshot(institution.getId(), InstitutionModel.class).isEmpty()){
+            for (InstitutionModel institution : repository.findAll()) {
+                if (javers.getLatestSnapshot(institution.getId(), InstitutionModel.class).isEmpty()) {
                     javers.commit("sistema", institution);
                 }
             }
-        } catch (Exception e){
-            log.error("Falaha ao registrar o estado inicial das intituições no Javers")
-
+        } catch (Exception e) {
+            log.error("Falha ao registrar o estado inicial das instituições no JaVers", e);
         }
     }
 }
