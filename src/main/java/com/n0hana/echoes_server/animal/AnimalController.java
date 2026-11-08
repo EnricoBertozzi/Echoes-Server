@@ -37,6 +37,9 @@ public class AnimalController {
   @Autowired
   private AnimalService animalService;
 
+  @Autowired
+  private AnimalJwtService animalJwtService;
+
   /**
    * Registra um novo animal no sistema.
    * 

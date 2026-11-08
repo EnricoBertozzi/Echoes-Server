@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -30,6 +31,11 @@ public class AnimalModel {
   private String description;
 
   private String model;
+
+  private String mac;
+
+  @Column(name = "public_key", columnDefinition = "TEXT")
+  private String publicKey;
 
   @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<AuscultationPointModel> points = new ArrayList<>();
