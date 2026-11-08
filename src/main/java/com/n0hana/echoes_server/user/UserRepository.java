@@ -39,6 +39,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select s from Student s where s.active = true and (:institutionId is null or s.institution.id = :institutionId)")
     Page<Student> findStudents(@Param("institutionId") UUID institutionId, Pageable pageable);
 
+    // usuarios ativos de qualquer papel da instituicao
+    @Query("""
+            select u from User u
+            where u.active = true
+              and (treat(u as Manager).institution.id = :institutionId
+                or treat(u as Teacher).institution.id = :institutionId
+                or treat(u as Student).institution.id = :institutionId)
+            """)
+    Page<User> findByInstitution(@Param("institutionId") UUID institutionId, Pageable pageable);
+
     @Query("select a from Admin a where a.name like %:name%")
     Page<Admin> findAdminsByName(@Param("name") String name, Pageable pageable);
 }
