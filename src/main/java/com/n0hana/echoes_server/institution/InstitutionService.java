@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -17,10 +16,10 @@ import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.CnpjValidator;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.notifier.InstitutionNotificationData;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Service para a manipulação de instituições.
  * 
- * @since 0.1.1
+ * @since 0.1.7
  * @author Miguel Santana da Costa
  * @see {@link InstitutionModel}
  */
@@ -40,7 +39,7 @@ public class InstitutionService {
     private final InstitutionRepository repository;
     private final CnpjService cnpjService;
     private final InstitutionVerificationService verificationService;
-    private final InstitutionNotifier notifier;
+    private final NotifierService notifier;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -64,7 +63,7 @@ public class InstitutionService {
         model.setCnpj(cleanCnpj);
 
         if (repository.existsByCnpjOrEmail(cleanCnpj, model.getEmail())) {
-            throw new DuplicateKeyException("Instituição já cadastrada com este CNPJ ou E-mail.");
+            throw new InstitutionAlreadyExistsException("Instituição já cadastrada com este CNPJ ou E-mail.");
         }
 
         boolean pendingNotification = false;
@@ -87,8 +86,10 @@ public class InstitutionService {
         InstitutionModel saved = repository.save(model);
 
         if (pendingNotification) {
-            notifier.notifyPendingVerification(
-                    InstitutionNotificationData.from(saved),
+            notifier.sendInstitutionPending(
+                    saved.getEmail(),
+                    saved.getName(),
+                    saved.getCnpj(),
                     "Brasil API indisponível no momento do cadastro");
         }
         return saved;
@@ -120,13 +121,10 @@ public class InstitutionService {
         return success;
     }
 
-    /***
+    /**
      * Busca e filtra instituições cadastradas no sistema.
-     * 
-     * <p>
      * O método realiza a consulta de todas as instituições cadastradas, ou filtra
      * as instituições pelo seu nome.
-     * </p>
      * 
      * @param name       Nome da instituição a ser filtrada.
      * @param size       Quantidade de elementos por paginação.

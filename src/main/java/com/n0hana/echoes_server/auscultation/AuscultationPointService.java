@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.auscultation;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -14,15 +13,15 @@ import com.n0hana.echoes_server.auscultation.exception.AuscultationPotionNotFoun
 import com.n0hana.echoes_server.infra.logs.Auditable;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class AuscultationPointService {
 
-    @Autowired
-    private AuscultationPointRepository pointRepository;
+    private final AuscultationPointRepository pointRepository;
 
-    @Autowired
-    private AnimalService animalService;
+    private final AnimalService animalService;
 
     public List<AuscultationPointModel> findAllPointsByAnimal(int page, int size, UUID animalId) {
         return pointRepository

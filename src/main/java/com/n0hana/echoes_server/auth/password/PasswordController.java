@@ -1,15 +1,14 @@
 package com.n0hana.echoes_server.auth.password;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.auth.password.PasswordDTO.RequestForgot;
 import com.n0hana.echoes_server.auth.password.PasswordDTO.RequestReset;
 import com.n0hana.echoes_server.auth.password.PasswordDTO.TokenResponse;
-import com.n0hana.echoes_server.auth.password.PasswordDTO.RequestForgot;
 import com.n0hana.echoes_server.auth.password.PasswordDTO.ValidadeCodeRequest;
 
 import jakarta.validation.Valid;
@@ -24,8 +23,11 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/password")
 public class PasswordController {
 
-    @Autowired
-    private PasswordService passwordService;
+    private final PasswordService passwordService;
+
+    PasswordController(PasswordService passwordService) {
+        this.passwordService = passwordService;
+    }
 
     /**
      * Realiza a solicitação de reset de senha

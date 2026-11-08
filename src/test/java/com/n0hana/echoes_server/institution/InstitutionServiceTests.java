@@ -20,17 +20,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
 
 import com.n0hana.echoes_server.cnpj.CnpjDTO;
 import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
 
 @ExtendWith(MockitoExtension.class)
 public class InstitutionServiceTests {
@@ -42,7 +42,7 @@ public class InstitutionServiceTests {
     @Mock
     private InstitutionVerificationService verificationService;
     @Mock
-    private InstitutionNotifier notifier;
+    private NotifierService notifier;
 
     @InjectMocks
     private InstitutionService service;
@@ -93,7 +93,8 @@ public class InstitutionServiceTests {
         assertEquals(expectedCnpj, result.getCnpj());
         assertEquals(InstitutionVerificationStatus.VERIFIED, result.getVerificationStatus());
         verify(verificationService).applyDadosReceita(eq(model), any(CnpjDTO.class));
-        verify(notifier, never()).notifyPendingVerification(any(), any());
+
+        verify(notifier, never()).sendInstitutionPending(any(), any(), any(), any());
     }
 
     @Test
@@ -110,19 +111,20 @@ public class InstitutionServiceTests {
         InstitutionModel result = service.create(model);
 
         assertEquals(InstitutionVerificationStatus.PENDING_VERIFICATION, result.getVerificationStatus());
-        verify(notifier).notifyPendingVerification(any(), any());
+        verify(notifier).sendInstitutionPending(any(), any(), any(),  any());
         verify(verificationService, never()).applyDadosReceita(any(), any());
     }
 
+
     @Test
-    @DisplayName("Create com CNPJ já cadastrado → DuplicateKeyException sem consultar Brasil API")
-    void shouldThrowDuplicationKeyException() {
+    @DisplayName("Create com CNPJ já cadastrado → InstitutionAlreadyExistsException sem consultar Brasil API")
+    void shouldThrowAlreadyExistsException() {
         InstitutionModel model = this.createTestModel(null);
         String expectedCnpj = "12345678000190";
 
         when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail())).thenReturn(true);
 
-        assertThrows(DuplicateKeyException.class, () -> service.create(model));
+        assertThrows(InstitutionAlreadyExistsException.class, () -> service.create(model));
         verify(repository, never()).save(any());
         verify(cnpjService, never()).consultar(any());
     }

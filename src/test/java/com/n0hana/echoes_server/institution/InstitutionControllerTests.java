@@ -22,7 +22,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -37,12 +36,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
+import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.model.UserRole;
+import com.n0hana.echoes_server.user.service.UserInfoService;
+
 
 @WebMvcTest(InstitutionController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @ActiveProfiles("test")
-@Import(InstitutionControllerTests.PageConfig.class)
+@Import({InstitutionControllerTests.PageConfig.class, InstitutionExceptionHandler.class})
 public class InstitutionControllerTests {
     @TestConfiguration
     @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
@@ -63,6 +68,9 @@ public class InstitutionControllerTests {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private UserInfoService userInfoService;
 
     @Test
     @DisplayName("POST /api/v1/institutions com dados válidos (201 Created)")
@@ -112,9 +120,12 @@ public class InstitutionControllerTests {
                 .andExpect(status().isBadRequest());
     }
 
+        
+
+
     @Test
-    @DisplayName("POST /api/v1/institutions com cnpj já cadastrado (400 Bad Request)")
-    void shouldThrowDuplicationKeyExceptionInCreateInstitution() throws Exception {
+    @DisplayName("POST /api/v1/institutions com cnpj/e-mail já cadastrado (409 Conflict)")
+    void shouldThrowAlreadyExistsExceptionInCreateInstitution() throws Exception {
         String payload = """
                 {
                     "name": "Instituição Teste",
@@ -127,13 +138,17 @@ public class InstitutionControllerTests {
                 """.formatted(CNPJ_VALIDO);
 
         when(service.create(any(InstitutionModel.class)))
-                .thenThrow(new DuplicateKeyException("Instituição já cadastrada com este CNPJ ou E-mail"));
+                .thenThrow(new InstitutionAlreadyExistsException(
+                        "Instituição já cadastrada com este CNPJ ou E-mail."));
 
         mockMvc.perform(post("/api/v1/institutions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Instituição já cadastrada com este CNPJ ou E-mail."));
     }
+
 
     @Test
     @DisplayName("GET /api/v1/institutions retorna envelope paginado (200 OK)")
@@ -270,6 +285,21 @@ public class InstitutionControllerTests {
                 .andExpect(status().isNoContent());
 
         verify(service).delete(uuid);
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/users lista os usuários da instituição (200 OK)")
+    void shouldFindInstitutionUsers() throws Exception {
+        UUID institutionId = UUID.randomUUID();
+        UserDTO user = new UserDTO(UUID.randomUUID(), "Aluno", "aluno@teste.com", institutionId, UserRole.STUDENT);
+
+        when(userInfoService.findByInstitution(eq(institutionId), any()))
+                .thenReturn(new PageImpl<>(List.of(user)));
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/users", institutionId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].email").value("aluno@teste.com"))
+                .andExpect(jsonPath("$.content[0].institutionId").value(institutionId.toString()));
     }
 
     private InstitutionModel createTestModel(UUID id) {
