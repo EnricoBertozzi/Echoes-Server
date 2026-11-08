@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.scenario;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -16,6 +15,7 @@ import com.n0hana.echoes_server.infra.file.FileStorageService;
 import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service para gerenciamento dde cenários clínicos
@@ -25,16 +25,14 @@ import jakarta.transaction.Transactional;
  * @see {@link ScenarioModel}
  */
 @Service
+@RequiredArgsConstructor
 public class ScenarioService {
 
-  @Autowired
-  private ScenarioRepository scenarioRepository;
+  private final ScenarioRepository scenarioRepository;
 
-  @Autowired
-  private FileStorageService fileService;
+  private final FileStorageService fileService;
 
-  @Autowired
-  private AuscultationPointService auscultationPointService;
+  private final AuscultationPointService auscultationPointService;
 
   /**
    * Salva um novo cenário no sistema

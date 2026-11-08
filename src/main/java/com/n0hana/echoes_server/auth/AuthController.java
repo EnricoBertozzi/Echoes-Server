@@ -1,6 +1,5 @@
 package com.n0hana.echoes_server.auth;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,12 +27,14 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
     
-    @Autowired 
-    private AuthService service;
+    private final AuthService service;
+
+    AuthController(AuthService service) {
+        this.service = service;
+    }
 
     /**
      * Realiza a verificação do login do usuário
-     * 
      * 
      * @param dto Objeto com email e senha do usuário para validação
      * @return {@link ResponseEntity} com o código HTTP 204 (NO CONTENT)

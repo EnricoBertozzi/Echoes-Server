@@ -2,11 +2,8 @@ package com.n0hana.echoes_server.infra.security;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +15,8 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
 import com.n0hana.echoes_server.user.model.User;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Service para manipulação e verificação de tokens JWT
  * 
@@ -25,6 +24,7 @@ import com.n0hana.echoes_server.user.model.User;
  * @since 0.1.1
  */
 @Service
+@RequiredArgsConstructor
 public class JwtTokenService {
 
     @Value("${api.security.token.secret}")
@@ -32,8 +32,7 @@ public class JwtTokenService {
 
     private String ISSUER = "echoes-server";
 
-    @Autowired
-    private JwtBlackListRepository blackListRepository;
+    private final JwtBlackListRepository blackListRepository;
 
     /**
      * Gera o token JWT para autenticação de usuários no sistema
@@ -86,7 +85,7 @@ public class JwtTokenService {
      * @return {@link Instant} com o horário de expiração do token
      */
     private Instant genExpirationDate() {
-        return LocalDateTime.now().plusHours(2).toInstant(ZoneOffset.of("-03:00"));
+        return Instant.now().plus(Duration.ofHours(2));
     }
 
     /**

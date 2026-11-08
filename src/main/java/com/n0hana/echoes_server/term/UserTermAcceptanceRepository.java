@@ -7,12 +7,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.term.model.UserTermAcceptance;
 
-@Repository
 public interface UserTermAcceptanceRepository extends JpaRepository<UserTermAcceptance, UUID> {
     @Query("SELECT uta FROM UserTermAcceptance uta WHERE uta.user.id = :userId AND uta.term.id = :termsId")
     Optional<UserTermAcceptance> findByUserIdAndTermsId(@Param("userId") UUID userId, @Param("termsId") Long termsId);
