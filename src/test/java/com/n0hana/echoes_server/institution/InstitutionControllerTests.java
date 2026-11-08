@@ -38,6 +38,7 @@ import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundExcepti
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
 import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
+import java.time.Instant;
 
 
 @WebMvcTest(InstitutionController.class)
@@ -65,6 +66,9 @@ public class InstitutionControllerTests {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private InstitutionHistoryService historyService;
 
     @Test
     @DisplayName("POST /api/v1/institutions com dados válidos (201 Created)")
@@ -279,6 +283,22 @@ public class InstitutionControllerTests {
                 .andExpect(status().isNoContent());
 
         verify(service).delete(uuid);
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/history lista as alterações (200 OK)")
+    void shouldFindInstitutionHistory() throws Exception {
+        UUID uuid = UUID.randomUUID();
+        InstitutionChangeDTO change = new InstitutionChangeDTO("admin-id", Instant.now(), "active", true, false);
+
+        when(historyService.findHistory(uuid, 50)).thenReturn(List.of(change));
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/history", uuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].author").value("admin-id"))
+                .andExpect(jsonPath("$[0].property").value("active"))
+                .andExpect(jsonPath("$[0].before").value(true))
+                .andExpect(jsonPath("$[0].after").value(false));
     }
 
     private InstitutionModel createTestModel(UUID id) {
