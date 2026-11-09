@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -18,9 +20,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -48,6 +52,8 @@ public class InstitutionServiceTests {
     private InstitutionVerificationService verificationService;
     @Mock
     private NotifierService notifier;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private UserInfoService userInfoService;
@@ -306,6 +312,11 @@ public class InstitutionServiceTests {
         service.toggleStatus(uuid);
 
         verify(model).setActive(eq(false));
+
+        InstitutionStatusChanged event = capturedEvent();
+        assertEquals(uuid, event.institutionId());
+        assertFalse(event.active());
+        assertTrue(event.blocksDevices());
     }
 
     @Test
@@ -321,6 +332,10 @@ public class InstitutionServiceTests {
         service.toggleStatus(uuid);
 
         verify(model).setActive(eq(true));
+
+        InstitutionStatusChanged event = capturedEvent();
+        assertTrue(event.active());
+        assertFalse(event.blocksDevices());
     }
 
     @Test
@@ -336,6 +351,17 @@ public class InstitutionServiceTests {
         service.delete(uuid);
 
         verify(model).setDeleted(eq(true));
+
+        InstitutionStatusChanged event = capturedEvent();
+        assertEquals(uuid, event.institutionId());
+        assertTrue(event.deleted());
+        assertTrue(event.blocksDevices());
+    }
+
+    private InstitutionStatusChanged capturedEvent() {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        return (InstitutionStatusChanged) captor.getValue();
     }
 
     @Test
@@ -347,6 +373,7 @@ public class InstitutionServiceTests {
         assertThrows(InstitutionNotFoundException.class, () -> service.delete(id));
 
         verify(repository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test

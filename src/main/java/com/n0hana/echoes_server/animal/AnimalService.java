@@ -1,13 +1,16 @@
 package com.n0hana.echoes_server.animal;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
-import com.n0hana.echoes_server.infra.logs.Auditable;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.animal.exception.AnimalNotFoundException;
+import com.n0hana.echoes_server.infra.logs.Auditable;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -40,31 +43,37 @@ public class AnimalService {
         .orElseThrow(() -> new AnimalNotFoundException());
   }
 
+  /**
+   * Cadastra um modelo de animal no sistema.
+   *
+   * @param animal dados do animal
+   * @return animal salvo
+   */
   @Transactional
-  @Auditable (action = "CREATE", entity ="Animal")    
+  @Auditable(action = "CREATE", entity = "Animal")
   public AnimalModel save(AnimalModel animal) {
     return animalRepository.save(animal);
   }
 
   @Transactional
-  @Auditable (action = "UPDATE", entity = "Animal")
+  @Auditable(action = "UPDATE", entity = "Animal")
   public void updateAnimal(UUID id, AnimalModel animal) {
     AnimalModel savedAnimal = this.findAnimalById(id);
 
-    if (!savedAnimal.getName().equals(animal.getName()))
+    if (animal.getName() != null && !Objects.equals(savedAnimal.getName(), animal.getName()))
       savedAnimal.setName(animal.getName());
 
-    if (!savedAnimal.getDescription().equals(animal.getDescription()))
+    if (animal.getDescription() != null && !Objects.equals(savedAnimal.getDescription(), animal.getDescription()))
       savedAnimal.setDescription(animal.getDescription());
 
-    if (!savedAnimal.getModel().equals(animal.getModel()))
+    if (animal.getModel() != null && !Objects.equals(savedAnimal.getModel(), animal.getModel()))
       savedAnimal.setModel(animal.getModel());
 
     animalRepository.save(savedAnimal);
   }
 
   @Transactional
-  @Auditable(action = "DELETE" , entity= "Animal")
+  @Auditable(action = "DELETE", entity = "Animal")
   public void deleteAnimal(UUID id) {
     this.animalExists(id);
 
