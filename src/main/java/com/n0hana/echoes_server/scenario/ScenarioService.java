@@ -3,19 +3,21 @@ package com.n0hana.echoes_server.scenario;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 import com.n0hana.echoes_server.auscultation.AuscultationPointService;
+import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
 import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service para gerenciamento dde cenários clínicos
@@ -25,16 +27,14 @@ import jakarta.transaction.Transactional;
  * @see {@link ScenarioModel}
  */
 @Service
+@RequiredArgsConstructor
 public class ScenarioService {
 
-  @Autowired
-  private ScenarioRepository scenarioRepository;
+  private final ScenarioRepository scenarioRepository;
 
-  @Autowired
-  private FileStorageService fileService;
+  private final FileStorageService fileService;
 
-  @Autowired
-  private AuscultationPointService auscultationPointService;
+  private final AuscultationPointService auscultationPointService;
 
   /**
    * Salva um novo cenário no sistema
@@ -71,9 +71,33 @@ public class ScenarioService {
   }
 
   /**
+   * Busca os cenários de um ponto garantindo que ele pertence ao animal do
+   * dispositivo autenticado, quando houver um.
+   */
+  public List<ScenarioModel> findScenariosByPoint(UUID id, int page, int size, DeviceModel device) {
+    auscultationPointService.findPointById(id, device);
+    return findScenariosByPoint(id, page, size);
+  }
+
+  /**
+   * Busca todos os cenários do animal associado ao dispositivo autenticado. Um
+   * dispositivo sem animal associado não enxerga nenhum cenário.
+   */
+  public List<ScenarioModel> findScenariosByDevice(int page, int size, DeviceModel device) {
+    if (device == null || device.getAnimal() == null)
+      return List.of();
+
+    return scenarioRepository
+        .findAllScenariosByAuscultationPointAnimalId(
+            device.getAnimal().getId(),
+            PageRequest.of(page, size, Sort.by("name")))
+        .toList();
+  }
+
+  /**
    * Filtra cenários cadastrados por nome
    * 
-   * @param page Número da página retornado pela paginação.
+   * @param page Página retornada pela paginação.
    * @param size Quantidade de elementos por página.
    * @param name Nome utilizado para filtro.
    * @return
@@ -88,6 +112,21 @@ public class ScenarioService {
   }
 
   /**
+   * Filtra cenários do animal associado ao dispositivo autenticado.
+   */
+  public List<ScenarioModel> findScenariosByNameForDevice(int page, int size, String name, DeviceModel device) {
+    if (device == null || device.getAnimal() == null)
+      return List.of();
+
+    return scenarioRepository
+        .findAllScenariosByNameContainingAndAuscultationPointAnimalId(
+            name,
+            device.getAnimal().getId(),
+            PageRequest.of(page, size, Sort.by("name")))
+        .toList();
+  }
+
+  /**
    * Busca um cenário pelo id
    * 
    * @param id Identificador do cenário
@@ -96,6 +135,23 @@ public class ScenarioService {
   public ScenarioModel findScenarioById(UUID id) {
     return scenarioRepository.findById(id)
         .orElseThrow(() -> new ScenarioNotFoundException());
+  }
+
+  /**
+   * Busca o cenário garantindo que ele pertence ao animal do dispositivo
+   * autenticado, quando houver um.
+   */
+  public ScenarioModel findScenarioById(UUID id, DeviceModel device) {
+    ScenarioModel scenario = findScenarioById(id);
+
+    if (device != null) {
+      if (scenario.getAuscultationPoint() == null)
+        throw new AccessDeniedException("Cenário não pertence ao dispositivo autenticado");
+
+      auscultationPointService.findPointById(scenario.getAuscultationPoint().getId(), device);
+    }
+
+    return scenario;
   }
 
   /**
@@ -122,7 +178,7 @@ public class ScenarioService {
   /**
    * Exclui um cenário do sistema
    * 
-   * @param id Identificador do cenário a ser exclúido.
+   * @param id Identificador do cenário a ser excluído.
    */
   @Transactional
   public void deleteScenario(UUID id) {

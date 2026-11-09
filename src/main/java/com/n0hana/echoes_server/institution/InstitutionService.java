@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -17,10 +17,12 @@ import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.CnpjValidator;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.notifier.InstitutionNotificationData;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
+import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.service.UserInfoService;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Service para a manipulação de instituições.
  * 
- * @since 0.1.1
+ * @since 0.1.7
  * @author Miguel Santana da Costa
  * @see {@link InstitutionModel}
  */
@@ -40,7 +42,9 @@ public class InstitutionService {
     private final InstitutionRepository repository;
     private final CnpjService cnpjService;
     private final InstitutionVerificationService verificationService;
-    private final InstitutionNotifier notifier;
+    private final NotifierService notifier;
+    private final ApplicationEventPublisher eventPublisher;
+    private final UserInfoService userInfoService;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -64,7 +68,7 @@ public class InstitutionService {
         model.setCnpj(cleanCnpj);
 
         if (repository.existsByCnpjOrEmail(cleanCnpj, model.getEmail())) {
-            throw new DuplicateKeyException("Instituição já cadastrada com este CNPJ ou E-mail.");
+            throw new InstitutionAlreadyExistsException("Instituição já cadastrada com este CNPJ ou E-mail.");
         }
 
         boolean pendingNotification = false;
@@ -87,8 +91,10 @@ public class InstitutionService {
         InstitutionModel saved = repository.save(model);
 
         if (pendingNotification) {
-            notifier.notifyPendingVerification(
-                    InstitutionNotificationData.from(saved),
+            notifier.sendInstitutionPending(
+                    saved.getEmail(),
+                    saved.getName(),
+                    saved.getCnpj(),
                     "Brasil API indisponível no momento do cadastro");
         }
         return saved;
@@ -120,13 +126,10 @@ public class InstitutionService {
         return success;
     }
 
-    /***
+    /**
      * Busca e filtra instituições cadastradas no sistema.
-     * 
-     * <p>
      * O método realiza a consulta de todas as instituições cadastradas, ou filtra
      * as instituições pelo seu nome.
-     * </p>
      * 
      * @param name       Nome da instituição a ser filtrada.
      * @param size       Quantidade de elementos por paginação.
@@ -164,7 +167,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Institution")
+    @Auditable(action = "UPDATE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 
@@ -189,12 +192,13 @@ public class InstitutionService {
      * @param id Id da instituição a ser alterada.
      */
     @Transactional
-    @Auditable(action = "TOGGLE_STATUS", entity = "Institution")
+    @Auditable(action = "TOGGLE_STATUS", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void toggleStatus(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setActive(!model.isActive());
 
         repository.save(model);
+        eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), false));
     }
 
     /**
@@ -204,13 +208,14 @@ public class InstitutionService {
      */
 
     @Transactional
-    @Auditable(action = "DELETE", entity = "Institution")
+    @Auditable(action = "DELETE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
         model.setDeleteToken(UUID.randomUUID().toString());
 
         repository.save(model);
+        eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), true));
     }
 
     /**
@@ -241,5 +246,36 @@ public class InstitutionService {
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
         return Sort.by(direction, field);
+    }
+
+    /**
+     * Retorna o conjunto de membros de uma instituição
+     * 
+     * @param id   Identificador da instituição
+     * @param page Página selecionada da paginação
+     * @param size Quantidade de elementos da paginação
+     * @return {@link Page} contendo os membros da instituição
+     */
+    public Page<UserDTO> findUsersByInstitutionId(UUID id, Integer page, Integer size) {
+        if (!repository.existsById(id))
+            throw new InstitutionNotFoundException();
+
+        return userInfoService.findUsersByInstitution(id, page, size);
+    }
+
+    /**
+     * Busca os usuários por nome dentro de uma instituição
+     * 
+     * @param id   Identificador da instituição
+     * @param name Nome do usuário
+     * @param page Index de páginação
+     * @param size Quantidade de elementos da paginação
+     * @return {@link Page} com usuários que atendam a busca
+     */
+    public Page<UserDTO> findUsersByNameInInstitution(UUID id, String name, Integer page, Integer size) {
+        if (!repository.existsById(id))
+            throw new InstitutionNotFoundException();
+
+        return userInfoService.findUsersByNameInInstitution(id, name, page, size);
     }
 }

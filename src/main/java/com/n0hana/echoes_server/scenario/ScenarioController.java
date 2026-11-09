@@ -3,11 +3,11 @@ package com.n0hana.echoes_server.scenario;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioInfo;
 import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioRegister;
@@ -28,6 +29,7 @@ import com.n0hana.echoes_server.scenario.ScenarioDTO.ScenarioUpdate;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Controlador REST responsável pelo gerenciamento de cenários.
@@ -39,10 +41,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 @RestController
 @RequestMapping("/api/v1/scenarios")
 @SecurityRequirement(name = SecurityConfig.SECURITY)
+@RequiredArgsConstructor
 public class ScenarioController {
 
-  @Autowired
-  private ScenarioService scenarioService;
+  private final ScenarioService scenarioService;
 
   /**
    * Cria um novo cenário clínico no sistema
@@ -75,8 +77,25 @@ public class ScenarioController {
   @GetMapping
   public ResponseEntity<List<ScenarioInfo>> findAllScenariosByPoint(@RequestParam int page,
       @RequestParam int size,
-      @RequestParam UUID id) {
-    List<ScenarioInfo> list = scenarioService.findScenariosByPoint(id, page, size)
+      @RequestParam UUID id,
+      @AuthenticationPrincipal DeviceModel device) {
+    List<ScenarioInfo> list = scenarioService.findScenariosByPoint(id, page, size, device)
+        .stream()
+        .map(ScenarioInfo::from)
+        .toList();
+    return ResponseEntity.ok(list);
+  }
+
+  /**
+   * Lista todos os cenários/áudios do animal autenticado pelo token do
+   * dispositivo.
+   */
+  @GetMapping("/me")
+  @PreAuthorize("hasRole('DEVICE')")
+  public ResponseEntity<List<ScenarioInfo>> findMyScenarios(@RequestParam int page,
+      @RequestParam int size,
+      @AuthenticationPrincipal DeviceModel device) {
+    List<ScenarioInfo> list = scenarioService.findScenariosByDevice(page, size, device)
         .stream()
         .map(ScenarioInfo::from)
         .toList();
@@ -87,7 +106,7 @@ public class ScenarioController {
    * Filtra cenários que contenham o nome fornecido
    * 
    * @param page Número da página selecionada da paginação.
-   * @param size Quantidade de elementos por página
+   * @param size Quantidade de elementos por página.
    * @param name Nome utilizado para o filtro
    * @return {@link ResponseEntity} com a lista de cenários que atendam ao
    *         predicado e o códigp HTTP 200 (OK)
@@ -95,9 +114,13 @@ public class ScenarioController {
   @GetMapping("/search")
   public ResponseEntity<List<ScenarioInfo>> findAllScenariosByName(@RequestParam int page,
       @RequestParam int size,
-      @RequestParam String name) {
-    List<ScenarioInfo> list = scenarioService.findScenariosByName(page, size, name)
-        .stream()
+      @RequestParam String name,
+      @AuthenticationPrincipal DeviceModel device) {
+    List<ScenarioModel> scenarios = device != null
+        ? scenarioService.findScenariosByNameForDevice(page, size, name, device)
+        : scenarioService.findScenariosByName(page, size, name);
+
+    List<ScenarioInfo> list = scenarios.stream()
         .map(ScenarioInfo::from)
         .toList();
     return ResponseEntity.ok(list);
@@ -111,9 +134,10 @@ public class ScenarioController {
    *         (OK)
    */
   @GetMapping("/{id}")
-  public ResponseEntity<ScenarioInfo> findScenarioById(@PathVariable("id") UUID id) {
+  public ResponseEntity<ScenarioInfo> findScenarioById(@PathVariable("id") UUID id,
+      @AuthenticationPrincipal DeviceModel device) {
 
-    ScenarioInfo dto = ScenarioInfo.from(scenarioService.findScenarioById(id));
+    ScenarioInfo dto = ScenarioInfo.from(scenarioService.findScenarioById(id, device));
     return ResponseEntity.ok(dto);
   }
 

@@ -45,7 +45,8 @@ public class AuthControllerTests {
                 {
                     "email": "teste@email.com",
                     "password": "senhaSegura123"
-                } """;
+                }
+            """;
         doNothing().when(service).login(anyString(), anyString());
 
         // Act e Assert
@@ -63,7 +64,8 @@ public class AuthControllerTests {
                 {
                     "email": "teste.email.com",
                     "password": "123456"
-                } """;
+                } 
+            """;
 
         // Act e Assert
         mockMvc.perform(post("/api/v1/auth/login")

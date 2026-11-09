@@ -1,10 +1,13 @@
 package com.n0hana.echoes_server.institution;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -17,20 +20,26 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
 
 import com.n0hana.echoes_server.cnpj.CnpjDTO;
 import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
+import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
-import com.n0hana.echoes_server.notifier.InstitutionNotifier;
+import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.model.UserRole;
+import com.n0hana.echoes_server.user.service.UserInfoService;
 
 @ExtendWith(MockitoExtension.class)
 public class InstitutionServiceTests {
@@ -42,7 +51,12 @@ public class InstitutionServiceTests {
     @Mock
     private InstitutionVerificationService verificationService;
     @Mock
-    private InstitutionNotifier notifier;
+    private NotifierService notifier;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private UserInfoService userInfoService;
 
     @InjectMocks
     private InstitutionService service;
@@ -93,7 +107,8 @@ public class InstitutionServiceTests {
         assertEquals(expectedCnpj, result.getCnpj());
         assertEquals(InstitutionVerificationStatus.VERIFIED, result.getVerificationStatus());
         verify(verificationService).applyDadosReceita(eq(model), any(CnpjDTO.class));
-        verify(notifier, never()).notifyPendingVerification(any(), any());
+
+        verify(notifier, never()).sendInstitutionPending(any(), any(), any(), any());
     }
 
     @Test
@@ -110,19 +125,19 @@ public class InstitutionServiceTests {
         InstitutionModel result = service.create(model);
 
         assertEquals(InstitutionVerificationStatus.PENDING_VERIFICATION, result.getVerificationStatus());
-        verify(notifier).notifyPendingVerification(any(), any());
+        verify(notifier).sendInstitutionPending(any(), any(), any(), any());
         verify(verificationService, never()).applyDadosReceita(any(), any());
     }
 
     @Test
-    @DisplayName("Create com CNPJ já cadastrado → DuplicateKeyException sem consultar Brasil API")
-    void shouldThrowDuplicationKeyException() {
+    @DisplayName("Create com CNPJ já cadastrado → InstitutionAlreadyExistsException sem consultar Brasil API")
+    void shouldThrowAlreadyExistsException() {
         InstitutionModel model = this.createTestModel(null);
         String expectedCnpj = "12345678000190";
 
         when(repository.existsByCnpjOrEmail(expectedCnpj, model.getEmail())).thenReturn(true);
 
-        assertThrows(DuplicateKeyException.class, () -> service.create(model));
+        assertThrows(InstitutionAlreadyExistsException.class, () -> service.create(model));
         verify(repository, never()).save(any());
         verify(cnpjService, never()).consultar(any());
     }
@@ -297,6 +312,11 @@ public class InstitutionServiceTests {
         service.toggleStatus(uuid);
 
         verify(model).setActive(eq(false));
+
+        InstitutionStatusChanged event = capturedEvent();
+        assertEquals(uuid, event.institutionId());
+        assertFalse(event.active());
+        assertTrue(event.blocksDevices());
     }
 
     @Test
@@ -312,6 +332,10 @@ public class InstitutionServiceTests {
         service.toggleStatus(uuid);
 
         verify(model).setActive(eq(true));
+
+        InstitutionStatusChanged event = capturedEvent();
+        assertTrue(event.active());
+        assertFalse(event.blocksDevices());
     }
 
     @Test
@@ -327,8 +351,18 @@ public class InstitutionServiceTests {
         service.delete(uuid);
 
         verify(model).setDeleted(eq(true));
+
+        InstitutionStatusChanged event = capturedEvent();
+        assertEquals(uuid, event.institutionId());
+        assertTrue(event.deleted());
+        assertTrue(event.blocksDevices());
     }
 
+    private InstitutionStatusChanged capturedEvent() {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        return (InstitutionStatusChanged) captor.getValue();
+    }
 
     @Test
     @DisplayName("delete em ID inexistente → InstitutionNotFoundException sem persistir")
@@ -339,5 +373,88 @@ public class InstitutionServiceTests {
         assertThrows(InstitutionNotFoundException.class, () -> service.delete(id));
 
         verify(repository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    @DisplayName("Deve buscar por usuários membros de uma instituição")
+    void shouldFindUsersByInstitutionId() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        Integer size = 2;
+        Integer pageNumber = 0;
+
+        List<UserDTO> list = List.of(
+                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+
+        Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 1);
+
+        when(repository.existsById(id)).thenReturn(true);
+        when(userInfoService.findUsersByInstitution(id, pageNumber, size)).thenReturn(page);
+
+        // Act e Assert
+        assertDoesNotThrow(() -> service.findUsersByInstitutionId(id, pageNumber, size));
+
+        verify(userInfoService).findUsersByInstitution(id, pageNumber, size);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção de InstitutionNotFoundException quando busca usuários de uma instituição não cadastrada")
+    void shouldThrowInstitutionNotFoundWhenFindUsersByInstitutionId() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        Integer size = 2;
+        Integer pageNumber = 0;
+
+        when(repository.existsById(id)).thenReturn(false);
+
+        // Act e Assert
+        assertThrows(InstitutionNotFoundException.class, () -> service.findUsersByInstitutionId(id, pageNumber, size));
+
+        verify(userInfoService, never()).findUsersByInstitution(id, pageNumber, size);
+    }
+
+
+    @Test
+    @DisplayName("Deve buscar por usuários membros de uma instituição filtrando pelo nome")
+    void shouldFindUsersByNameInInstitution() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        String name = "example";
+        Integer size = 2;
+        Integer pageNumber = 0;
+
+        List<UserDTO> list = List.of(
+                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+
+        Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 1);
+
+        when(repository.existsById(id)).thenReturn(true);
+        when(userInfoService.findUsersByNameInInstitution(id, name, pageNumber, size)).thenReturn(page);
+
+        // Act e Assert
+        assertDoesNotThrow(() -> service.findUsersByNameInInstitution(id, name, pageNumber, size));
+
+        verify(userInfoService).findUsersByNameInInstitution(id, name, pageNumber, size);
+    } 
+
+    @Test
+    @DisplayName("Deve lançar exceção de InstitutionNotFoundException quando busca usuários por nome de uma instituição não cadastrada")
+    void shouldThrowInstitutionNotFoundWhenFindUsersByNameInInstitution() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        String name = "example";
+        Integer size = 2;
+        Integer pageNumber = 0;
+
+        when(repository.existsById(id)).thenReturn(false);
+
+        // Act e Assert
+        assertThrows(InstitutionNotFoundException.class,
+                () -> service.findUsersByNameInInstitution(id, name, pageNumber, size));
+
+        verify(userInfoService, never()).findUsersByInstitution(id, pageNumber, size);
     }
 }

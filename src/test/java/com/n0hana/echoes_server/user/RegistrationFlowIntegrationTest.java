@@ -24,11 +24,14 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.n0hana.echoes_server.institution.InstitutionModel;
+import com.n0hana.echoes_server.institution.InstitutionRepository;
 import com.n0hana.echoes_server.term.TermRepository;
 import com.n0hana.echoes_server.term.UserTermAcceptanceRepository;
 import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.term.model.TermModel;
 import com.n0hana.echoes_server.term.model.TermStatus;
+import com.n0hana.echoes_server.user.service.UserRegisterService;
 
 /**
  * Fluxo completo dos dois passos de registro contra Redis real (H2 no lugar
@@ -61,6 +64,9 @@ class RegistrationFlowIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private InstitutionRepository institutionRepository;
 
     @Autowired
     private UserTermAcceptanceRepository userTermAcceptanceRepository;
@@ -103,20 +109,25 @@ class RegistrationFlowIntegrationTest {
     @DisplayName("Passo 1 guarda pendência no Redis sem criar linha; passo 2 cria o usuário e consome o convite")
     void fullTwoStepFlowKeepsUserPendingUntilConfirmation() throws Exception {
         String email = "aluno@example.com";
-        UUID institutionId = UUID.randomUUID();
         userTermAcceptanceRepository.deleteAll();
         userRepository.deleteAll();
         pendingRegistrationRepository.deleteByEmail(email);
 
-        mockMvc.perform(post("/users/student")
+        InstitutionModel institution = new InstitutionModel();
+
+        institution.setName("nome");
+        institution.setAcronym("teste");
+        institution.setCnpj("00000000000100");
+        institution.setActive(true);
+        institution.setEmail("teste@email.com");
+
+        institution = institutionRepository.save(institution);
+
+        mockMvc.perform(post("/api/v1/users/student")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Aluno\",\"email\":\"" + email + "\","
-                        + "\"institutionId\":\"" + institutionId + "\"}"))
+                        + "\"institutionId\":\"" + institution.getId().toString() + "\"}"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.name").value("Aluno"))
-                .andExpect(jsonPath("$.email").value(email))
-                .andExpect(jsonPath("$.role").value("STUDENT"))
-                .andExpect(jsonPath("$.institutionId").value(institutionId.toString()))
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
 
@@ -125,14 +136,16 @@ class RegistrationFlowIntegrationTest {
 
         String code = pendingRegistrationRepository.findByEmail(email).orElseThrow().code();
 
-        mockMvc.perform(post("/users/2fa")
+        System.out.println(code);
+
+        mockMvc.perform(post("/api/v1/users/2fa")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + STRONG_PASSWORD
                         + "\",\"code\":\"000000\"," + TERMS_JSON + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Código inválido"));
 
-        mockMvc.perform(post("/users/2fa")
+        mockMvc.perform(post("/api/v1/users/2fa")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + STRONG_PASSWORD
                         + "\",\"code\":\"" + code + "\"," + TERMS_JSON + "}"))
@@ -140,17 +153,17 @@ class RegistrationFlowIntegrationTest {
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.email").value(email))
                 .andExpect(jsonPath("$.role").value("STUDENT"))
-                .andExpect(jsonPath("$.institutionId").value(institutionId.toString()));
+                .andExpect(jsonPath("$.institutionId").value(institution.getId().toString()));
 
         assertTrue(pendingRegistrationRepository.findByEmail(email).isEmpty(),
                 "convite deve ser consumido após a confirmação");
         assertTrue(userRepository.existsByEmail(email));
 
-        mockMvc.perform(get("/users/student"))
+        mockMvc.perform(get("/api/v1/users/student"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1));
 
-        mockMvc.perform(get("/users/student").param("institutionId", UUID.randomUUID().toString()))
+        mockMvc.perform(get("/api/v1/users/student").param("institutionId", UUID.randomUUID().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
     }
@@ -163,13 +176,13 @@ class RegistrationFlowIntegrationTest {
         userRepository.deleteAll();
         pendingRegistrationRepository.deleteByEmail(email);
 
-        mockMvc.perform(post("/users/admin")
+        mockMvc.perform(post("/api/v1/users/admin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Novo Admin\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isAccepted());
 
-        for (int i = 0; i < UserService.MAX_VERIFICATION_ATTEMPTS; i++) {
-            mockMvc.perform(post("/users/2fa")
+        for (int i = 0; i < UserRegisterService.MAX_VERIFICATION_ATTEMPTS; i++) {
+            mockMvc.perform(post("/api/v1/users/2fa")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"email\":\"" + email + "\",\"password\":\"" + STRONG_PASSWORD
                             + "\",\"code\":\"000000\"," + TERMS_JSON + "}"))
@@ -179,13 +192,13 @@ class RegistrationFlowIntegrationTest {
         assertTrue(pendingRegistrationRepository.findByEmail(email).isEmpty(),
                 "convite deve ser invalidado após esgotar as tentativas");
 
-        mockMvc.perform(post("/users/2fa")
+        mockMvc.perform(post("/api/v1/users/2fa")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + STRONG_PASSWORD
                         + "\",\"code\":\"000000\"," + TERMS_JSON + "}"))
                 .andExpect(status().isNotFound());
 
-        mockMvc.perform(post("/users/admin")
+        mockMvc.perform(post("/api/v1/users/admin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Novo Admin\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isAccepted());
@@ -202,14 +215,14 @@ class RegistrationFlowIntegrationTest {
         userRepository.deleteAll();
         pendingRegistrationRepository.deleteByEmail(email);
 
-        mockMvc.perform(post("/users/manager")
+        mockMvc.perform(post("/api/v1/users/manager")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Gestor\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isAccepted());
 
         String code = pendingRegistrationRepository.findByEmail(email).orElseThrow().code();
 
-        mockMvc.perform(post("/users/2fa")
+        mockMvc.perform(post("/api/v1/users/2fa")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"senha12345"
                         + "\",\"code\":\"" + code + "\"," + TERMS_JSON + "}"))

@@ -7,4 +7,8 @@ public class InstitutionNotFoundException extends RuntimeException {
     public InstitutionNotFoundException(String message) {
         super(message);
     }
+
+    public InstitutionNotFoundException() {
+        this("Instituição não encontrada");
+    }
 }
