@@ -50,10 +50,9 @@ public class DevicePublicKeyServiceTests {
     }
 
     @Test
-    @DisplayName("Lê a chave pública P-256 do arquivo pubkey.pem (quebras de linha reais)")
+    @DisplayName("Lê a chave pública P-256 com quebras de linha reais")
     void shouldParsePubkeyPemWithRealLineBreaks() throws Exception {
-        String pem = new String(java.nio.file.Files.readAllBytes(
-            java.nio.file.Paths.get("/home/avraham/Documents/Echoes/pubkey.pem")));
+        String pem = generatePem("secp256r1");
 
         ECPublicKey publicKey = publicKeyService.parse(pem);
 
@@ -63,8 +62,7 @@ public class DevicePublicKeyServiceTests {
     @Test
     @DisplayName("Lê a chave pública P-256 com sequência literal \\\\n (plataformas IoT)")
     void shouldParsePubkeyPemWithLiteralBackslashN() throws Exception {
-        String pem = new String(java.nio.file.Files.readAllBytes(
-            java.nio.file.Paths.get("/home/avraham/Documents/Echoes/pubkey.pem")));
+        String pem = generatePem("secp256r1");
 
         // Simula plataforma que envia \\n literal em vez de quebra de linha efetiva
         String pemLiteralNs = pem.replace("\n", "\\n");
