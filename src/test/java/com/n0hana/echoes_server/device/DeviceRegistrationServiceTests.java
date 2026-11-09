@@ -124,7 +124,7 @@ class DeviceRegistrationServiceTests {
   }
 
   @Test
-  @DisplayName("Rejeita MAC já cadastrado com outra chave pública")
+  @DisplayName("Rejeita dispositivo já cadastrado com outra chave pública")
   void shouldRejectMacRegisteredWithAnotherKey() throws Exception {
     KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
     generator.initialize(new ECGenParameterSpec("secp256r1"));
@@ -141,7 +141,7 @@ class DeviceRegistrationServiceTests {
     DeviceRegistrationResult result = registrationService.register(payload(MAC, pem, null));
 
     assertEquals(DeviceRegistrationResult.Status.REJECTED, result.status());
-    assertEquals("MAC já cadastrado com outra chave pública", result.message());
+    assertEquals("Dispositivo já cadastrado com outra chave pública", result.message());
     verify(deviceRepository, never()).saveAndFlush(any(DeviceModel.class));
   }
 
