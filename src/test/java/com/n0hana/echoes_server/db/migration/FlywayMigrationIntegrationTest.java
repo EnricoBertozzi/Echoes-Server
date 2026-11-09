@@ -42,6 +42,9 @@ class FlywayMigrationIntegrationTest {
             .locations(
                 "classpath:db/migration",
                 "classpath:com/n0hana/echoes_server/db/migration")
+            // igual à produção, banco existente sem histórico é baselineado na versão 0
+            .baselineOnMigrate(true)
+            .baselineVersion("0")
             .load();
     }
 
