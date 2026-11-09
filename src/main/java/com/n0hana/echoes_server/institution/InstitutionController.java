@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.classroom.ClassroomInfoDTO;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 
@@ -172,4 +173,12 @@ public class InstitutionController {
         Page<UserDTO> p = service.findUsersByNameInInstitution(id, name, page, size);
         return ResponseEntity.ok(p);
     }
+
+    @GetMapping("/{id}/classrooms")
+    public ResponseEntity<Page<ClassroomInfoDTO>> findClassroomsByInstitutionId(@PathVariable("id") UUID id,
+            @RequestParam("page") Integer pageNumber, @RequestParam("size") Integer size) {
+        Page<ClassroomInfoDTO> page = service.findClassroomsByInstitutionId(id, pageNumber, size);
+        return ResponseEntity.ok(page);
+    }
+
 }

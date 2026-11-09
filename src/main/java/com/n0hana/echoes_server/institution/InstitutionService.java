@@ -11,6 +11,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.n0hana.echoes_server.classroom.ClassroomInfoDTO;
+import com.n0hana.echoes_server.classroom.ClassroomService;
 import com.n0hana.echoes_server.cnpj.CnpjDTO;
 import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.CnpjValidator;
@@ -43,6 +45,7 @@ public class InstitutionService {
     private final InstitutionVerificationService verificationService;
     private final NotifierService notifier;
     private final UserInfoService userInfoService;
+    private final ClassroomService classroomService;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -273,5 +276,12 @@ public class InstitutionService {
             throw new InstitutionNotFoundException();
 
         return userInfoService.findUsersByNameInInstitution(id, name, page, size);
+    }
+
+    public Page<ClassroomInfoDTO> findClassroomsByInstitutionId(UUID id, Integer pageNumber, Integer size) {
+        if (!repository.existsById(id))
+            throw new InstitutionNotFoundException();
+
+        return classroomService.findClassroomsByInstitutionId(id, pageNumber, size);
     }
 }

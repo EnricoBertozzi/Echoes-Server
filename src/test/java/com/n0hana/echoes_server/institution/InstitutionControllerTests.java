@@ -2,6 +2,7 @@ package com.n0hana.echoes_server.institution;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -33,6 +34,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.n0hana.echoes_server.classroom.ClassroomInfoDTO;
 import com.n0hana.echoes_server.infra.security.JwtTokenService;
 import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
 import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
@@ -369,6 +371,52 @@ public class InstitutionControllerTests {
                 .param("size", size.toString()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(ex.getMessage()));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/classrooms - Deve retornar as turmas de uma instituição")
+    void shouldFindClassroomsByInstitutionId() throws Exception {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        Integer pageNumber = 0;
+        Integer size = 10;
+
+        List<ClassroomInfoDTO> list = List.of(
+                mock(ClassroomInfoDTO.class),
+                mock(ClassroomInfoDTO.class));
+
+        Page<ClassroomInfoDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 2);
+
+        when(service.findClassroomsByInstitutionId(id, pageNumber, size)).thenReturn(page);
+
+        // Act e Assert
+        mockMvc.perform(get("/api/v1/institutions/{id}/classrooms", id)
+                .param("page", pageNumber.toString())
+                .param("size", size.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isNotEmpty());
+
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/institutions/{id}/classrooms - Deve lançar InstitutionNotFoundException quando buscar as turmas de uma instituição não cadastrada")
+    void shouldThrowInstitutionNotFoundFindClassroomsByInstitutionId() throws Exception {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        Integer pageNumber = 0;
+        Integer size = 10;
+
+        InstitutionNotFoundException ex = new InstitutionNotFoundException();
+
+        when(service.findClassroomsByInstitutionId(id, pageNumber, size)).thenThrow(ex);
+        // Act e Assert
+        mockMvc.perform(get("/api/v1/institutions/{id}/classrooms", id)
+                .param("page", pageNumber.toString())
+                .param("size", size.toString()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(ex.getMessage()));
+
     }
 
     private InstitutionModel createTestModel(UUID id) {
