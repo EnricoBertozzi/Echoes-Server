@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.device;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
@@ -21,7 +22,9 @@ public class DeviceDTO {
       UUID institutionId,
       String institutionName,
       UUID animalId,
-      String animalName) {
+      String animalName,
+      LocalDateTime createdAt,
+      LocalDateTime lastSeenAt) {
 
     public static DeviceInfo from(DeviceModel device) {
       AnimalModel animal = device.getAnimal();
@@ -40,7 +43,9 @@ public class DeviceDTO {
           institutionId,
           institutionName,
           animalId,
-          animalName);
+          animalName,
+          device.getCreatedAt(),
+          device.getLastSeenAt());
     }
   }
 
