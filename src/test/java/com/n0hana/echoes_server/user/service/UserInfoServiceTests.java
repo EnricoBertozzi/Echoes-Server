@@ -3,7 +3,7 @@ package com.n0hana.echoes_server.user.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.doNothing;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,6 +29,8 @@ import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.Admin;
+import com.n0hana.echoes_server.user.model.Manager;
+import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.User;
 import com.n0hana.echoes_server.user.model.UserRole;
@@ -133,8 +135,64 @@ public class UserInfoServiceTests {
         String email = "teste@email.com";
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
-        
+
         // Act e Assert
         assertThrows(UserNotFoundException.class, () -> userService.findUserByEmail(email));
+    }
+
+    @Test
+    @DisplayName("Deve buscar por usuários membros de uma instituição")
+    void shouldFindUsersByInstitution() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        Integer pageNumber = 0;
+        Integer size = 2;
+
+        List<User> list = List.of(
+                mock(Manager.class),
+                mock(Student.class));
+
+        Pageable pageable = PageRequest.of(pageNumber, size);
+
+        Page<User> page = new PageImpl<>(list, pageable, 2);
+
+        when(userRepository.findUsersByInstitutionId(id, pageable)).thenReturn(page);
+
+        // Act e Assert
+        Page<UserDTO> result = userService.findUsersByInstitution(id, pageNumber, size);
+
+        assertTrue(result.hasContent());
+        assertEquals(page.getNumberOfElements(), result.getNumberOfElements());
+        assertEquals(page.getTotalElements(), result.getTotalElements());
+        assertEquals(page.getTotalPages(), result.getTotalPages());
+    }
+
+    @Test
+    @DisplayName("Deve buscar por membros da instituição por nome")
+    void shouldFindUsersByNameInInstitution() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        String name = "example";
+        Integer pageNumber = 0;
+        Integer size = 10;
+
+        List<User> list = List.of(
+                mock(Manager.class),
+                mock(Teacher.class),
+                mock(Student.class));
+
+        Pageable pageable = PageRequest.of(pageNumber, size);
+
+        Page<User> page = new PageImpl<>(list, pageable, list.size());
+
+        when(userRepository.findUsersByNameInInstitution(id, name, pageable)).thenReturn(page);
+
+        // Act e Assert
+        Page<UserDTO> result = userService.findUsersByNameInInstitution(id, name, pageNumber, size);
+
+        assertTrue(result.hasContent());
+        assertEquals(page.getNumberOfElements(), result.getNumberOfElements());
+        assertEquals(page.getTotalElements(), result.getTotalElements());
+        assertEquals(page.getTotalPages(), result.getTotalPages());
     }
 }

@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
-import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.service.UserInfoService;
@@ -41,31 +40,34 @@ public class StudentController {
     private final UserManagerService userManagerService;
 
     @PostMapping
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasRole('MANAGER') and @guard.isInstituicaoUsuario(#dto.institutionId())")
     public ResponseEntity<Void> create(@RequestBody @Valid CreateInstitutionUserDTO dto) {
         userRegisterService.createStudent(dto);
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TEACHER') and @guard.isInstituicaoUsuario(#institutionId)")
     public ResponseEntity<Page<UserDTO>> findAll(
             @RequestParam(required = false) UUID institutionId, Pageable pageable) {
         return ResponseEntity.ok(userInfoService.findStudents(institutionId, pageable));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@guard.canAccess(#id)")
     public ResponseEntity<UserDTO> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(userInfoService.findStudentById(id));
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT') and @guard.canAccess(#id)"
+            + " and (#dto.institutionId() == null or @guard.isInstituicaoUsuario(#dto.institutionId()))")
     public ResponseEntity<UserDTO> update(@PathVariable UUID id, @RequestBody @Valid UpdateInstitutionUserDTO dto) {
         return ResponseEntity.ok(userManagerService.updateStudent(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'STUDENT') and @guard.canAccess(#id)")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         userManagerService.deleteStudent(id);
         return ResponseEntity.noContent().build();

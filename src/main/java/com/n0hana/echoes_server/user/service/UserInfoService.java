@@ -2,8 +2,8 @@ package com.n0hana.echoes_server.user.service;
 
 import java.util.UUID;
 
-import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -87,5 +87,33 @@ public class UserInfoService {
     public UserDTO findUserByEmail(String email) {
         User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
         return UserUtils.toDTO(user);
+    }
+
+    /**
+     * Busca os usuários membros de uma instituição
+     * 
+     * @param id   Identificador da instituição
+     * @param page Index de paginação
+     * @param size Quantidade de elementos da paginação
+     * 
+     * @return {@link Page} com dados dos usuários membros
+     */
+    public Page<UserDTO> findUsersByInstitution(UUID id, Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return userRepository.findUsersByInstitutionId(id, pageable).map(UserUtils::toDTO);
+    }
+
+    /**
+     * Busca os usuários por nome dentro de uma instituição
+     * 
+     * @param id   Identificador da instituição
+     * @param name Nome do usuário
+     * @param page Index de páginação
+     * @param size Quantidade de elementos da paginação
+     * @return {@link Page} com usuários que atendam a busca
+     */
+    public Page<UserDTO> findUsersByNameInInstitution(UUID id, String name, Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return userRepository.findUsersByNameInInstitution(id, name, pageable).map(UserUtils::toDTO);
     }
 }

@@ -13,12 +13,13 @@ import com.n0hana.echoes_server.animal.exception.AnimalNotFoundException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class AnimalService {
 
-  @Autowired
-  private AnimalRepository animalRepository;
+  private final AnimalRepository animalRepository;
 
   public List<AnimalModel> findAllAnimals(int page, int size) {
     return animalRepository

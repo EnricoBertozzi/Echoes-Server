@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.auscultation;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,14 +21,15 @@ import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/points")
+@RequiredArgsConstructor
 @SecurityRequirement(name = SecurityConfig.SECURITY)
 public class AuscultationPointController {
 
-  @Autowired
-  private AuscultationPointService pointService;
+  private final AuscultationPointService pointService;
 
   @PostMapping
   @PreAuthorize("hasRole('ADMIN')")

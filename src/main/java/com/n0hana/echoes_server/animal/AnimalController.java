@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.animal;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +20,7 @@ import com.n0hana.echoes_server.infra.security.SecurityConfig;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Controller REST responsável pelo gerenciamento de modelos de animais.
@@ -33,10 +33,10 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/animals")
 @SecurityRequirement(name = SecurityConfig.SECURITY)
+@RequiredArgsConstructor 
 public class AnimalController {
 
-  @Autowired
-  private AnimalService animalService;
+  private final AnimalService animalService;
 
   /**
    * Registra um novo modelo de animal no sistema.

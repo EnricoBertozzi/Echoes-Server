@@ -1,6 +1,5 @@
 package com.n0hana.echoes_server.infra.security;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
@@ -12,15 +11,18 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.User;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Classe de configuração para inicialização do super usuário
  */
 @Configuration
 @Profile("!test")
+@RequiredArgsConstructor
 public class SuperUserInitializer {
 
-    @Autowired
-    private UserRepository repository;
+    private final UserRepository repository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${api.security.admin.email}")
     private String adminEmail;
@@ -30,9 +32,6 @@ public class SuperUserInitializer {
 
     @Value("${api.security.admin.password}")
     private String adminPassword;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Bean
     ApplicationRunner initializeSuperUser() {
