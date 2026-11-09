@@ -32,7 +32,7 @@ public class AuscultationPointController {
   private AuscultationPointService pointService;
 
   @PostMapping
-  @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE')")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> newPoint(@RequestBody AuscultationPointDTO.PointRegister dto,
       @AuthenticationPrincipal DeviceModel device) {
     pointService.newAuscultationPoint(dto.toModel(), device);
@@ -75,7 +75,7 @@ public class AuscultationPointController {
   }
 
   @PatchMapping("/{id}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE')")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> updatePoint(@PathVariable UUID id, @RequestBody AuscultationPointDTO.PointUpdate dto,
       @AuthenticationPrincipal DeviceModel device) {
     pointService.updateAuscultationPoint(id, dto.toModel(), device);
@@ -84,7 +84,7 @@ public class AuscultationPointController {
   }
 
   @DeleteMapping("/{id}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE')")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> deletePoint(@PathVariable UUID id,
       @AuthenticationPrincipal DeviceModel device) {
     pointService.deleteAuscultationPoint(id, device);
