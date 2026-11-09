@@ -36,7 +36,7 @@ class DevicePersistenceIntegrationTest {
   void shouldPersistDeviceWithoutAnimal() {
     DeviceModel device = DeviceModel.builder()
         .name("Dispositivo sem animal")
-        .mac("AA:BB:CC:DD:EE:01")
+        .hardwareId("AA:BB:CC:DD:EE:01")
         .publicKey("pem")
         .build();
 
@@ -56,7 +56,7 @@ class DevicePersistenceIntegrationTest {
 
     DeviceModel device = DeviceModel.builder()
         .name("Dispositivo com animal")
-        .mac("AA:BB:CC:DD:EE:02")
+        .hardwareId("AA:BB:CC:DD:EE:02")
         .publicKey("pem")
         .animal(animal)
         .build();
@@ -77,7 +77,7 @@ class DevicePersistenceIntegrationTest {
 
     DeviceModel device = deviceRepository.saveAndFlush(DeviceModel.builder()
         .name("Dispositivo associado")
-        .mac("AA:BB:CC:DD:EE:03")
+        .hardwareId("AA:BB:CC:DD:EE:03")
         .publicKey("pem")
         .animal(animal)
         .build());

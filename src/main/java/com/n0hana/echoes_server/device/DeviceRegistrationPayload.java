@@ -12,14 +12,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * é aceita tanto como {@code publicKey} quanto como {@code public_key}.
  * </p>
  *
- * @param mac       MAC do dispositivo
+ * @param hardwareId       identificador do hardware (hoje o MAC). Chaves aceitas:
+ *                  {@code hardwareId}, {@code hardware_id} e a antiga {@code mac}
  * @param publicKey chave pública EC P-256 em PEM (SPKI)
  * @param signature assinatura da mensagem canônica
- * @param name      nome opcional de exibição; quando ausente, usa-se o MAC
+ * @param name      nome opcional de exibição; quando ausente, usa-se o hardware_id
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record DeviceRegistrationPayload(
-    String mac,
+    @JsonAlias({ "hardware_id", "mac" }) String hardwareId,
     @JsonAlias("public_key") String publicKey,
     @JsonAlias("sig") String signature,
     String name) {

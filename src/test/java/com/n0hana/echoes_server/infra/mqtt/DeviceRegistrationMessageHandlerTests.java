@@ -38,11 +38,30 @@ class DeviceRegistrationMessageHandlerTests {
   }
 
   @Test
+  @DisplayName("Aceita a chave antiga mac no payload do firmware")
+  void shouldAcceptLegacyMacKey() throws Exception {
+    String payload = objectMapper.writeValueAsString(Map.of(
+        "mac", "AA:BB:CC:DD:EE:FF",
+        "public_key", "pem",
+        "signature", "assinatura"));
+
+    when(registrationService.register(any(DeviceRegistrationPayload.class)))
+        .thenReturn(DeviceRegistrationResult.rejected("AA:BB:CC:DD:EE:FF", "x"));
+
+    handler.handle(payload);
+
+    ArgumentCaptor<DeviceRegistrationPayload> captor =
+        ArgumentCaptor.forClass(DeviceRegistrationPayload.class);
+    verify(registrationService).register(captor.capture());
+    assertEquals("AA:BB:CC:DD:EE:FF", captor.getValue().hardwareId());
+  }
+
+  @Test
   @DisplayName("Lê public_key, signature e delega o registro")
   void shouldReadSnakeCasePayloadAndDelegate() throws Exception {
     String pem = "-----BEGIN PUBLIC KEY-----\nchave\n-----END PUBLIC KEY-----";
     String payload = objectMapper.writeValueAsString(Map.of(
-        "mac", "AA:BB:CC:DD:EE:FF",
+        "hardware_id", "AA:BB:CC:DD:EE:FF",
         "public_key", pem,
         "signature", "assinatura",
         "name", "Echoes Dev Kit"));
@@ -50,7 +69,7 @@ class DeviceRegistrationMessageHandlerTests {
     when(registrationService.register(any(DeviceRegistrationPayload.class)))
         .thenReturn(DeviceRegistrationResult.registered(
             com.n0hana.echoes_server.device.DeviceModel.builder()
-                .mac("AA:BB:CC:DD:EE:FF")
+                .hardwareId("AA:BB:CC:DD:EE:FF")
                 .build()));
 
     DeviceRegistrationResult result = handler.handle(payload);
@@ -61,7 +80,7 @@ class DeviceRegistrationMessageHandlerTests {
         ArgumentCaptor.forClass(DeviceRegistrationPayload.class);
     verify(registrationService).register(captor.capture());
 
-    assertEquals("AA:BB:CC:DD:EE:FF", captor.getValue().mac());
+    assertEquals("AA:BB:CC:DD:EE:FF", captor.getValue().hardwareId());
     assertEquals(pem, captor.getValue().publicKey());
     assertEquals("assinatura", captor.getValue().signature());
     assertEquals("Echoes Dev Kit", captor.getValue().name());
@@ -71,7 +90,7 @@ class DeviceRegistrationMessageHandlerTests {
   @DisplayName("Aceita também o campo publicKey em camelCase")
   void shouldAcceptCamelCasePublicKey() throws Exception {
     String payload = objectMapper.writeValueAsString(Map.of(
-        "mac", "AA:BB:CC:DD:EE:FF",
+        "hardware_id", "AA:BB:CC:DD:EE:FF",
         "publicKey", "pem",
         "signature", "assinatura"));
 
@@ -90,7 +109,7 @@ class DeviceRegistrationMessageHandlerTests {
   @Test
   @DisplayName("Rejeita JSON malformado sem lançar exceção")
   void shouldRejectMalformedJson() {
-    DeviceRegistrationResult result = handler.handle("{mac:");
+    DeviceRegistrationResult result = handler.handle("{hardwareId:");
 
     assertEquals(DeviceRegistrationResult.Status.REJECTED, result.status());
     assertEquals("Payload de registro inválido", result.message());
@@ -100,7 +119,7 @@ class DeviceRegistrationMessageHandlerTests {
   @DisplayName("Converte falha de assinatura em resultado rejeitado")
   void shouldConvertSignatureFailureToRejectedResult() throws Exception {
     String payload = objectMapper.writeValueAsString(Map.of(
-        "mac", "AA:BB:CC:DD:EE:FF",
+        "hardware_id", "AA:BB:CC:DD:EE:FF",
         "public_key", "pem",
         "signature", "assinatura"));
 
@@ -120,6 +139,6 @@ class DeviceRegistrationMessageHandlerTests {
         DeviceRegistrationResult.rejected("AA:BB:CC:DD:EE:FF", "inválido"));
 
     assertTrue(json.contains("\"status\":\"REJECTED\""));
-    assertTrue(json.contains("\"mac\":\"AA:BB:CC:DD:EE:FF\""));
+    assertTrue(json.contains("\"hardware_id\":\"AA:BB:CC:DD:EE:FF\""));
   }
 }

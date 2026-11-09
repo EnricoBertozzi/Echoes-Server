@@ -32,10 +32,10 @@ public class MqttProperties {
   private String registrationTopic = "register";
 
   /**
-   * Tópico de resposta. Use {@code {mac}} para publicar em um tópico por
-   * dispositivo, por exemplo {@code register/ack/{mac}}.
+   * Tópico de resposta. Use {@code {hardware_id}} para publicar em um tópico por
+   * dispositivo, por exemplo {@code register/ack/{hardware_id}}.
    */
-  private String ackTopic = "register/ack/{mac}";
+  private String ackTopic = "register/ack/{hardware_id}";
 
   /** QoS usado na inscrição e nas respostas. */
   private int qos = 1;

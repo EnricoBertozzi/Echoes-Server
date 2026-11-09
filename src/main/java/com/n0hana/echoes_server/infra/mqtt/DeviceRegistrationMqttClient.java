@@ -26,7 +26,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>
  * O cliente se inscreve no tópico {@code register}. Ao receber um payload, ele
  * delega a validação para {@link DeviceRegistrationMessageHandler} e publica o
- * resultado em {@code register/ack/{mac}}. Se o broker estiver indisponível na
+ * resultado em {@code register/ack/{hardware_id}}. Se o broker estiver indisponível na
  * inicialização, a aplicação continua subindo e o cliente tenta reconectar em
  * segundo plano.
  * </p>
@@ -158,7 +158,7 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
       return;
 
     try {
-      String topic = ackTopic(result.mac());
+      String topic = ackTopic(result.hardwareId());
       MqttMessage message = new MqttMessage(objectMapper.writeValueAsBytes(result));
 
       message.setQos(properties.getQos());
@@ -169,21 +169,26 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
     }
   }
 
-  private String ackTopic(String mac) {
+  private String ackTopic(String hardwareId) {
     String template = properties.getAckTopic();
 
     if (template == null || template.isBlank())
-      return "register/ack/" + topicSegment(mac);
+      return "register/ack/" + topicSegment(hardwareId);
 
-    return template.replace("{mac}", topicSegment(mac));
+    String segment = topicSegment(hardwareId);
+    // {mac} continua aceito para configurações antigas
+    return template
+        .replace("{hardware_id}", segment)
+        .replace("{hardwareId}", segment)
+        .replace("{mac}", segment);
   }
 
-  private String topicSegment(String mac) {
-    if (mac == null || mac.isBlank())
+  private String topicSegment(String hardwareId) {
+    if (hardwareId == null || hardwareId.isBlank())
       return "unknown";
 
-    // Evita que um MAC malformado crie níveis/tópicos arbitrários.
-    return mac.trim().replaceAll("[^A-Za-z0-9:_-]", "_");
+    // Evita que um hardware_id malformado crie níveis/tópicos arbitrários.
+    return hardwareId.trim().replaceAll("[^A-Za-z0-9:_-]", "_");
   }
 
   private void scheduleReconnect() {

@@ -8,10 +8,10 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.n0hana.echoes_server.device.DeviceJwtService;
 import com.n0hana.echoes_server.device.DeviceModel;
-
-import com.nimbusds.jwt.SignedJWT;
+import com.n0hana.echoes_server.device.exception.DeviceAuthenticationException;
+import com.n0hana.echoes_server.device.port.DeviceAccessPolicy;
+import com.n0hana.echoes_server.device.port.DeviceCredentialVerifier;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,10 +19,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Autentica dispositivos. Quem prova a identidade é o
+ * {@link DeviceCredentialVerifier}; quem decide se o dispositivo pode operar é
+ * o {@link DeviceAccessPolicy}.
+ */
 @RequiredArgsConstructor
 public class DeviceJwtFilter extends OncePerRequestFilter {
 
-    private final DeviceJwtService deviceJwtService;
+    private final DeviceCredentialVerifier credentialVerifier;
+    private final DeviceAccessPolicy accessPolicy;
 
     @Override
     protected void doFilterInternal(
@@ -42,33 +48,31 @@ public class DeviceJwtFilter extends OncePerRequestFilter {
 
         String token = authorization.substring(7);
 
-        String issuer;
-        try {
-            issuer = SignedJWT.parse(token)
-                    .getJWTClaimsSet()
-                    .getIssuer();
-        } catch (Exception exception) {
-            // Token malformado: deixa os demais filtros tratarem
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // Não processa tokens de usuários
-        if (!DeviceJwtService.DEVICE_ISSUER.equals(issuer)) {
+        // Credenciais de usuário (ou malformadas) seguem para os demais filtros
+        if (!credentialVerifier.supports(token)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         DeviceModel device;
         try {
-            // Valida assinatura e claims do dispositivo
-            device = deviceJwtService.validateToken(token);
-        } catch (Exception exception) {
+            device = credentialVerifier.verify(token);
+        } catch (DeviceAuthenticationException exception) {
             SecurityContextHolder.clearContext();
 
             response.sendError(
                     HttpServletResponse.SC_UNAUTHORIZED,
                     "Invalid device token");
+            return;
+        }
+
+        // Dispositivo pendente, inativo ou de instituição inativa não opera
+        if (!accessPolicy.canOperate(device)) {
+            SecurityContextHolder.clearContext();
+
+            response.sendError(
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "Device is not authorized to operate");
             return;
         }
 

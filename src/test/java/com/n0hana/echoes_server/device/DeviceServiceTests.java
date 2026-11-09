@@ -33,17 +33,17 @@ public class DeviceServiceTests {
     @Test
     @DisplayName("Busca dispositivo pelo MAC normalizado")
     void shouldFindDeviceByMac() {
-        String mac = "AA:BB:CC:DD:EE:FF";
+        String hardwareId = "AA:BB:CC:DD:EE:FF";
         DeviceModel device = DeviceModel.builder()
                 .id(UUID.randomUUID())
                 .name("Dispositivo")
-                .mac(mac)
+                .hardwareId(hardwareId)
                 .publicKey("pem")
                 .build();
 
-        when(deviceRepository.findByMac(mac)).thenReturn(Optional.of(device));
+        when(deviceRepository.findByHardwareId(hardwareId)).thenReturn(Optional.of(device));
 
-        DeviceModel found = deviceService.findDeviceByMac("  " + mac + "  ");
+        DeviceModel found = deviceService.findDeviceByHardwareId("  " + hardwareId + "  ");
 
         assertEquals(device, found);
     }
@@ -51,16 +51,16 @@ public class DeviceServiceTests {
     @Test
     @DisplayName("Lança exceção quando o MAC não está cadastrado")
     void shouldThrowWhenMacDoesNotExist() {
-        when(deviceRepository.findByMac("AA:BB:CC:DD:EE:FF")).thenReturn(Optional.empty());
+        when(deviceRepository.findByHardwareId("AA:BB:CC:DD:EE:FF")).thenReturn(Optional.empty());
 
         assertThrows(DeviceNotFoundException.class,
-                () -> deviceService.findDeviceByMac("AA:BB:CC:DD:EE:FF"));
+                () -> deviceService.findDeviceByHardwareId("AA:BB:CC:DD:EE:FF"));
     }
 
     @Test
     @DisplayName("Lança exceção quando o MAC é vazio")
     void shouldThrowWhenMacIsBlank() {
-        assertThrows(DeviceNotFoundException.class, () -> deviceService.findDeviceByMac("   "));
+        assertThrows(DeviceNotFoundException.class, () -> deviceService.findDeviceByHardwareId("   "));
     }
 
     @Test

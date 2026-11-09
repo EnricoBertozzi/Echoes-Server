@@ -18,13 +18,13 @@ public class DeviceService {
   private DeviceRepository deviceRepository;
 
   @Transactional(readOnly = true)
-  public DeviceModel findDeviceByMac(String mac) {
-    String normalizedMac = mac != null ? mac.trim() : null;
-    if (normalizedMac == null || normalizedMac.isBlank())
+  public DeviceModel findDeviceByHardwareId(String hardwareId) {
+    String normalizedHardwareId = hardwareId != null ? hardwareId.trim() : null;
+    if (normalizedHardwareId == null || normalizedHardwareId.isBlank())
       throw new DeviceNotFoundException();
 
     return deviceRepository
-        .findByMac(normalizedMac)
+        .findByHardwareId(normalizedHardwareId)
         .orElseThrow(DeviceNotFoundException::new);
   }
 
@@ -39,6 +39,13 @@ public class DeviceService {
   public List<DeviceModel> findAllDevices(int page, int size) {
     return deviceRepository
         .findAll(PageRequest.of(page, size, Sort.by("name")))
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<DeviceModel> findDevicesByStatus(DeviceStatus status, int page, int size) {
+    return deviceRepository
+        .findByStatus(status, PageRequest.of(page, size, Sort.by("name")))
         .toList();
   }
 

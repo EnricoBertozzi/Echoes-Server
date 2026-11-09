@@ -14,4 +14,9 @@ public class DeviceExceptionHandler {
   public ResponseEntity<Map<String, String>> handleNotFound(DeviceNotFoundException ex) {
     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
   }
+
+  @ExceptionHandler(InvalidDeviceStateException.class)
+  public ResponseEntity<Map<String, String>> handleInvalidState(InvalidDeviceStateException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+  }
 }

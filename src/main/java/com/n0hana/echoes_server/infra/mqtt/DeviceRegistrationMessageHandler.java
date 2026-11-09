@@ -4,7 +4,7 @@ import org.springframework.stereotype.Component;
 
 import com.n0hana.echoes_server.device.DeviceRegistrationPayload;
 import com.n0hana.echoes_server.device.DeviceRegistrationResult;
-import com.n0hana.echoes_server.device.DeviceRegistrationService;
+import com.n0hana.echoes_server.device.port.DeviceRegistrationUseCase;
 import com.n0hana.echoes_server.device.exception.InvalidDevicePublicKeyException;
 import com.n0hana.echoes_server.device.exception.InvalidDeviceRegistrationException;
 import com.n0hana.echoes_server.device.exception.InvalidDeviceSignatureException;
@@ -17,7 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 public class DeviceRegistrationMessageHandler {
 
   private final ObjectMapper objectMapper;
-  private final DeviceRegistrationService registrationService;
+  private final DeviceRegistrationUseCase registrationService;
 
   public DeviceRegistrationResult handle(String payload) {
     DeviceRegistrationPayload request;
@@ -36,10 +36,10 @@ public class DeviceRegistrationMessageHandler {
     } catch (InvalidDeviceRegistrationException
         | InvalidDevicePublicKeyException
         | InvalidDeviceSignatureException exception) {
-      return DeviceRegistrationResult.rejected(request.mac(), exception.getMessage());
+      return DeviceRegistrationResult.rejected(request.hardwareId(), exception.getMessage());
     } catch (Exception exception) {
       return DeviceRegistrationResult.rejected(
-          request.mac(),
+          request.hardwareId(),
           "Erro interno ao registrar dispositivo");
     }
   }

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +41,7 @@ public class InstitutionService {
     private final CnpjService cnpjService;
     private final InstitutionVerificationService verificationService;
     private final NotifierService notifier;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -162,7 +164,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Institution")
+    @Auditable(action = "UPDATE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 
@@ -187,12 +189,13 @@ public class InstitutionService {
      * @param id Id da instituição a ser alterada.
      */
     @Transactional
-    @Auditable(action = "TOGGLE_STATUS", entity = "Institution")
+    @Auditable(action = "TOGGLE_STATUS", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void toggleStatus(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setActive(!model.isActive());
 
         repository.save(model);
+        eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), false));
     }
 
     /**
@@ -202,13 +205,14 @@ public class InstitutionService {
      */
 
     @Transactional
-    @Auditable(action = "DELETE", entity = "Institution")
+    @Auditable(action = "DELETE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
         model.setDeleteToken(UUID.randomUUID().toString());
 
         repository.save(model);
+        eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), true));
     }
 
     /**

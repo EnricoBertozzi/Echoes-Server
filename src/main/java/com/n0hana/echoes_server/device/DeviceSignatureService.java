@@ -8,6 +8,8 @@ import java.util.HexFormat;
 
 import org.springframework.stereotype.Service;
 
+import com.n0hana.echoes_server.device.port.RegistrationProofVerifier;
+
 import com.n0hana.echoes_server.device.exception.InvalidDeviceSignatureException;
 
 import com.nimbusds.jose.JWSAlgorithm;
@@ -16,7 +18,7 @@ import com.nimbusds.jose.crypto.ECDSAVerifier;
 import com.nimbusds.jose.util.Base64URL;
 
 @Service
-public class DeviceSignatureService {
+public class DeviceSignatureService implements RegistrationProofVerifier {
 
   public static final String REGISTRATION_CONTEXT = "echoes-device-registration-v1";
 
@@ -24,20 +26,21 @@ public class DeviceSignatureService {
   private static final int DER_SEQUENCE_TAG = 0x30;
   private static final int MIN_HEX_SIGNATURE_LENGTH = JOSE_SIGNATURE_LENGTH * 2;
 
-  public byte[] registrationMessage(String mac, String publicKey) {
+  public byte[] registrationMessage(String hardwareId, String publicKey) {
     String message = REGISTRATION_CONTEXT
-        + "\n" + normalize(mac)
+        + "\n" + normalize(hardwareId)
         + "\n" + normalize(publicKey);
 
     return message.getBytes(StandardCharsets.UTF_8);
   }
 
+  @Override
   public void verifyRegistrationSignature(
       ECPublicKey publicKey,
-      String mac,
+      String hardwareId,
       String pem,
       String signature) {
-    verify(publicKey, registrationMessage(mac, pem), signature);
+    verify(publicKey, registrationMessage(hardwareId, pem), signature);
   }
 
   public void verify(ECPublicKey publicKey, byte[] message, String signature) {

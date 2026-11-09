@@ -5,6 +5,9 @@ import java.util.Date;
 
 import org.springframework.stereotype.Service;
 
+import com.n0hana.echoes_server.device.exception.DeviceAuthenticationException;
+import com.n0hana.echoes_server.device.port.DeviceCredentialVerifier;
+
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -17,20 +20,40 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>
  * O dispositivo gera um JWT ES256 com as claims {@code iss=echoes-device},
- * {@code mac} e {@code exp}. O servidor localiza o dispositivo pelo MAC,
+ * {@code hardware_id} e {@code exp}. O servidor localiza o dispositivo pelo hardware_id,
  * recupera a chave pública cadastrada e valida a assinatura. Como esses tokens
  * têm curta duração, não há necessidade de revogação/lista negra.
  * </p>
  */
 @Service
 @RequiredArgsConstructor
-public class DeviceJwtService {
+public class DeviceJwtService implements DeviceCredentialVerifier {
 
   public static final String DEVICE_ISSUER = "echoes-device";
-  public static final String MAC_CLAIM = "mac";
+  public static final String HARDWARE_ID_CLAIM = "hardware_id";
+  /** Nome antigo da claim, aceito durante a migração do firmware. */
+  public static final String LEGACY_CLAIM = "mac";
 
   private final DeviceRepository deviceRepository;
   private final DevicePublicKeyService publicKeyService;
+
+  @Override
+  public boolean supports(String credential) {
+    try {
+      return DEVICE_ISSUER.equals(SignedJWT.parse(credential).getJWTClaimsSet().getIssuer());
+    } catch (Exception exception) {
+      return false;
+    }
+  }
+
+  @Override
+  public DeviceModel verify(String credential) {
+    try {
+      return validateToken(credential);
+    } catch (Exception exception) {
+      throw new DeviceAuthenticationException(exception);
+    }
+  }
 
   public DeviceModel validateToken(String token) throws Exception {
     SignedJWT signedJWT = SignedJWT.parse(token);
@@ -42,12 +65,14 @@ public class DeviceJwtService {
     if (!JWSAlgorithm.ES256.equals(signedJWT.getHeader().getAlgorithm()))
       throw new SecurityException("Invalid algorithm");
 
-    String mac = claims.getStringClaim(MAC_CLAIM);
-    if (mac == null || mac.isBlank())
-      throw new SecurityException("Missing mac claim");
+    String hardwareId = claims.getStringClaim(HARDWARE_ID_CLAIM);
+    if (hardwareId == null || hardwareId.isBlank())
+      hardwareId = claims.getStringClaim(LEGACY_CLAIM);
+    if (hardwareId == null || hardwareId.isBlank())
+      throw new SecurityException("Missing hardware_id claim");
 
     DeviceModel device = deviceRepository
-        .findByMac(mac.trim())
+        .findByHardwareId(hardwareId.trim())
         .orElseThrow(() -> new SecurityException("Device not found"));
 
     ECPublicKey publicKey = publicKeyService.parse(device.getPublicKey());

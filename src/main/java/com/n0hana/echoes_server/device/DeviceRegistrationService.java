@@ -6,6 +6,9 @@ import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import com.n0hana.echoes_server.device.port.DeviceRegistrationUseCase;
+import com.n0hana.echoes_server.device.port.RegistrationProofVerifier;
+
 import com.n0hana.echoes_server.device.exception.InvalidDevicePublicKeyException;
 import com.n0hana.echoes_server.device.exception.InvalidDeviceRegistrationException;
 
@@ -13,43 +16,45 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class DeviceRegistrationService {
+public class DeviceRegistrationService implements DeviceRegistrationUseCase {
 
-  private static final int MAX_MAC_LENGTH = 255;
+  private static final int MAX_HARDWARE_ID_LENGTH = 255;
   private static final int MAX_PUBLIC_KEY_LENGTH = 8192;
   private static final int MAX_NAME_LENGTH = 255;
 
   private final DeviceRepository deviceRepository;
   private final DevicePublicKeyService publicKeyService;
-  private final DeviceSignatureService signatureService;
+  private final RegistrationProofVerifier signatureService;
 
+  @Override
   public DeviceRegistrationResult register(DeviceRegistrationPayload payload) {
-    String mac = normalizeMac(payload);
+    String hardwareId = normalizeHardwareId(payload);
     String publicKey = normalizePublicKey(payload);
     String signature = payload != null ? payload.signature() : null;
 
     ECPublicKey submittedKey = publicKeyService.parse(publicKey);
-    signatureService.verifyRegistrationSignature(submittedKey, mac, publicKey, signature);
+    signatureService.verifyRegistrationSignature(submittedKey, hardwareId, publicKey, signature);
 
-    Optional<DeviceModel> existing = deviceRepository.findByMac(mac);
+    Optional<DeviceModel> existing = deviceRepository.findByHardwareId(hardwareId);
     if (existing.isPresent())
       return resultForExisting(existing.get(), submittedKey);
 
     DeviceModel device = DeviceModel.builder()
-        .name(normalizeName(payload.name(), mac))
-        .mac(mac)
+        .name(normalizeName(payload.name(), hardwareId))
+        .hardwareId(hardwareId)
         .publicKey(publicKey)
+        .status(DeviceStatus.PENDING)
         .build();
 
     try {
       DeviceModel saved = deviceRepository.saveAndFlush(device);
       return DeviceRegistrationResult.registered(saved);
     } catch (DataIntegrityViolationException exception) {
-      // Corrida entre dois registros do mesmo MAC: relê e decide pelo estado final.
-      return deviceRepository.findByMac(mac)
+      // Corrida entre dois registros do mesmo hardware_id: relê e decide pelo estado final.
+      return deviceRepository.findByHardwareId(hardwareId)
           .map(concurrent -> resultForExisting(concurrent, submittedKey))
           .orElseGet(() -> DeviceRegistrationResult.rejected(
-              mac,
+              hardwareId,
               "Não foi possível registrar o dispositivo"));
     }
   }
@@ -63,19 +68,19 @@ public class DeviceRegistrationService {
     }
 
     return DeviceRegistrationResult.rejected(
-        device.getMac(),
-        "MAC já cadastrado com outra chave pública");
+        device.getHardwareId(),
+        "Dispositivo já cadastrado com outra chave pública");
   }
 
-  private String normalizeMac(DeviceRegistrationPayload payload) {
-    if (payload == null || payload.mac() == null || payload.mac().isBlank())
-      throw new InvalidDeviceRegistrationException("MAC é obrigatório");
+  private String normalizeHardwareId(DeviceRegistrationPayload payload) {
+    if (payload == null || payload.hardwareId() == null || payload.hardwareId().isBlank())
+      throw new InvalidDeviceRegistrationException("hardware_id é obrigatório");
 
-    String mac = payload.mac().trim();
-    if (mac.length() > MAX_MAC_LENGTH)
-      throw new InvalidDeviceRegistrationException("MAC inválido");
+    String hardwareId = payload.hardwareId().trim();
+    if (hardwareId.length() > MAX_HARDWARE_ID_LENGTH)
+      throw new InvalidDeviceRegistrationException("hardware_id inválido");
 
-    return mac;
+    return hardwareId;
   }
 
   private String normalizePublicKey(DeviceRegistrationPayload payload) {
@@ -89,11 +94,11 @@ public class DeviceRegistrationService {
     return publicKey;
   }
 
-  private String normalizeName(String name, String mac) {
+  private String normalizeName(String name, String hardwareId) {
     if (name == null || name.isBlank())
-      return mac;
+      return hardwareId;
 
     String normalized = name.trim();
-    return normalized.length() <= MAX_NAME_LENGTH ? normalized : mac;
+    return normalized.length() <= MAX_NAME_LENGTH ? normalized : hardwareId;
   }
 }

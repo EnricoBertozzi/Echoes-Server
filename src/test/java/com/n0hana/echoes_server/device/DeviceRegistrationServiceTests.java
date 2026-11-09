@@ -1,6 +1,7 @@
 package com.n0hana.echoes_server.device;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -58,9 +59,9 @@ class DeviceRegistrationServiceTests {
   }
 
   @Test
-  @DisplayName("Registra um dispositivo novo com a chave e o nome padrão")
+  @DisplayName("Registra um dispositivo novo como PENDING, sem instituição, com a chave e o nome padrão")
   void shouldRegisterNewDevice() throws Exception {
-    when(deviceRepository.findByMac(MAC)).thenReturn(Optional.empty());
+    when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.empty());
     when(deviceRepository.saveAndFlush(any(DeviceModel.class))).thenAnswer(invocation -> {
       DeviceModel device = invocation.getArgument(0);
       device.setId(DEVICE_ID);
@@ -70,14 +71,17 @@ class DeviceRegistrationServiceTests {
     DeviceRegistrationResult result = registrationService.register(payload(MAC, pem, null));
 
     assertEquals(DeviceRegistrationResult.Status.REGISTERED, result.status());
-    assertEquals(MAC, result.mac());
+    assertEquals(MAC, result.hardwareId());
     assertEquals(DEVICE_ID, result.deviceId());
+    assertEquals(DeviceStatus.PENDING, result.deviceStatus());
 
     ArgumentCaptor<DeviceModel> captor = ArgumentCaptor.forClass(DeviceModel.class);
     verify(deviceRepository).saveAndFlush(captor.capture());
 
     DeviceModel saved = captor.getValue();
-    assertEquals(MAC, saved.getMac());
+    assertEquals(DeviceStatus.PENDING, saved.getStatus());
+    assertNull(saved.getInstitution());
+    assertEquals(MAC, saved.getHardwareId());
     assertEquals(pem, saved.getPublicKey());
     assertEquals(MAC, saved.getName());
   }
@@ -85,7 +89,7 @@ class DeviceRegistrationServiceTests {
   @Test
   @DisplayName("Usa o nome enviado no payload quando presente")
   void shouldUseNameFromPayload() throws Exception {
-    when(deviceRepository.findByMac(MAC)).thenReturn(Optional.empty());
+    when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.empty());
     when(deviceRepository.saveAndFlush(any(DeviceModel.class))).thenAnswer(invocation -> {
       DeviceModel device = invocation.getArgument(0);
       device.setId(DEVICE_ID);
@@ -106,11 +110,11 @@ class DeviceRegistrationServiceTests {
     DeviceModel existing = DeviceModel.builder()
         .id(DEVICE_ID)
         .name("Dispositivo")
-        .mac(MAC)
+        .hardwareId(MAC)
         .publicKey(pem)
         .build();
 
-    when(deviceRepository.findByMac(MAC)).thenReturn(Optional.of(existing));
+    when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(existing));
 
     DeviceRegistrationResult result = registrationService.register(payload(MAC, pem, null));
 
@@ -128,11 +132,11 @@ class DeviceRegistrationServiceTests {
 
     DeviceModel existing = DeviceModel.builder()
         .id(DEVICE_ID)
-        .mac(MAC)
+        .hardwareId(MAC)
         .publicKey(toPem(anotherKeyPair))
         .build();
 
-    when(deviceRepository.findByMac(MAC)).thenReturn(Optional.of(existing));
+    when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(existing));
 
     DeviceRegistrationResult result = registrationService.register(payload(MAC, pem, null));
 
@@ -182,14 +186,14 @@ class DeviceRegistrationServiceTests {
   void shouldHandleRegistrationRace() throws Exception {
     DeviceModel existing = DeviceModel.builder()
         .id(DEVICE_ID)
-        .mac(MAC)
+        .hardwareId(MAC)
         .publicKey(pem)
         .build();
 
-    when(deviceRepository.findByMac(MAC))
+    when(deviceRepository.findByHardwareId(MAC))
         .thenReturn(Optional.empty(), Optional.of(existing));
     when(deviceRepository.saveAndFlush(any(DeviceModel.class)))
-        .thenThrow(new DataIntegrityViolationException("duplicate mac"));
+        .thenThrow(new DataIntegrityViolationException("duplicate hardwareId"));
 
     DeviceRegistrationResult result = registrationService.register(payload(MAC, pem, null));
 
@@ -197,9 +201,9 @@ class DeviceRegistrationServiceTests {
     assertEquals(DEVICE_ID, result.deviceId());
   }
 
-  private DeviceRegistrationPayload payload(String mac, String publicKey, String name) throws Exception {
-    String signature = sign(signatureService.registrationMessage(mac, publicKey));
-    return new DeviceRegistrationPayload(mac, publicKey, signature, name);
+  private DeviceRegistrationPayload payload(String hardwareId, String publicKey, String name) throws Exception {
+    String signature = sign(signatureService.registrationMessage(hardwareId, publicKey));
+    return new DeviceRegistrationPayload(hardwareId, publicKey, signature, name);
   }
 
   private String sign(byte[] message) throws Exception {

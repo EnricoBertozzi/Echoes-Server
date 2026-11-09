@@ -23,6 +23,8 @@ public record AuditLogDTO(
         String status,
         String details,
         String ip,
+        String entityId,
+        String institutionId,
         Instant timestamp) {
 
     /**
@@ -40,6 +42,8 @@ public record AuditLogDTO(
                 log.getStatus(),
                 log.getDetails(),
                 log.getIp(),
+                log.getEntityId(),
+                log.getInstitutionId(),
                 log.getTimestamp());
     }
 }

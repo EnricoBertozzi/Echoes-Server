@@ -55,16 +55,16 @@ public class DeviceJwtServiceTests {
         device = DeviceModel.builder()
                 .id(UUID.randomUUID())
                 .name("Dispositivo de teste")
-                .mac(MAC)
+                .hardwareId(MAC)
                 .publicKey(toPem(keyPair))
                 .animal(AnimalModel.builder().id(UUID.randomUUID()).name("Cachorro").build())
                 .build();
     }
 
     @Test
-    @DisplayName("Aceita token ES256 com iss echoes-device e mac cadastrado")
+    @DisplayName("Aceita token ES256 com iss echoes-device e hardwareId cadastrado")
     void shouldValidateDeviceToken() throws Exception {
-        when(deviceRepository.findByMac(MAC)).thenReturn(Optional.of(device));
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
 
         String token = createToken(MAC, Instant.now().plus(1, ChronoUnit.MINUTES), keyPair);
 
@@ -74,10 +74,27 @@ public class DeviceJwtServiceTests {
     }
 
     @Test
+    @DisplayName("Aceita a claim antiga mac enquanto o firmware migra")
+    void shouldAcceptLegacyMacClaim() throws Exception {
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
+
+        SignedJWT jwt = new SignedJWT(
+                new JWSHeader(JWSAlgorithm.ES256),
+                new JWTClaimsSet.Builder()
+                        .issuer(DeviceJwtService.DEVICE_ISSUER)
+                        .claim(DeviceJwtService.LEGACY_CLAIM, MAC)
+                        .expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
+                        .build());
+        jwt.sign(new ECDSASigner((ECPrivateKey) keyPair.getPrivate()));
+
+        assertEquals(device, deviceJwtService.validateToken(jwt.serialize()));
+    }
+
+    @Test
     @DisplayName("Aceita dispositivo sem animal associado")
     void shouldValidateDeviceWithoutAnimal() throws Exception {
         device.setAnimal(null);
-        when(deviceRepository.findByMac(MAC)).thenReturn(Optional.of(device));
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
 
         String token = createToken(MAC, Instant.now().plus(1, ChronoUnit.MINUTES), keyPair);
 
@@ -89,7 +106,7 @@ public class DeviceJwtServiceTests {
     @Test
     @DisplayName("Rejeita token de MAC não cadastrado")
     void shouldRejectUnknownMac() throws Exception {
-        when(deviceRepository.findByMac(MAC)).thenReturn(Optional.empty());
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.empty());
 
         String token = createToken(MAC, Instant.now().plus(1, ChronoUnit.MINUTES), keyPair);
 
@@ -99,7 +116,7 @@ public class DeviceJwtServiceTests {
     @Test
     @DisplayName("Rejeita token expirado")
     void shouldRejectExpiredToken() throws Exception {
-        when(deviceRepository.findByMac(MAC)).thenReturn(Optional.of(device));
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
 
         String token = createToken(MAC, Instant.now().minus(1, ChronoUnit.MINUTES), keyPair);
 
@@ -113,7 +130,7 @@ public class DeviceJwtServiceTests {
         generator.initialize(new ECGenParameterSpec("secp256r1"));
         KeyPair anotherKeyPair = generator.generateKeyPair();
 
-        when(deviceRepository.findByMac(MAC)).thenReturn(Optional.of(device));
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
 
         String token = createToken(MAC, Instant.now().plus(1, ChronoUnit.MINUTES), anotherKeyPair);
 
@@ -127,7 +144,7 @@ public class DeviceJwtServiceTests {
                 new JWSHeader(JWSAlgorithm.ES256),
                 new JWTClaimsSet.Builder()
                         .issuer("echoes-server")
-                        .claim(DeviceJwtService.MAC_CLAIM, MAC)
+                        .claim(DeviceJwtService.HARDWARE_ID_CLAIM, MAC)
                         .expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
                         .build());
         jwt.sign(new ECDSASigner((ECPrivateKey) keyPair.getPrivate()));
@@ -136,7 +153,7 @@ public class DeviceJwtServiceTests {
     }
 
     @Test
-    @DisplayName("Rejeita token sem a claim mac")
+    @DisplayName("Rejeita token sem a claim hardware_id")
     void shouldRejectTokenWithoutMac() throws Exception {
         SignedJWT jwt = new SignedJWT(
                 new JWSHeader(JWSAlgorithm.ES256),
@@ -149,12 +166,12 @@ public class DeviceJwtServiceTests {
         assertThrows(SecurityException.class, () -> deviceJwtService.validateToken(jwt.serialize()));
     }
 
-    private String createToken(String mac, Instant expiration, KeyPair signerKeyPair) throws Exception {
+    private String createToken(String hardwareId, Instant expiration, KeyPair signerKeyPair) throws Exception {
         SignedJWT jwt = new SignedJWT(
                 new JWSHeader(JWSAlgorithm.ES256),
                 new JWTClaimsSet.Builder()
                         .issuer(DeviceJwtService.DEVICE_ISSUER)
-                        .claim(DeviceJwtService.MAC_CLAIM, mac)
+                        .claim(DeviceJwtService.HARDWARE_ID_CLAIM, hardwareId)
                         .expirationTime(Date.from(expiration))
                         .build());
 

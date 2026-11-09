@@ -14,7 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import com.n0hana.echoes_server.device.DeviceJwtService;
+import com.n0hana.echoes_server.device.port.DeviceAccessPolicy;
+import com.n0hana.echoes_server.device.port.DeviceCredentialVerifier;
 
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
@@ -31,9 +32,10 @@ public class SecurityConfig {
     private JwtFilter jwtFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, DeviceJwtService deviceJwtService)
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
+            DeviceCredentialVerifier deviceCredentialVerifier, DeviceAccessPolicy deviceAccessPolicy)
             throws Exception {
-        DeviceJwtFilter deviceJwtFilter = new DeviceJwtFilter(deviceJwtService);
+        DeviceJwtFilter deviceJwtFilter = new DeviceJwtFilter(deviceCredentialVerifier, deviceAccessPolicy);
 
         return httpSecurity
           .cors(Customizer.withDefaults())
