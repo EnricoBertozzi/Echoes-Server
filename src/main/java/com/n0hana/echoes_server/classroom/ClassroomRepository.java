@@ -10,9 +10,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface ClassroomRepository extends JpaRepository<ClassroomModel, UUID> {
         //gestor ve todas as turmas da intituição
-        Page<ClassroomModel> findByInstitution(UUID intituitionId, Pageable pageable);
+        Page<ClassroomModel> findByInstitutionId(UUID institutionId, Pageable pageable);
 
         //professor e alunos veem turmas que são membros
-        @Query("select c from ClassroomModelc where c.id in" + "(select m.classroom.id from ClassroomMember m where m.user.id = :userId)")
+        @Query("select c from ClassroomModel c where c.id in "
+                        + "(select m.classroom.id from ClassroomMember m where m.user.id = :userId)")
         Page<ClassroomModel> findByMemberId(@Param("userId") UUID userId, Pageable pageable);
 }

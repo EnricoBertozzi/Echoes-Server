@@ -30,15 +30,15 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class classroomModel {
+public class ClassroomModel {
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(nullable = false, lenght = 100)
+  @Column(nullable = false, length = 100)
   private String title;
 
-  @Column(lenght = 500)
+  @Column(length = 500)
   private String description;
 
   @Builder.Default
@@ -46,7 +46,7 @@ public class classroomModel {
   private boolean archived = false;
 
   //a  turma herda a instituição do professor que a criou
-  @ManyToOne(fetch = FetchType.LAZY, optinal = false)
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "institution_id", nullable = false)
   private InstitutionModel institution;
 
@@ -54,8 +54,8 @@ public class classroomModel {
   @Column(updatable = false, name = "created_at")
   private LocalDateTime createdAt;
 
-  @CreationTimestamp
-  @Column(name = "updatet_at")
+  @UpdateTimestamp
+  @Column(name = "updated_at")
   private LocalDateTime updatedAt;
 
 }
