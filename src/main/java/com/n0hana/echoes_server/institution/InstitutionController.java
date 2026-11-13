@@ -147,7 +147,7 @@ public class InstitutionController {
      * status HTTP 200 (OK)
      */
     @GetMapping("/{id}/users")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN') and @guard.isInstituicaoUsuario(#id)")
     public ResponseEntity<Page<UserDTO>> findUsersByInstitution(
             @PathVariable("id") UUID id,
             @RequestParam("page") Integer page,
@@ -163,7 +163,7 @@ public class InstitutionController {
      * status HTTP 200 (OK)
      */
     @GetMapping("/{id}/users/search")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN') and @guard.isInstituicaoUsuario(#id)")
     public ResponseEntity<Page<UserDTO>> findUsersByNameInInstitution(
             @PathVariable("id") UUID id,
             @RequestParam("name") String name,
