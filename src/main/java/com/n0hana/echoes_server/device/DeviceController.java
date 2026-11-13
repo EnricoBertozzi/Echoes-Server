@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.device.DeviceDTO.DeviceInfo;
 import com.n0hana.echoes_server.device.DeviceDTO.DeviceInstitutionRequest;
+import com.n0hana.echoes_server.device.DeviceDTO.UpdateDeviceRequest;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.user.model.User;
 
@@ -107,6 +108,17 @@ public class DeviceController {
       @AuthenticationPrincipal User admin) {
     return ResponseEntity.ok(DeviceInfo.from(
         lifecycleService.approve(id, request.institutionId(), admin.getId())));
+  }
+
+  /**
+   * Atualiza parcialmente um dispositivo: nome, instituição e/ou animal. Campos
+   * omitidos permanecem como estão.
+   */
+  @PatchMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<DeviceInfo> update(@PathVariable("id") UUID id,
+      @Valid @RequestBody UpdateDeviceRequest request) {
+    return ResponseEntity.ok(DeviceInfo.from(lifecycleService.update(id, request)));
   }
 
   /**
