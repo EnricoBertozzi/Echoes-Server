@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.institution.InstitutionService;
@@ -36,7 +37,7 @@ public class UserManagerService {
     private final UserRepository userRepository;
 
     private final InstitutionService institutionService;
-
+    private final ClassroomMemberRepository classroomMemberRepository;
     /**
      * Método para alteração de usuários administradores
      * 
@@ -161,6 +162,8 @@ public class UserManagerService {
     private void softDelete(User user) {
         user.setActive(false);
         userRepository.save(user);
+        // libera a vaga do usuário nas turmas
+        classroomMemberRepository.deleteByUserId(user.getId());
     }
 
     /**

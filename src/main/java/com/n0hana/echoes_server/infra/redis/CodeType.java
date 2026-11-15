@@ -12,6 +12,10 @@ public enum CodeType implements RedisNamespace {
     PASSWORD_TOKEN(Duration.ofMinutes(15), "password:token:"),
     INVITE(Duration.ofDays(7), "registration:"),
 
+    // código de entrada da turma (código para turma e turma para código)
+    CLASSROOM_JOIN(Duration.ofMinutes(15), "classroom:join:code:"),
+    CLASSROOM_JOIN_BY_ID(Duration.ofMinutes(15), "classroom:join:id:"),
+
     // contadores de tentativa (a janela abre na primeira falha)
     LOGIN_ATTEMPTS(Duration.ofMinutes(15), "attempts:login:"),
     MFA_ATTEMPTS(Duration.ofMinutes(15), "attempts:mfa:"),

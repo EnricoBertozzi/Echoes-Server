@@ -7,6 +7,7 @@ import com.n0hana.echoes_server.animal.AnimalModel;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  * DTOs do dispositivo. O cadastro não tem DTO: o próprio ESP se cadastra por
@@ -51,5 +52,11 @@ public class DeviceDTO {
 
   /** Corpo de aprovação e de troca de instituição. */
   public record DeviceInstitutionRequest(@NotNull UUID institutionId) {
+  }
+
+  public record UpdateDeviceRequest(
+      @Size(max = 255, message = "Nome deve ter no máximo 255 caracteres") String name,
+      UUID institutionId,
+      UUID animalId) {
   }
 }

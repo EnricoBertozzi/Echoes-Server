@@ -4,4 +4,8 @@ public class ClassroomArchivedException extends RuntimeException {
     public ClassroomArchivedException() {
         super("Turma arquivada não pode ser alterada");
     }
+
+    public ClassroomArchivedException(String message) {
+        super(message);
+    }
 }

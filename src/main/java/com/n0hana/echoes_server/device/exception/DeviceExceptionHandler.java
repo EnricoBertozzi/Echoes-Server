@@ -19,4 +19,9 @@ public class DeviceExceptionHandler {
   public ResponseEntity<Map<String, String>> handleInvalidState(InvalidDeviceStateException ex) {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
   }
+
+  @ExceptionHandler(InvalidDeviceUpdateException.class)
+  public ResponseEntity<Map<String, String>> handleInvalidUpdate(InvalidDeviceUpdateException ex) {
+    return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+  }
 }

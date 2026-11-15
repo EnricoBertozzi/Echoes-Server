@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.n0hana.echoes_server.institution.InstitutionModel;
@@ -30,33 +31,42 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLRestriction("deleted = false")
 public class ClassroomModel {
-  @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private UUID id;
 
-  @Column(nullable = false, length = 100)
-  private String title;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-  @Column(length = 500)
-  private String description;
+    @Column(nullable = false, length = 100)
+    private String title;
 
-  @Builder.Default
-  @Column(nullable = false)
-  private boolean archived = false;
+    @Column(length = 500)
+    private String description;
 
-  //a  turma herda a instituição do professor que a criou
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "institution_id", nullable = false)
-  private InstitutionModel institution;
+    // formato AAAA/SS, ano e semestre
+    @Column(nullable = false, length = 7)
+    private String period;
 
-  @CreationTimestamp
-  @Column(updatable = false, name = "created_at")
-  private LocalDateTime createdAt;
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean archived = false;
 
-  @UpdateTimestamp
-  @Column(name = "updated_at")
-  private LocalDateTime updatedAt;
+    // exclusão lógica: a turma some das consultas, mas os dados continuam no banco
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean deleted = false;
 
+    // a turma pertence à instituição do gestor que a criou
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "institution_id", nullable = false)
+    private InstitutionModel institution;
+
+    @CreationTimestamp
+    @Column(updatable = false, name = "created_at")
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }
-

@@ -21,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.institution.InstitutionService;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -44,6 +45,8 @@ public class UserManagerServiceTests {
     @Mock
     private InstitutionService institutionService;
 
+    @Mock
+    private ClassroomMemberRepository classroomMemberRepository;
     @InjectMocks
     private UserInfoService userInfoService;
 
@@ -126,6 +129,7 @@ public class UserManagerServiceTests {
         ArgumentCaptor<Manager> userCaptor = ArgumentCaptor.forClass(Manager.class);
         verify(userRepository).save(userCaptor.capture());
         assertFalse(userCaptor.getValue().isActive());
+        verify(classroomMemberRepository).deleteByUserId(manager.getId());
 
         Admin inactiveAdmin = newAdmin("João", "joao@example.com");
         inactiveAdmin.setActive(false);
