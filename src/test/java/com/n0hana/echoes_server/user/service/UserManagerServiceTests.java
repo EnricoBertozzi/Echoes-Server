@@ -3,6 +3,7 @@ package com.n0hana.echoes_server.user.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -29,6 +30,7 @@ import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
+import com.n0hana.echoes_server.user.exception.LastManagerException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Manager;
@@ -94,7 +96,8 @@ public class UserManagerServiceTests {
         when(userRepository.findById(manager.getId())).thenReturn(Optional.of(manager));
         when(userRepository.save(any(Manager.class))).thenAnswer(inv -> inv.getArgument(0));
         when(institutionService.findById(newInstitutionId)).thenReturn(newInstitution);
-
+        // a instituição de origem tem outro gestor, então ele pode sair
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(2L);
         UserDTO dto = userService.updateManager(manager.getId(),
                 new UpdateInstitutionUserDTO(null, null, newInstitutionId));
 
@@ -121,9 +124,9 @@ public class UserManagerServiceTests {
     @Test
     @DisplayName("Remoção: inativa (active=false) e salva; usuário já inativo lança UserNotFoundException")
     void deleteSoftDeletesAndInactiveUserIsNotFound() {
-        Manager manager = newManager("Gestor", "gestor@example.com", null);
+        Manager manager = newManager("Gestor", "gestor@example.com", UUID.randomUUID());
         when(userRepository.findById(manager.getId())).thenReturn(Optional.of(manager));
-
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(2L);
         userService.deleteManager(manager.getId());
 
         ArgumentCaptor<Manager> userCaptor = ArgumentCaptor.forClass(Manager.class);
@@ -136,6 +139,53 @@ public class UserManagerServiceTests {
         when(userRepository.findById(inactiveAdmin.getId())).thenReturn(Optional.of(
                 inactiveAdmin));
         assertThrows(UserNotFoundException.class, () -> userInfoService.findAdminById(inactiveAdmin.getId()));
+    }
+
+    @Test
+    @DisplayName("Remoção do último gestor da instituição lança LastManagerException")
+    void lastManagerCannotBeDeleted() {
+        Manager manager = newManager("Gestor", "gestor@example.com", UUID.randomUUID());
+        when(userRepository.findById(manager.getId())).thenReturn(Optional.of(manager));
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(1L);
+
+        assertThrows(LastManagerException.class, () -> userService.deleteManager(manager.getId()));
+
+        assertTrue(manager.isActive());
+        verify(userRepository, never()).save(any());
+        verify(classroomMemberRepository, never()).deleteByUserId(any());
+    }
+
+    @Test
+    @DisplayName("Último gestor não troca de instituição")
+    void lastManagerCannotMoveToOtherInstitution() {
+        UUID newInstitutionId = UUID.randomUUID();
+        Manager manager = newManager("Gestor", "gestor@example.com", UUID.randomUUID());
+        InstitutionModel newInstitution = new InstitutionModel();
+        newInstitution.setId(newInstitutionId);
+        when(userRepository.findById(manager.getId())).thenReturn(Optional.of(manager));
+        when(institutionService.findById(newInstitutionId)).thenReturn(newInstitution);
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(1L);
+
+        assertThrows(LastManagerException.class, () -> userService.updateManager(manager.getId(),
+                new UpdateInstitutionUserDTO(null, null, newInstitutionId)));
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Gestor mantém a própria instituição no PATCH sem checar a contagem")
+    void managerKeepingSameInstitutionIsNotBlocked() {
+        UUID institutionId = UUID.randomUUID();
+        Manager manager = newManager("Gestor", "gestor@example.com", institutionId);
+        InstitutionModel sameInstitution = new InstitutionModel();
+        sameInstitution.setId(institutionId);
+        when(userRepository.findById(manager.getId())).thenReturn(Optional.of(manager));
+        when(userRepository.save(any(Manager.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(institutionService.findById(institutionId)).thenReturn(sameInstitution);
+
+        userService.updateManager(manager.getId(), new UpdateInstitutionUserDTO(null, null, institutionId));
+
+        verify(userRepository, never()).countActiveManagers(any());
     }
 
     @Test

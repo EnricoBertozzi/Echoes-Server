@@ -1,7 +1,7 @@
 package com.n0hana.echoes_server.user.service;
 
+import java.util.Objects;
 import java.util.UUID;
-
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
@@ -15,6 +15,7 @@ import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
+import com.n0hana.echoes_server.user.exception.LastManagerException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Manager;
@@ -67,6 +68,10 @@ public class UserManagerService {
         applyCommonUpdate(manager, dto.name(), dto.email());
         if (dto.institutionId() != null) {
             InstitutionModel institutionModel = institutionService.findById(dto.institutionId());
+            // gestor só sai da instituição se ela tiver outro gestor
+            if (manager.getInstitution() != null
+                    && !Objects.equals(manager.getInstitution().getId(), institutionModel.getId()))
+                assertNotLastManager(manager);
             manager.setInstitution(institutionModel);
         }
         return UserUtils.toDTO(userRepository.save(manager));
@@ -129,7 +134,9 @@ public class UserManagerService {
     @Transactional
     @Auditable(action = "DELETE", entity = "Manager")
     public void deleteManager(UUID id) {
-        softDelete(findTyped(id, Manager.class));
+        Manager manager = findTyped(id, Manager.class);
+        assertNotLastManager(manager);
+        softDelete(manager);
     }
 
     /**
@@ -164,6 +171,13 @@ public class UserManagerService {
         userRepository.save(user);
         // libera a vaga do usuário nas turmas
         classroomMemberRepository.deleteByUserId(user.getId());
+    }
+
+    // a instituição não pode ficar sem gestor
+    private void assertNotLastManager(Manager manager) {
+        InstitutionModel institution = manager.getInstitution();
+        if (institution != null && userRepository.countActiveManagers(institution.getId()) <= 1)
+            throw new LastManagerException();
     }
 
     /**
