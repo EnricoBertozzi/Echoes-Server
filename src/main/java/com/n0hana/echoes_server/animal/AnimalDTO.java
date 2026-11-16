@@ -6,6 +6,10 @@ import java.util.UUID;
  * AnimalDTO
  */
 public class AnimalDTO {
+
+  /**
+   * Dados de cadastro de um modelo de animal (ex.: gato, cachorro).
+   */
   public record AnimalRegister(
       String name,
       String description,

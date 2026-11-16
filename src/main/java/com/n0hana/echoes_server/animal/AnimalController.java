@@ -19,10 +19,11 @@ import com.n0hana.echoes_server.animal.AnimalDTO.AnimalInfo;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Controller REST responsável pelo gerenciamento de animais
+ * Controller REST responsável pelo gerenciamento de modelos de animais.
  * 
  * @author Enrico Bertozzi
  * @since 0.1.0
@@ -38,14 +39,14 @@ public class AnimalController {
   private final AnimalService animalService;
 
   /**
-   * Registra um novo animal no sistema.
-   * 
-   * @param dto Objeto contendo os dados de cadastro de um animal.
+   * Registra um novo modelo de animal no sistema.
+   *
+   * @param dto dados de cadastro do animal
    * @return {@link AnimalInfo} contendo os dados do novo animal.
    */
   @PostMapping
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<AnimalInfo> save(@RequestBody AnimalDTO.AnimalRegister dto) {
+  public ResponseEntity<AnimalInfo> save(@RequestBody @Valid AnimalDTO.AnimalRegister dto) {
     AnimalInfo animal = AnimalInfo.from(animalService.save(dto.toModel()));
 
     return ResponseEntity.ok(animal);
@@ -90,11 +91,14 @@ public class AnimalController {
   }
 
   /**
-   * Atualiza os dados de um animal
+   * Atualiza os dados de um animal.
    */
   @PatchMapping("/{id}")
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<Void> updateAnimal(@PathVariable("id") UUID id, @RequestBody AnimalDTO.AnimalUpdate dto) {
+  public ResponseEntity<Void> updateAnimal(
+      @PathVariable("id") UUID id,
+      @RequestBody AnimalDTO.AnimalUpdate dto) {
+
     animalService.updateAnimal(id, dto.toModel());
     return ResponseEntity.ok().build();
   }

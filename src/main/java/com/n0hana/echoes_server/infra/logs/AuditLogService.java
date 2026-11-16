@@ -63,6 +63,8 @@ public class AuditLogService {
                     .status(logEvent.getStatus())
                     .details(logEvent.getDetails())
                     .ip(logEvent.getIp())
+                    .entityId(logEvent.getEntityId())
+                    .institutionId(logEvent.getInstitutionId())
                     .build();
 
             repository.save(fresh);

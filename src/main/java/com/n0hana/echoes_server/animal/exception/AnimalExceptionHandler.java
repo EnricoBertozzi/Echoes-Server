@@ -9,11 +9,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
  * Tratamento de exceções do domínio de animais.
- *
- * <p>
- * Antes desta classe, {@link AnimalNotFoundException} caía no handler
- * default do Spring e retornava HTTP 500.
- * </p>
  */
 @RestControllerAdvice
 public class AnimalExceptionHandler {

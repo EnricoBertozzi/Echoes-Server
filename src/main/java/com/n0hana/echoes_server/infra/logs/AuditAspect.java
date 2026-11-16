@@ -1,6 +1,10 @@
 package com.n0hana.echoes_server.infra.logs;
 
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
@@ -22,13 +26,17 @@ public class AuditAspect {
 
     private final HttpServletRequest request;
 
-    @AfterReturning("@annotation(auditable)")
-    public void onSuccess(JoinPoint jp, Auditable auditable) {
+    private final ExpressionParser parser = new SpelExpressionParser();
+
+    @AfterReturning(pointcut = "@annotation(auditable)", returning = "result")
+    public void onSuccess(JoinPoint jp, Auditable auditable, Object result) {
         eventPublisher.publishEvent(
                 AuditLog.builder()
                         .userId(this.getUserId())
                         .action(auditable.action())
                         .entity(auditable.entity())
+                        .entityId(this.evaluate(auditable.entityId(), jp, result))
+                        .institutionId(this.evaluate(auditable.institutionId(), jp, result))
                         .status("SUCCESS")
                         .ip(this.getClientIp())
                         .build());
@@ -41,10 +49,38 @@ public class AuditAspect {
                         .userId(this.getUserId())
                         .action(auditable.action())
                         .entity(auditable.entity())
+                        .entityId(this.evaluate(auditable.entityId(), jp, null))
+                        .institutionId(this.evaluate(auditable.institutionId(), jp, null))
                         .status("FAILED")
                         .ip(this.getClientIp())
                         .details(ex.getMessage())
                         .build());
+    }
+
+    /**
+     * Avalia a expressão SpEL da anotação. Qualquer falha (expressão inválida,
+     * valor ausente) resulta em null: a auditoria nunca pode quebrar a operação.
+     */
+    private String evaluate(String expression, JoinPoint jp, Object result) {
+        if (expression == null || expression.isBlank())
+            return null;
+
+        try {
+            StandardEvaluationContext context = new StandardEvaluationContext();
+            String[] names = ((MethodSignature) jp.getSignature()).getParameterNames();
+            Object[] args = jp.getArgs();
+            if (names != null) {
+                for (int i = 0; i < names.length && i < args.length; i++) {
+                    context.setVariable(names[i], args[i]);
+                }
+            }
+            context.setVariable("result", result);
+
+            Object value = parser.parseExpression(expression).getValue(context);
+            return value == null ? null : value.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String getUserId() {

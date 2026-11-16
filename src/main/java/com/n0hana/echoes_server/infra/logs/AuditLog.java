@@ -36,6 +36,12 @@ public class AuditLog {
     private String details;
     private String ip;
 
+    /** Id do registro afetado (ex.: o dispositivo alterado). Pode ser nulo. */
+    private String entityId;
+
+    /** Instituição dona do registro afetado; permite ao gestor ver só os logs dela. */
+    private String institutionId;
+
     @CreationTimestamp
     private Instant timestamp;
 
@@ -55,6 +61,18 @@ public class AuditLog {
         private String status;
         private String details;
         private String ip;
+        private String entityId;
+        private String institutionId;
+
+        public AuditLogBuilder entityId(String entityId) {
+            this.entityId = entityId;
+            return this;
+        }
+
+        public AuditLogBuilder institutionId(String institutionId) {
+            this.institutionId = institutionId;
+            return this;
+        }
 
         public AuditLogBuilder ip(String ip) {
             this.ip = ip;
@@ -94,6 +112,8 @@ public class AuditLog {
             log.status = this.status;
             log.details = this.details;
             log.ip = this.ip;
+            log.entityId = this.entityId;
+            log.institutionId = this.institutionId;
 
             return log;
         }

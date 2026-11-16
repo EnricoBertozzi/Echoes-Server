@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,8 @@ import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
+import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.service.UserInfoService;
 import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
 
 import lombok.RequiredArgsConstructor;
@@ -40,6 +43,8 @@ public class InstitutionService {
     private final CnpjService cnpjService;
     private final InstitutionVerificationService verificationService;
     private final NotifierService notifier;
+    private final ApplicationEventPublisher eventPublisher;
+    private final UserInfoService userInfoService;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -162,7 +167,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Institution")
+    @Auditable(action = "UPDATE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 
@@ -187,12 +192,13 @@ public class InstitutionService {
      * @param id Id da instituição a ser alterada.
      */
     @Transactional
-    @Auditable(action = "TOGGLE_STATUS", entity = "Institution")
+    @Auditable(action = "TOGGLE_STATUS", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void toggleStatus(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setActive(!model.isActive());
 
         repository.save(model);
+        eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), false));
     }
 
     /**
@@ -202,13 +208,14 @@ public class InstitutionService {
      */
 
     @Transactional
-    @Auditable(action = "DELETE", entity = "Institution")
+    @Auditable(action = "DELETE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
         model.setDeleteToken(UUID.randomUUID().toString());
 
         repository.save(model);
+        eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), true));
     }
 
     /**
@@ -239,5 +246,36 @@ public class InstitutionService {
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
         return Sort.by(direction, field);
+    }
+
+    /**
+     * Retorna o conjunto de membros de uma instituição
+     * 
+     * @param id   Identificador da instituição
+     * @param page Página selecionada da paginação
+     * @param size Quantidade de elementos da paginação
+     * @return {@link Page} contendo os membros da instituição
+     */
+    public Page<UserDTO> findUsersByInstitutionId(UUID id, Integer page, Integer size) {
+        if (!repository.existsById(id))
+            throw new InstitutionNotFoundException();
+
+        return userInfoService.findUsersByInstitution(id, page, size);
+    }
+
+    /**
+     * Busca os usuários por nome dentro de uma instituição
+     * 
+     * @param id   Identificador da instituição
+     * @param name Nome do usuário
+     * @param page Index de páginação
+     * @param size Quantidade de elementos da paginação
+     * @return {@link Page} com usuários que atendam a busca
+     */
+    public Page<UserDTO> findUsersByNameInInstitution(UUID id, String name, Integer page, Integer size) {
+        if (!repository.existsById(id))
+            throw new InstitutionNotFoundException();
+
+        return userInfoService.findUsersByNameInInstitution(id, name, page, size);
     }
 }

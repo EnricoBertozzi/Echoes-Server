@@ -77,12 +77,14 @@ public class ScenarioDTO {
    * @param name        Nome do novo cenário
    * @param description Descrição do cenário
    * @param audioPath   Caminho/Nome do arquivo de áudio salvo no sistema
+   * @param pointId     Identificador do ponto de ausculta associado
    */
   public record ScenarioInfo(
       UUID id,
       String name,
       String description,
-      String audioPath) {
+      String audioPath,
+      UUID pointId) {
 
     /**
      * Mapeia um objeto do domínio da aplicalçao {@link ScenarioModel} para um
@@ -91,11 +93,16 @@ public class ScenarioDTO {
      * @return {@link ScenarioDTO.ScenarioInfo} com dados mapeados do objeto model.
      */
     public static ScenarioInfo from(ScenarioModel model) {
+      UUID pointId = model.getAuscultationPoint() != null
+          ? model.getAuscultationPoint().getId()
+          : null;
+
       return new ScenarioInfo(
           model.getId(),
           model.getName(),
           model.getDescription(),
-          model.getAudioUrl());
+          model.getAudioUrl(),
+          pointId);
     }
   }
 }

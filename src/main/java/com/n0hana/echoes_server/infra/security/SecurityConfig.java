@@ -15,6 +15,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.n0hana.echoes_server.device.port.DeviceAccessPolicy;
+import com.n0hana.echoes_server.device.port.DeviceCredentialVerifier;
+
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +34,11 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
+            DeviceCredentialVerifier deviceCredentialVerifier, DeviceAccessPolicy deviceAccessPolicy)
+            throws Exception {
+        DeviceJwtFilter deviceJwtFilter = new DeviceJwtFilter(deviceCredentialVerifier, deviceAccessPolicy);
+
         return httpSecurity
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
@@ -51,6 +58,7 @@ public class SecurityConfig {
                         // o resto pede token
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(deviceJwtFilter, JwtFilter.class)
                 .build();
     }
 
