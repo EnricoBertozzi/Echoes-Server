@@ -40,7 +40,7 @@ class NotifierServiceClassroomTests {
 
         assertInstanceOf(ClassroomTeacherAddedEmailMessage.class, message);
 
-        ClassroomTeacherAddedData data = (ClassroomTeacherAddedData) message.getDate();
+        ClassroomTeacherAddedData data = (ClassroomTeacherAddedData) message.getData();
         assertEquals("Anatomia", data.getClassroomTitle());
         assertEquals("2026/01", data.getPeriod());
 

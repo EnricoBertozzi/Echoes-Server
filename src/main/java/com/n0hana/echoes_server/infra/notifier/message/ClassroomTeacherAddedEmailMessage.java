@@ -19,7 +19,7 @@ public class ClassroomTeacherAddedEmailMessage implements EmailMessage<Classroom
     private ClassroomTeacherAddedData data;
 
     @Override
-    public ClassroomTeacherAddedData getDate() {
+    public ClassroomTeacherAddedData getData() {
         return this.data;
     }
 

@@ -22,7 +22,7 @@ public class InstitutionVerificationCompletedEmailMessage
     private InstituitionVerificationCompletedData data;
 
     @Override
-    public InstituitionVerificationCompletedData getDate() {
+    public InstituitionVerificationCompletedData getData() {
         return this.data;
     }
 

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
 import com.n0hana.echoes_server.animal.AnimalService;
-import com.n0hana.echoes_server.auscultation.exception.AuscultationPotionNotFound;
+import com.n0hana.echoes_server.auscultation.exception.AuscultationPointNotFound;
 import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 
@@ -50,7 +50,7 @@ public class AuscultationPointService {
 
     public AuscultationPointModel findPointById(UUID id) {
         return pointRepository.findById(id)
-                .orElseThrow(() -> new AuscultationPotionNotFound());
+                .orElseThrow(() -> new AuscultationPointNotFound());
     }
 
     /**
@@ -111,7 +111,7 @@ public class AuscultationPointService {
     public void auscultationPointExists(UUID id) {
         pointRepository
                 .findById(id)
-                .orElseThrow(() -> new AuscultationPotionNotFound());
+                .orElseThrow(() -> new AuscultationPointNotFound());
     }
 
     private void assertOwnedBy(AuscultationPointModel point, DeviceModel device) {
