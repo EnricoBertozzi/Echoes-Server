@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class AuscultationExceptionHandler {
 
-    @ExceptionHandler(AuscultationPotionNotFound.class)
-    public ResponseEntity<Map<String, String>> handleNotFound(AuscultationPotionNotFound ex) {
+    @ExceptionHandler(AuscultationPointNotFound.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(AuscultationPointNotFound ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 }

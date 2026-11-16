@@ -21,7 +21,7 @@ public class InstitutionVerificationRejectedEmailMessage implements EmailMessage
     private InstitutionVerificationRejectedData data;
 
     @Override
-    public InstitutionVerificationRejectedData getDate() {
+    public InstitutionVerificationRejectedData getData() {
         return this.data;
     }
 

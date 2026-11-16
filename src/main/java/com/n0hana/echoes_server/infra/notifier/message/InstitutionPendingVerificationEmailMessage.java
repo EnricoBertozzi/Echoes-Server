@@ -21,7 +21,7 @@ public class InstitutionPendingVerificationEmailMessage implements EmailMessage<
     private InstitutionPendingVerificationData data;
 
     @Override
-    public InstitutionPendingVerificationData getDate() {
+    public InstitutionPendingVerificationData getData() {
         return this.data;
     }
 

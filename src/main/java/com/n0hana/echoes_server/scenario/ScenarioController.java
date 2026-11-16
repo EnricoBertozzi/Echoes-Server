@@ -3,7 +3,10 @@ package com.n0hana.echoes_server.scenario;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -100,6 +103,22 @@ public class ScenarioController {
         .map(ScenarioInfo::from)
         .toList();
     return ResponseEntity.ok(list);
+  }
+
+  /**
+   * Baixa o arquivo de áudio de um cenário. Exclusivo do dispositivo, que só
+   * acessa cenários do animal associado a ele.
+   *
+   * @param id Identificador do cenário
+   * @return {@link ResponseEntity} com o áudio e o código HTTP 200 (OK)
+   */
+  @GetMapping("/{id}/audio")
+  @PreAuthorize("hasRole('DEVICE')")
+  public ResponseEntity<Resource> downloadAudio(@PathVariable("id") UUID id,
+      @AuthenticationPrincipal DeviceModel device) {
+    Resource audio = new FileSystemResource(scenarioService.findAudioPath(id, device));
+    MediaType type = MediaTypeFactory.getMediaType(audio).orElse(MediaType.APPLICATION_OCTET_STREAM);
+    return ResponseEntity.ok().contentType(type).body(audio);
   }
 
   /**
