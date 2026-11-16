@@ -140,4 +140,33 @@ class ClassroomDeviceControllerTests {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Dispositivo não encontrado na turma"));
     }
+
+    @Test
+    @DisplayName("GET /api/v1/classrooms/{id}/devices/available lista os disponíveis (200 OK)")
+    void shouldListAvailableDevices() throws Exception {
+        UUID id = UUID.randomUUID();
+        DeviceModel device = DeviceModel.builder()
+                .id(UUID.randomUUID())
+                .name("Sensor Sul")
+                .hardwareId("11:22:33:44:55:66")
+                .publicKey("pem")
+                .status(DeviceStatus.ACTIVE)
+                .build();
+        when(service.findAvailableDevices(EMAIL, id)).thenReturn(List.of(device));
+
+        mockMvc.perform(get(BASE + id + "/devices/available").principal(PRINCIPAL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Sensor Sul"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/classrooms/{id}/devices/available sem acesso (403 Forbidden)")
+    void shouldReturnForbiddenWhenListingAvailable() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.findAvailableDevices(EMAIL, id))
+                .thenThrow(new ClassroomForbiddenException("Apenas o gestor da instituição pode executar esta ação"));
+
+        mockMvc.perform(get(BASE + id + "/devices/available").principal(PRINCIPAL))
+                .andExpect(status().isForbidden());
+    }
 }

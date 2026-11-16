@@ -378,4 +378,47 @@ class ClassroomDeviceServiceTests {
                 .institution(institution)
                 .build();
     }
+
+    // disponíveis
+
+    @Test
+    @DisplayName("Gestor lista os dispositivos ativos disponíveis da própria instituição")
+    void managerListsAvailableDevices() {
+        InstitutionModel institution = institution();
+        ClassroomModel classroom = classroom(institution, false);
+        DeviceModel device = device(institution);
+        mockManager(manager(institution), classroom);
+        when(deviceRepository.findAvailableForClassroom(institution.getId(), DeviceStatus.ACTIVE, classroom.getId()))
+                .thenReturn(List.of(device));
+
+        List<DeviceModel> result = service.findAvailableDevices(EMAIL, classroom.getId());
+
+        assertEquals(List.of(device), result);
+    }
+
+    @Test
+    @DisplayName("Gestor de outra instituição não lista dispositivos disponíveis")
+    void otherInstitutionManagerCannotListAvailableDevices() {
+        ClassroomModel classroom = classroom(institution(), false);
+        mockManager(manager(institution()), classroom);
+
+        assertThrows(ClassroomForbiddenException.class,
+                () -> service.findAvailableDevices(EMAIL, classroom.getId()));
+
+        verifyNoInteractions(deviceRepository);
+    }
+
+    @Test
+    @DisplayName("Professor não lista dispositivos disponíveis")
+    void teacherCannotListAvailableDevices() {
+        InstitutionModel institution = institution();
+        ClassroomModel classroom = classroom(institution, false);
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(teacher(institution)));
+        when(classroomRepository.findById(classroom.getId())).thenReturn(Optional.of(classroom));
+
+        assertThrows(ClassroomForbiddenException.class,
+                () -> service.findAvailableDevices(EMAIL, classroom.getId()));
+
+        verifyNoInteractions(deviceRepository);
+    }
 }

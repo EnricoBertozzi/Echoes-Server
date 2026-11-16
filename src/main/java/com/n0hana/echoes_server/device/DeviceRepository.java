@@ -39,6 +39,16 @@ public interface DeviceRepository extends JpaRepository<DeviceModel, UUID> {
   @EntityGraph(attributePaths = { "animal", "institution" })
   List<DeviceModel> findByClassroomIdOrderByNameAsc(UUID classroomId);
 
+  // dispositivos da instituição com o status pedido que ainda não estão nesta turma
+  // (livres ou em outra turma; vincular a esta move o dispositivo)
+  @EntityGraph(attributePaths = { "animal", "institution", "classroom" })
+  @Query("select d from DeviceModel d where d.institution.id = :institutionId and d.status = :status "
+      + "and (d.classroom is null or d.classroom.id <> :classroomId) order by d.name asc")
+  List<DeviceModel> findAvailableForClassroom(
+      @Param("institutionId") UUID institutionId,
+      @Param("status") DeviceStatus status,
+      @Param("classroomId") UUID classroomId);
+
   // ---- Dashboard ----
 
   /** Linhas {status, quantidade} de todos os dispositivos. */

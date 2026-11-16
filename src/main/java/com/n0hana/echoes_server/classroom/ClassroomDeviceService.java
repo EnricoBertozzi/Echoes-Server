@@ -11,6 +11,7 @@ import com.n0hana.echoes_server.classroom.exception.ClassroomForbiddenException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomNotFoundException;
 import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.device.DeviceRepository;
+import com.n0hana.echoes_server.device.DeviceStatus;
 import com.n0hana.echoes_server.device.exception.DeviceNotFoundException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.institution.InstitutionModel;
@@ -46,6 +47,14 @@ public class ClassroomDeviceService {
             throw new ClassroomForbiddenException("Sem acesso aos dispositivos desta turma");
 
         return deviceRepository.findByClassroomIdOrderByNameAsc(id);
+    }
+
+    // dispositivos ativos da instituição que o gestor pode vincular a esta turma
+    @Transactional(readOnly = true)
+    public List<DeviceModel> findAvailableDevices(String email, UUID id) {
+        ClassroomModel classroom = findManagedClassroom(email, id);
+        return deviceRepository.findAvailableForClassroom(
+                classroom.getInstitution().getId(), DeviceStatus.ACTIVE, id);
     }
 
     // se o dispositivo já estava em outra turma da instituição, ele passa para esta

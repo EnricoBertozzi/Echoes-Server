@@ -35,6 +35,16 @@ public class ClassroomDeviceController {
                 .toList());
     }
 
+    // dispositivos da instituição que o gestor ainda pode vincular a esta turma
+    @GetMapping("/available")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<List<DeviceDTO.DeviceInfo>> findAvailableDevices(@PathVariable UUID id,
+            Principal principal) {
+        return ResponseEntity.ok(service.findAvailableDevices(principal.getName(), id).stream()
+                .map(DeviceDTO.DeviceInfo::from)
+                .toList());
+    }
+
     @PutMapping("/{deviceId}")
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<Void> addDevice(@PathVariable UUID id, @PathVariable UUID deviceId, Principal principal) {
