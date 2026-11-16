@@ -73,12 +73,12 @@ class FlywayMigrationIntegrationTest {
             // Nenhum documento duplicado após reinicialização.
             assertTableCount(statement, "terms", 4L);
 
-            // V1..V6 executadas exatamente uma vez (installed_rank > 0 ignora a
+            // V1..V7 executadas exatamente uma vez (installed_rank > 0 ignora a
             // linha de marcador "Flyway Schema History table created").
             assertTableCount(
                 statement,
                 "\"flyway_schema_history\" WHERE \"installed_rank\" > 0",
-                6L);
+                7L);
         }
     }
 

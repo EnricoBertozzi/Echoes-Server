@@ -1,50 +1,97 @@
+
 package com.n0hana.echoes_server.infra.logs;
+
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
+import com.n0hana.echoes_server.user.model.User;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Endpoint somente leitura para consulta dos registros de auditoria.
+ * Endpoint de consulta dos registros de auditoria.
  *
- * <p>Restrito a {@code ADMIN} porque os logs contêm IP, ID de usuário e
- * detalhes de operações sensíveis. A escrita é feita exclusivamente pelo
- * {@link AuditAspect} — este controller não expõe POST/PUT/DELETE, o que
- * alinha com a imutabilidade de {@link AuditLog}.</p>
+ * ADMIN:
+ * - Consulta todos os registros.
+ * - Pode filtrar qualquer instituição.
  *
- * @author Enrico Bertozzi
- * @since 0.1.2
+ * MANAGER:
+ * - Consulta exclusivamente sua instituição.
+ *
+ * A escrita permanece exclusiva do AuditAspect.
  */
 @RestController
 @RequestMapping("/api/v1/audit-logs")
 @RequiredArgsConstructor
 @SecurityRequirement(name = SecurityConfig.SECURITY)
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
 public class AuditLogController {
 
     private final AuditLogService service;
 
     /**
-     * Lista os registros de auditoria de forma paginada.
+     * GET /api/v1/audit-logs
      *
-     * <p>Aceita os parâmetros padrão do Spring Data ({@code page}, {@code size},
-     * {@code sort}). Exemplo: {@code ?page=0&size=20&sort=timestamp,desc}.</p>
-     *
-     * @param pageable Configuração de paginação e ordenação.
-     * @return {@link ResponseEntity} com página de {@link AuditLogDTO} e HTTP 200.
+     * Parâmetros:
+     * - page
+     * - size
+     * - sort
+     * - institutionId
+     * - entity
+     * - action
+     * - status
      */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<AuditLogDTO>> list(Pageable pageable) {
-        Page<AuditLogDTO> page = service.getLogs(pageable).map(AuditLogDTO::from);
+    public ResponseEntity<Page<AuditLogDTO>> list(
+            @AuthenticationPrincipal User user,
+
+            @RequestParam(required = false)
+            UUID institutionId,
+
+            @RequestParam(required = false)
+            String entity,
+
+            @RequestParam(required = false)
+            String action,
+
+            @RequestParam(required = false)
+            String status,
+
+            @PageableDefault(
+                size = 20,
+                sort = "timestamp",
+                direction = Sort.Direction.DESC
+            )
+            Pageable pageable
+    ) {
+        Page<AuditLogDTO> page = service
+                .getLogs(
+                    user,
+                    institutionId,
+                    entity,
+                    action,
+                    status,
+                    pageable
+                )
+                .map(AuditLogDTO::from);
+
         return ResponseEntity.ok(page);
     }
 }
+
