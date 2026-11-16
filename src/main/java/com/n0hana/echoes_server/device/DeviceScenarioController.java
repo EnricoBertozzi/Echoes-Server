@@ -1,3 +1,4 @@
+
 package com.n0hana.echoes_server.device;
 
 import java.util.UUID;
@@ -22,46 +23,89 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/**
- * Cenário atual de cada ponto de ausculta de um dispositivo: o ESP lê para
- * sincronizar e professor, gestor e admin escolhem.
- */
 @RestController
 @RequestMapping("/api/v1/devices")
 @SecurityRequirement(name = SecurityConfig.SECURITY)
 @RequiredArgsConstructor
 public class DeviceScenarioController {
 
-  private final DeviceScenarioService service;
+    private final DeviceScenarioService service;
 
-  /**
-   * Rota de sincronização do ESP: pontos do animal com o cenário atual e a URI
-   * do áudio de cada um.
-   */
-  @GetMapping("/me/scenario")
-  @PreAuthorize("hasRole('DEVICE')")
-  public ResponseEntity<DeviceConfig> findMyConfig(@AuthenticationPrincipal DeviceModel device) {
-    if (device == null)
-      throw new AccessDeniedException("Dispositivo não autenticado");
-    return ResponseEntity.ok(service.findConfig(device));
-  }
+    @GetMapping("/me/scenario")
+    @PreAuthorize("hasRole('DEVICE')")
+    public ResponseEntity<DeviceConfig> findMyConfig(
+        @AuthenticationPrincipal DeviceModel device
+    ) {
+        assertCanOperate(device);
 
-  /** Configuração de um dispositivo para o painel. */
-  @GetMapping("/{deviceId}/scenario")
-  @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TEACHER')")
-  public ResponseEntity<DeviceConfig> findConfig(@PathVariable("deviceId") UUID deviceId,
-      @AuthenticationPrincipal User user) {
-    return ResponseEntity.ok(service.findConfig(user, deviceId));
-  }
+        return ResponseEntity.ok(
+            service.findConfig(device)
+        );
+    }
 
-  /** Escolhe o cenário atual de um ponto do dispositivo. */
-  @PutMapping("/{deviceId}/points/{pointId}/scenario")
-  @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TEACHER')")
-  public ResponseEntity<Void> select(@PathVariable("deviceId") UUID deviceId,
-      @PathVariable("pointId") UUID pointId,
-      @RequestBody @Valid SelectScenarioRequest dto,
-      @AuthenticationPrincipal User user) {
-    service.select(user, deviceId, pointId, dto.scenarioId());
-    return ResponseEntity.noContent().build();
-  }
+    @GetMapping("/me/playback-authorization")
+    @PreAuthorize("hasRole('DEVICE')")
+    public ResponseEntity<Void> authorizePlayback(
+        @AuthenticationPrincipal DeviceModel device
+    ) {
+        assertCanOperate(device);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{deviceId}/scenario")
+    @PreAuthorize(
+        "hasAnyRole('ADMIN', 'MANAGER', 'TEACHER')"
+    )
+    public ResponseEntity<DeviceConfig> findConfig(
+        @PathVariable("deviceId") UUID deviceId,
+        @AuthenticationPrincipal User user
+    ) {
+        return ResponseEntity.ok(
+            service.findConfig(user, deviceId)
+        );
+    }
+
+    @PutMapping("/{deviceId}/points/{pointId}/scenario")
+    @PreAuthorize(
+        "hasAnyRole('ADMIN', 'MANAGER', 'TEACHER')"
+    )
+    public ResponseEntity<Void> select(
+        @PathVariable("deviceId") UUID deviceId,
+        @PathVariable("pointId") UUID pointId,
+        @RequestBody @Valid SelectScenarioRequest dto,
+        @AuthenticationPrincipal User user
+    ) {
+        service.select(
+            user,
+            deviceId,
+            pointId,
+            dto.scenarioId()
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
+    private static void assertCanOperate(DeviceModel device) {
+        if (device == null ||
+            device.getStatus() != DeviceStatus.ACTIVE ||
+            device.getInstitution() == null ||
+            !device.getInstitution().isActive()) {
+            throw new AccessDeniedException(
+                "Dispositivo ou instituição inativo"
+            );
+        }
+
+        if (device.getClassroom() == null ||
+            device.getClassroom().isArchived() ||
+            device.getClassroom().isDeleted() ||
+            device.getClassroom().getInstitution() == null ||
+            !device.getClassroom().getInstitution().getId()
+                .equals(device.getInstitution().getId())) {
+            throw new AccessDeniedException(
+                "Dispositivo sem turma ativa válida"
+            );
+        }
+    }
 }
+

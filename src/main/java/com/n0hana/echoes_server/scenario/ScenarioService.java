@@ -3,14 +3,18 @@ package com.n0hana.echoes_server.scenario;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 import com.n0hana.echoes_server.auscultation.AuscultationPointService;
@@ -23,8 +27,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Service para gerenciamento dde cenários clínicos
- * 
+ * Service para gerenciamento de cenários clínicos
+ *
  * @author Enrico Bertozzi
  * @since 0.1.0
  * @see {@link ScenarioModel}
@@ -33,33 +37,34 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ScenarioService {
 
+  private static final long MAX_AUDIO_BYTES = 512L * 1024L;
+
   private final ScenarioRepository scenarioRepository;
-
   private final FileStorageService fileService;
-
   private final AuscultationPointService auscultationPointService;
 
   /**
    * Salva um novo cenário no sistema
-   * 
+   *
    * @param model Objeto com dados para armazenamento
    * @param file  Arquivo de áudio enviado.
    */
   @Transactional
   public ScenarioModel create(ScenarioModel model, MultipartFile file) {
-    String audioPath = fileService.store(file, model.getName());
-
-    model.setAudioUrl(audioPath);
+    validateDeviceAudio(file);
 
     AuscultationPointModel point = auscultationPointService.findPointById(model.getAuscultationPoint().getId());
-
     model.setAuscultationPoint(point);
+
+    String audioPath = fileService.store(file, model.getName());
+    model.setAudioUrl(audioPath);
+
     return scenarioRepository.save(model);
   }
 
   /**
    * Busca todos os cenários de um ponto de ausculta
-   * 
+   *
    * @param id   Identificador do ponto de ausculta.
    * @param page Página retorna na paginação.
    * @param size Quantidade de elementos na paginação.
@@ -87,8 +92,9 @@ public class ScenarioService {
    * dispositivo sem animal associado não enxerga nenhum cenário.
    */
   public List<ScenarioModel> findScenariosByDevice(int page, int size, DeviceModel device) {
-    if (device == null || device.getAnimal() == null)
+    if (device == null || device.getAnimal() == null) {
       return List.of();
+    }
 
     return scenarioRepository
         .findAllScenariosByAuscultationPointAnimalId(
@@ -99,14 +105,13 @@ public class ScenarioService {
 
   /**
    * Filtra cenários cadastrados por nome
-   * 
+   *
    * @param page Página retornada pela paginação.
    * @param size Quantidade de elementos por página.
    * @param name Nome utilizado para filtro.
    * @return
    */
-  public List<ScenarioModel> findScenariosByName(@RequestParam int page, @RequestParam int size,
-      @RequestParam String name) {
+  public List<ScenarioModel> findScenariosByName(int page, int size, String name) {
     return scenarioRepository
         .findAllScenariosByNameContaining(
             name,
@@ -118,8 +123,9 @@ public class ScenarioService {
    * Filtra cenários do animal associado ao dispositivo autenticado.
    */
   public List<ScenarioModel> findScenariosByNameForDevice(int page, int size, String name, DeviceModel device) {
-    if (device == null || device.getAnimal() == null)
+    if (device == null || device.getAnimal() == null) {
       return List.of();
+    }
 
     return scenarioRepository
         .findAllScenariosByNameContainingAndAuscultationPointAnimalId(
@@ -131,13 +137,13 @@ public class ScenarioService {
 
   /**
    * Busca um cenário pelo id
-   * 
+   *
    * @param id Identificador do cenário
    * @return {@link ScenarioModel} encontrado na busca,
    */
   public ScenarioModel findScenarioById(UUID id) {
     return scenarioRepository.findById(id)
-        .orElseThrow(() -> new ScenarioNotFoundException());
+        .orElseThrow(ScenarioNotFoundException::new);
   }
 
   /**
@@ -148,8 +154,9 @@ public class ScenarioService {
     ScenarioModel scenario = findScenarioById(id);
 
     if (device != null) {
-      if (scenario.getAuscultationPoint() == null)
-        throw new AccessDeniedException("Cenário não pertence ao dispositivo autenticado");
+      if (scenario.getAuscultationPoint() == null) {
+        throw new AccessDeniedException("Cenário sem ponto de ausculta válido");
+      }
 
       auscultationPointService.findPointById(scenario.getAuscultationPoint().getId(), device);
     }
@@ -166,78 +173,127 @@ public class ScenarioService {
    * @return {@link Path} do arquivo de áudio
    */
   public Path findAudioPath(UUID id, DeviceModel device) {
+    if (device == null
+        || device.getInstitution() == null
+        || !device.getInstitution().isActive()
+        || device.getClassroom() == null
+        || device.getClassroom().isArchived()
+        || device.getClassroom().isDeleted()) {
+      throw new AccessDeniedException("Dispositivo não autorizado a baixar áudio");
+    }
+
     ScenarioModel scenario = findScenarioById(id, device);
     Path path = fileService.load(scenario.getAudioUrl());
-    if (!Files.exists(path))
+
+    if (!Files.exists(path)) {
       throw new StorageFileNotFoundException();
+    }
+
     return path;
   }
 
   /**
    * Atualiza os dados de um cenário
-   * 
+   *
    * @param id       Identificador do cenário.
    * @param scenario Objeto com dados a serem atualizados
    */
   @Transactional
   public ScenarioModel updateScenario(UUID id, ScenarioModel scenario) {
-    ScenarioModel savedScenario = this.findScenarioById(id);
+    ScenarioModel savedScenario = findScenarioById(id);
 
-    if (!savedScenario.getName().equals(scenario.getName())) {
-      fileService.rename(savedScenario.getAudioUrl(), scenario.getName());
-      savedScenario.setName(scenario.getName());
-    }
-
-    if (!savedScenario.getDescription().equals(scenario.getDescription()))
-      savedScenario.setDescription(scenario.getDescription());
+    // Mantém o caminho físico original para não quebrar a referência do áudio salvo
+    savedScenario.setName(scenario.getName());
+    savedScenario.setDescription(scenario.getDescription());
 
     return scenarioRepository.save(savedScenario);
   }
 
   /**
    * Exclui um cenário do sistema
-   * 
+   *
    * @param id Identificador do cenário a ser excluído.
    */
   @Transactional
   public void deleteScenario(UUID id) {
-    ScenarioModel model = this.findScenarioById(id);
+    ScenarioModel model = findScenarioById(id);
 
-    fileService.delete(model.getAudioUrl());
-    scenarioRepository.deleteById(model.getId());
+    scenarioRepository.deleteById(id);
+    deleteAfterCommit(model.getAudioUrl());
   }
 
   /**
    * Verifica se o cenário existe.
-   * 
+   *
    * <p>
    * Busca no banco de dados por um cenário registrado com o identificador
    * fornecido. Caso não encontre, a exceção {@link ScenarioNotFoundException} é
    * lançada.
    * </p>
-   * 
+   *
    * @throw ScenarioNotFoundException
-   * 
+   *
    * @param id Identificador do cenário.
    */
   public void scenarioExists(UUID id) {
     scenarioRepository.findById(id)
-        .orElseThrow(() -> new ScenarioNotFoundException());
+        .orElseThrow(ScenarioNotFoundException::new);
   }
 
   /**
    * Reupload de novo arquivo para um cenário existente
-   * 
+   *
    * @param id   Identificador do cenário
    * @param file Arquivo de áudio enviado.
    */
+  @Transactional
   public void reuploadFile(UUID id, MultipartFile file) {
-    ScenarioModel model = this.findScenarioById(id);
-    fileService.delete(model.getAudioUrl());
+    validateDeviceAudio(file);
 
-    String audioUrl = fileService.store(file, model.getName());
-    model.setAudioUrl(audioUrl);
+    ScenarioModel model = findScenarioById(id);
+    String previousPath = model.getAudioUrl();
 
+    String newPath = fileService.store(file, model.getName());
+    model.setAudioUrl(newPath);
     scenarioRepository.save(model);
+
+    // Apaga o MP3 antigo só após o commit; o novo path gera outra audioRevision no DTO
+    if (previousPath != null && !previousPath.equals(newPath)) {
+      deleteAfterCommit(previousPath);
+    }
+  }
+
+  private void deleteAfterCommit(String path) {
+    if (path == null || path.isBlank()) {
+      return;
+    }
+
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              fileService.delete(path);
+            }
+          });
+    } else {
+      fileService.delete(path);
+    }
+  }
+
+  private static void validateDeviceAudio(MultipartFile file) {
+    if (file == null || file.isEmpty() || file.getSize() > MAX_AUDIO_BYTES) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "O arquivo MP3 deve ter no máximo 512 KiB");
+    }
+
+    String originalName = file.getOriginalFilename();
+
+    if (originalName == null || !originalName.toLowerCase(Locale.ROOT).endsWith(".mp3")) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Somente arquivos MP3 são permitidos");
+    }
   }
 }

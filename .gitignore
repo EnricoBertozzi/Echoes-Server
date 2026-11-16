@@ -94,3 +94,6 @@ estrutura*.png
 estrutura*.jpg
 estrutura*.zip
 estrutura*.xz
+
+# Dumps de código gerados localmente
+combinado*.txt
