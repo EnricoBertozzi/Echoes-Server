@@ -10,6 +10,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
+import com.n0hana.echoes_server.classroom.ClassroomModel;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 
 import jakarta.persistence.Column;
@@ -73,6 +74,16 @@ public class DeviceModel {
   @JoinColumn(name = "animal", nullable = true)
   @OnDelete(action = OnDeleteAction.SET_NULL)
   private AnimalModel animal;
+
+  /**
+   * Turma do dispositivo: uma só por vez, e uma turma pode ter vários
+   * dispositivos. Turma excluída (soft delete) deixa de ser visível; IGNORE
+   * devolve null em vez de lançar.
+   */
+  @NotFound(action = NotFoundAction.IGNORE)
+  @ManyToOne(fetch = FetchType.LAZY, optional = true)
+  @JoinColumn(name = "classroom_id", nullable = true)
+  private ClassroomModel classroom;
 
   @Column(name = "approved_by")
   private UUID approvedBy;

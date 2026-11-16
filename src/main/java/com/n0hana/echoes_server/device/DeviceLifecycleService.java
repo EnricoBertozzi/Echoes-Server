@@ -99,7 +99,13 @@ public class DeviceLifecycleService {
       if (device.getStatus() == DeviceStatus.PENDING)
         throw new InvalidDeviceStateException("Dispositivo pendente deve ser aprovado, não movido");
 
-      device.setInstitution(findInstitution(request.institutionId()));
+      InstitutionModel newInstitution = findInstitution(request.institutionId());
+
+      // a turma é da instituição antiga: ao mudar de instituição o dispositivo sai dela
+      if (device.getInstitution() == null || !device.getInstitution().getId().equals(newInstitution.getId()))
+        device.setClassroom(null);
+
+      device.setInstitution(newInstitution);
     }
 
     if (hasAnimal)
