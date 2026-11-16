@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.scenario;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +16,7 @@ import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 import com.n0hana.echoes_server.auscultation.AuscultationPointService;
 import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
+import com.n0hana.echoes_server.infra.file.exception.StorageFileNotFoundException;
 import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
 import jakarta.transaction.Transactional;
@@ -152,6 +155,22 @@ public class ScenarioService {
     }
 
     return scenario;
+  }
+
+  /**
+   * Localiza o arquivo de áudio do cenário para o dispositivo baixar, garantindo
+   * que o cenário pertence ao animal do dispositivo autenticado.
+   *
+   * @param id     Identificador do cenário
+   * @param device Dispositivo autenticado
+   * @return {@link Path} do arquivo de áudio
+   */
+  public Path findAudioPath(UUID id, DeviceModel device) {
+    ScenarioModel scenario = findScenarioById(id, device);
+    Path path = fileService.load(scenario.getAudioUrl());
+    if (!Files.exists(path))
+      throw new StorageFileNotFoundException();
+    return path;
   }
 
   /**

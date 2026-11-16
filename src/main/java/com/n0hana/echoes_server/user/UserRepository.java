@@ -33,6 +33,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select m from Manager m where m.active = true and (:institutionId is null or m.institution.id = :institutionId)")
     Page<Manager> findManagers(@Param("institutionId") UUID institutionId, Pageable pageable);
 
+    @Query("select count(m) from Manager m where m.active = true and m.institution.id = :institutionId")
+    long countActiveManagers(@Param("institutionId") UUID institutionId);
+
     @Query("select t from Teacher t where t.active = true and (:institutionId is null or t.institution.id = :institutionId)")
     Page<Teacher> findTeachers(@Param("institutionId") UUID institutionId, Pageable pageable);
 

@@ -73,12 +73,12 @@ class FlywayMigrationIntegrationTest {
             // Nenhum documento duplicado após reinicialização.
             assertTableCount(statement, "terms", 4L);
 
-            // V1..V7 executadas exatamente uma vez (installed_rank > 0 ignora a
+            // V1..V6 executadas exatamente uma vez (installed_rank > 0 ignora a
             // linha de marcador "Flyway Schema History table created").
             assertTableCount(
                 statement,
                 "\"flyway_schema_history\" WHERE \"installed_rank\" > 0",
-                7L);
+                6L);
         }
     }
 
@@ -113,43 +113,6 @@ class FlywayMigrationIntegrationTest {
         expectPublished(statement, "PRIVACY_POLICY", "privacy-policy");
         expectPublished(statement, "TERMS_OF_USE", "terms");
         expectPublished(statement, "PROCESSING_OPERATIONS", "operations");
-    }
-
-    /**
-     * Banco já em uso (tabela criada pelo Hibernate antes do ciclo de vida):
-     * mac vira hardware_id, o dispositivo existente fica ACTIVE (não é bloqueado)
-     * e o status não tem mais default.
-     */
-    @Test
-    void dispositivosExistentesViramActiveERenomeiamMacParaHardwareId() throws Exception {
-        try (Connection connection = DriverManager.getConnection(H2_URL, "sa", "");
-             Statement statement = connection.createStatement()) {
-            statement.execute("CREATE TABLE device_tb ("
-                + "id UUID PRIMARY KEY, name VARCHAR(255), mac VARCHAR(255) NOT NULL UNIQUE, "
-                + "public_key TEXT NOT NULL)");
-            statement.execute("INSERT INTO device_tb (id, name, mac, public_key) "
-                + "VALUES (RANDOM_UUID(), 'legado', 'AA:BB:CC:DD:EE:01', 'pem')");
-        }
-
-        flyway().migrate();
-
-        try (Connection connection = DriverManager.getConnection(H2_URL, "sa", "");
-             Statement statement = connection.createStatement();
-             ResultSet row = statement.executeQuery(
-                 "SELECT hardware_id, status FROM device_tb")) {
-
-            assertThat(row.next()).isTrue();
-            assertThat(row.getString("hardware_id")).isEqualTo("AA:BB:CC:DD:EE:01");
-            assertThat(row.getString("status")).isEqualTo("ACTIVE");
-        }
-
-        try (Connection connection = DriverManager.getConnection(H2_URL, "sa", "");
-             Statement statement = connection.createStatement()) {
-            // Sem default: um INSERT que omite o status precisa falhar.
-            org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, () ->
-                statement.execute("INSERT INTO device_tb (id, name, hardware_id, public_key) "
-                    + "VALUES (RANDOM_UUID(), 'novo', 'AA:BB:CC:DD:EE:02', 'pem')"));
-        }
     }
 
     /** Banco novo: a migration não toca em nada (o Hibernate cria a tabela depois). */

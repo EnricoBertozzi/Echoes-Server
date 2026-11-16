@@ -21,7 +21,7 @@ public class MfaCodeEmailMessage implements EmailMessage<MfaCodeData> {
     private MfaCodeData data;
 
     @Override
-    public MfaCodeData getDate() {
+    public MfaCodeData getData() {
         return this.data;
     }
 

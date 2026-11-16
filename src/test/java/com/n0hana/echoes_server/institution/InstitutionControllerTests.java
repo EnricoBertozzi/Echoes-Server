@@ -1,8 +1,10 @@
 package com.n0hana.echoes_server.institution;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -38,6 +40,8 @@ import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsEx
 import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
+import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.model.UserRole;
 import com.n0hana.echoes_server.user.service.UserInfoService;
@@ -46,7 +50,7 @@ import com.n0hana.echoes_server.user.service.UserInfoService;
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @ActiveProfiles("test")
-@Import({ InstitutionControllerTests.PageConfig.class, InstitutionExceptionHandler.class })
+@Import({ InstitutionControllerTests.PageConfig.class, InstitutionExceptionHandler.class, UserExceptionHandler.class })
 public class InstitutionControllerTests {
     @TestConfiguration
     @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
@@ -63,6 +67,8 @@ public class InstitutionControllerTests {
     private InstitutionService service;
 
     @MockitoBean
+    private InstitutionRegistrationService registrationService;
+    @MockitoBean
     private JwtTokenService jwtTokenService;
 
     @MockitoBean
@@ -77,16 +83,19 @@ public class InstitutionControllerTests {
         UUID uuid = UUID.randomUUID();
         InstitutionModel model = createTestModel(uuid);
 
-        when(service.create(any(InstitutionModel.class))).thenReturn(model);
+        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString())).thenReturn(model);
 
         String payload = """
                 {
-                    "name": "Instituição Teste",
-                    "acronym": "IT",
-                    "cnpj": "%s",
-                    "email": "contato@teste.com",
-                    "phone": "11901234567",
-                    "address": "Rua nova"
+                    "institution": {
+                        "name": "Instituição Teste",
+                        "acronym": "IT",
+                        "cnpj": "%s",
+                        "email": "contato@teste.com",
+                        "phone": "11901234567",
+                        "address": "Rua nova"
+                    },
+                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
                 }
                 """.formatted(CNPJ_VALIDO);
 
@@ -104,12 +113,15 @@ public class InstitutionControllerTests {
     void shouldNotCreateInstitutionWithInvalidFields() throws Exception {
         String payload = """
                 {
-                    "name": "",
-                    "acronym": "",
-                    "cnpj": "123",
-                    "email": "invalido",
-                    "phone": "11901234567",
-                    "address": "Rua nova"
+                    "institution": {
+                        "name": "",
+                        "acronym": "",
+                        "cnpj": "123",
+                        "email": "invalido",
+                        "phone": "11901234567",
+                        "address": "Rua nova"
+                    },
+                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
                 }
                 """;
 
@@ -120,20 +132,69 @@ public class InstitutionControllerTests {
     }
 
     @Test
+    @DisplayName("POST /api/v1/institutions sem os dados do gestor (400 Bad Request)")
+    void shouldNotCreateInstitutionWithoutManager() throws Exception {
+        String payload = """
+                {
+                    "institution": {
+                        "name": "Instituição Teste",
+                        "acronym": "IT",
+                        "cnpj": "%s",
+                        "email": "contato@teste.com"
+                    }
+                }
+                """.formatted(CNPJ_VALIDO);
+
+        mockMvc.perform(post("/api/v1/institutions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(registrationService);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/institutions com e-mail do gestor já em uso (409 Conflict)")
+    void shouldNotCreateInstitutionWhenManagerEmailIsInUse() throws Exception {
+        String payload = """
+                {
+                    "institution": {
+                        "name": "Instituição Teste",
+                        "acronym": "IT",
+                        "cnpj": "%s",
+                        "email": "contato@teste.com"
+                    },
+                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
+                }
+                """.formatted(CNPJ_VALIDO);
+
+        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString()))
+                .thenThrow(new EmailAlreadyInUseException());
+
+        mockMvc.perform(post("/api/v1/institutions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     @DisplayName("POST /api/v1/institutions com cnpj/e-mail já cadastrado (409 Conflict)")
     void shouldThrowAlreadyExistsExceptionInCreateInstitution() throws Exception {
         String payload = """
                 {
-                    "name": "Instituição Teste",
-                    "acronym": "IT",
-                    "cnpj": "%s",
-                    "email": "contato@teste.com",
-                    "phone": "11901234567",
-                    "address": "Rua nova"
+                    "institution": {
+                        "name": "Instituição Teste",
+                        "acronym": "IT",
+                        "cnpj": "%s",
+                        "email": "contato@teste.com",
+                        "phone": "11901234567",
+                        "address": "Rua nova"
+                    },
+                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
                 }
                 """.formatted(CNPJ_VALIDO);
 
-        when(service.create(any(InstitutionModel.class)))
+        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString()))
                 .thenThrow(new InstitutionAlreadyExistsException(
                         "Instituição já cadastrada com este CNPJ ou E-mail."));
 

@@ -21,7 +21,7 @@ public class RegisterInviteMessage implements EmailMessage<RegisterInviteData> {
     private RegisterInviteData data;
 
     @Override
-    public RegisterInviteData getDate() {
+    public RegisterInviteData getData() {
         return this.data;
     }
 

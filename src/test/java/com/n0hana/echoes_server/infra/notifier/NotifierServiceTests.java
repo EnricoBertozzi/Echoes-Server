@@ -52,7 +52,7 @@ public class NotifierServiceTests {
 
         assertInstanceOf(MfaCodeEmailMessage.class, message);
 
-        MfaCodeData data = (MfaCodeData) message.getDate();
+        MfaCodeData data = (MfaCodeData) message.getData();
         assertEquals(code, data.getCode());
         assertTrue(message.getContent().contains(code));
     }
@@ -71,7 +71,7 @@ public class NotifierServiceTests {
         EmailMessage<?> message = this.captureMessage(email);
 
         assertInstanceOf(PasswordResetEmailMessage.class, message);
-        PasswordResetData data = (PasswordResetData) message.getDate();
+        PasswordResetData data = (PasswordResetData) message.getData();
 
         assertEquals(code, data.getCode());
         assertTrue(message.getContent().contains(code));
@@ -91,7 +91,7 @@ public class NotifierServiceTests {
         EmailMessage<?> message = this.captureMessage(email);
         assertInstanceOf(RegisterInviteMessage.class, message);
 
-        RegisterInviteData data = (RegisterInviteData) message.getDate();
+        RegisterInviteData data = (RegisterInviteData) message.getData();
         assertEquals(code, data.getCode());
         assertEquals(email, data.getEmail());
 
@@ -115,7 +115,7 @@ public class NotifierServiceTests {
         EmailMessage<?> message = this.captureMessage(email);
         assertInstanceOf(InstitutionPendingVerificationEmailMessage.class, message);
 
-        InstitutionPendingVerificationData data = (InstitutionPendingVerificationData) message.getDate();
+        InstitutionPendingVerificationData data = (InstitutionPendingVerificationData) message.getData();
         assertEquals(name, data.getName());
         assertEquals(cnpj, data.getCnpj());
         assertEquals(reason, data.getReason());
@@ -143,7 +143,7 @@ public class NotifierServiceTests {
         EmailMessage<?> message = this.captureMessage(email);
         assertInstanceOf(InstitutionVerificationRejectedEmailMessage.class, message);
 
-        InstitutionVerificationRejectedData data = (InstitutionVerificationRejectedData) message.getDate();
+        InstitutionVerificationRejectedData data = (InstitutionVerificationRejectedData) message.getData();
         assertEquals(name, data.getName());
         assertEquals(cnpj, data.getCnpj());
         assertEquals(reason, data.getReason());
@@ -169,7 +169,7 @@ public class NotifierServiceTests {
         EmailMessage<?> message = this.captureMessage(email);
         assertInstanceOf(InstitutionVerificationCompletedEmailMessage.class, message);
 
-        InstituitionVerificationCompletedData data = (InstituitionVerificationCompletedData) message.getDate();
+        InstituitionVerificationCompletedData data = (InstituitionVerificationCompletedData) message.getData();
         assertEquals(name, data.getName());
         assertEquals(cnpj, data.getCnpj());
         
