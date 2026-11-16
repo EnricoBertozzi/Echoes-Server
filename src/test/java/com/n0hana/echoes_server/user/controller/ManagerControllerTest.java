@@ -3,6 +3,7 @@ package com.n0hana.echoes_server.user.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -37,6 +38,7 @@ import com.n0hana.echoes_server.user.dto.CreateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.PendingRegistrationDTO;
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+import com.n0hana.echoes_server.user.exception.LastManagerException;
 import com.n0hana.echoes_server.user.exception.UserExceptionHandler;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.UserRole;
@@ -181,6 +183,16 @@ class ManagerControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.name").value("O nome não pode ficar em branco"))
                 .andExpect(jsonPath("$.email").value("O e-mail não pode ficar em branco"));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/users/manager/{id} do último gestor → 409 Conflict")
+    void deleteLastManagerReturns409() throws Exception {
+        doThrow(new LastManagerException()).when(userManagerService).deleteManager(id);
+
+        mockMvc.perform(delete("/api/v1/users/manager/{id}", id))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("A instituição não pode ficar sem gestor"));
     }
 
     @Test

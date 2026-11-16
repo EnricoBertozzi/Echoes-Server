@@ -3,7 +3,8 @@ package com.n0hana.echoes_server.institution;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import org.hibernate.validator.constraints.br.CNPJ;
-
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 /**
@@ -69,5 +70,15 @@ public record InstitutionDTO(
                 .address(this.address())
                 .build();
     }
+        
+    // cadastro da instituição: já vem com os dados do primeiro gestor, que recebe o convite
+    public record CreateRequest(
+            @Valid @NotNull(message = "Os dados da instituição são obrigatórios") InstitutionDTO institution,
+            @Valid @NotNull(message = "Os dados do gestor são obrigatórios") ManagerRequest manager) {
+    }
 
+    public record ManagerRequest(
+            @NotBlank(message = "O nome do gestor é obrigatório") String name,
+            @NotBlank(message = "O e-mail do gestor é obrigatório") @Email(message = "E-mail do gestor inválido") String email) {
+    }
     }

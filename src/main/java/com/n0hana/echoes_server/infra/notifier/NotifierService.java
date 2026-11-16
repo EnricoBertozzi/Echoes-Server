@@ -2,12 +2,14 @@ package com.n0hana.echoes_server.infra.notifier;
 
 import org.springframework.stereotype.Service;
 
+import com.n0hana.echoes_server.infra.notifier.data.ClassroomTeacherAddedData;
 import com.n0hana.echoes_server.infra.notifier.data.InstituitionVerificationCompletedData;
 import com.n0hana.echoes_server.infra.notifier.data.InstitutionPendingVerificationData;
 import com.n0hana.echoes_server.infra.notifier.data.InstitutionVerificationRejectedData;
 import com.n0hana.echoes_server.infra.notifier.data.MfaCodeData;
 import com.n0hana.echoes_server.infra.notifier.data.PasswordResetData;
 import com.n0hana.echoes_server.infra.notifier.data.RegisterInviteData;
+import com.n0hana.echoes_server.infra.notifier.message.ClassroomTeacherAddedEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionPendingVerificationEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationCompletedEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationRejectedEmailMessage;
@@ -111,6 +113,20 @@ public class NotifierService {
     public void sendInstitutionRejected(String to, String name, String cnpj, String reason) {
         InstitutionVerificationRejectedEmailMessage message = new InstitutionVerificationRejectedEmailMessage();
         message.setData(new InstitutionVerificationRejectedData(reason, name, cnpj));
+
+        emailNotifier.send(to, message);
+    }
+
+    /**
+     * Envia notificação de professor adicionado a uma turma
+     * 
+     * @param to             e-mail do professor
+     * @param classroomTitle título da turma
+     * @param period         período da turma no formato AAAA/SS
+     */
+    public void sendClassroomTeacherAdded(String to, String classroomTitle, String period) {
+        ClassroomTeacherAddedEmailMessage message = new ClassroomTeacherAddedEmailMessage();
+        message.setData(new ClassroomTeacherAddedData(classroomTitle, period));
 
         emailNotifier.send(to, message);
     }

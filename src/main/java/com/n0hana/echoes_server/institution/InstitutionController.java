@@ -39,7 +39,7 @@ import lombok.RequiredArgsConstructor;
 public class InstitutionController {
 
     private final InstitutionService service;
-
+    private final InstitutionRegistrationService registrationService;
     /**
      * Registra uma nova instituição no sistema.
      *
@@ -49,11 +49,12 @@ public class InstitutionController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InstitutionDTO> create(@RequestBody @Valid InstitutionDTO dto) {
-
+    public ResponseEntity<InstitutionDTO> create(@RequestBody @Valid InstitutionDTO.CreateRequest dto) {
+        InstitutionModel saved = registrationService.create(
+                dto.institution().toModel(), dto.manager().name(), dto.manager().email());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(InstitutionDTO.fromModel(service.create(dto.toModel())));
+                .body(InstitutionDTO.fromModel(saved));
     }
 
     /**
