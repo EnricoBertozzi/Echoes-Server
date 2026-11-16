@@ -21,6 +21,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.javers.core.metamodel.annotation.DiffIgnore;
+
 
 /**
  * Entidade representante das instituições do sistema.
@@ -73,10 +75,12 @@ public class InstitutionModel {
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status", nullable = false, length = 30)
     private InstitutionVerificationStatus verificationStatus = InstitutionVerificationStatus.PENDING_VERIFICATION;
-
+    
+    @DiffIgnore
     @Column(name = "last_verification_attempt_at")
     private LocalDateTime lastVerificationAttemptAt;
-
+    
+    @DiffIgnore
     @Builder.Default
     @Column(name = "verification_attempts", nullable = false)
     private int verificationAttempts = 0;
@@ -88,15 +92,18 @@ public class InstitutionModel {
     @Builder.Default
     @Column(nullable = false)
     private boolean deleted = false;
-
+    
+    @DiffIgnore
     @Builder.Default
     @Column(name = "delete_token", nullable = false)
     private String deleteToken = "ACTIVE";
 
+    @DiffIgnore
     @CreationTimestamp
     @Column(updatable = false, name = "created_at")
     private LocalDateTime createdAt;
-
+    
+    @DiffIgnore
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
