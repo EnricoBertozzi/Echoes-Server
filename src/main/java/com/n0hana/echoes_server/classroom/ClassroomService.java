@@ -8,6 +8,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.n0hana.echoes_server.classroom.material.ClassroomMaterialRepository;
+import com.n0hana.echoes_server.classroom.material.ClassroomMaterialStorage;
 import com.n0hana.echoes_server.classroom.exception.ClassroomArchivedException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomCodeActiveException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomForbiddenException;
@@ -38,6 +40,8 @@ public class ClassroomService {
     private final UserRepository userRepository;
     private final ClassroomCodeService codeService;
     private final NotifierService notifierService;
+    private final ClassroomMaterialRepository materialRepository;
+    private final ClassroomMaterialStorage materialStorage;
 
     @Transactional
     @Auditable(action = "CREATE", entity = "Classroom", entityId = "#result.id", institutionId = "#result.institution.id")
@@ -144,6 +148,10 @@ public class ClassroomService {
     public ClassroomModel delete(String email, UUID id) {
         ClassroomModel classroom = findManagedClassroom(email, id);
         memberRepository.deleteByClassroomId(id);
+        // A exclusão da turma é lógica, mas os materiais e seus arquivos são removidos.
+        var storedNames = materialRepository.findStoredNamesByClassroomId(id);
+        materialRepository.deleteAllByClassroomId(id);
+        materialStorage.deleteAfterCommit(storedNames);
         classroom.setDeleted(true);
         classroomRepository.save(classroom);
         return classroom;
@@ -279,6 +287,18 @@ public class ClassroomService {
         if (!isManagerOf(user, classroom))
             throw new ClassroomForbiddenException("Apenas o gestor da instituição pode executar esta ação");
 
+        return classroom;
+    }
+
+    // Verificação compartilhada com o módulo de materiais. Só professor MEMBRO de turma não arquivada.
+    @Transactional(readOnly = true)
+    public ClassroomModel requireTeacherForMaterials(String email, UUID id) {
+        User user = findUser(email);
+        ClassroomModel classroom = findClassroom(id);
+        if (!isTeacherMember(user, id))
+            throw new ClassroomForbiddenException("Apenas professores da turma podem alterar materiais");
+        if (classroom.isArchived())
+            throw new ClassroomArchivedException();
         return classroom;
     }
 

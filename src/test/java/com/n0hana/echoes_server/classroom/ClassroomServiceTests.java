@@ -34,6 +34,8 @@ import com.n0hana.echoes_server.classroom.exception.ClassroomCodeActiveException
 import com.n0hana.echoes_server.classroom.exception.ClassroomForbiddenException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomNotFoundException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomStudentEnrolledException;
+import com.n0hana.echoes_server.classroom.material.ClassroomMaterialRepository;
+import com.n0hana.echoes_server.classroom.material.ClassroomMaterialStorage;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -66,6 +68,9 @@ class ClassroomServiceTests {
 
     @Mock
     private NotifierService notifierService;
+
+    @Mock private ClassroomMaterialRepository materialRepository;
+    @Mock private ClassroomMaterialStorage materialStorage;
 
     @InjectMocks
     private ClassroomService service;
