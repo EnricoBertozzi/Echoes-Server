@@ -78,7 +78,7 @@ class FlywayMigrationIntegrationTest {
             assertTableCount(
                 statement,
                 "\"flyway_schema_history\" WHERE \"installed_rank\" > 0",
-                7L);
+                8L);
         }
     }
 
