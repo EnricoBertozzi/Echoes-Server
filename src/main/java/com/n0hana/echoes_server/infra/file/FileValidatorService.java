@@ -29,6 +29,17 @@ public class FileValidatorService {
    * @param file Arquivo para ser avaliado
    */
   public void validate(MultipartFile file) {
+    validate(file, ALLOWED_EXTENSIONS);
+  }
+
+  /**
+   * Realiza validações de segurança sobre um arquivo usando uma lista própria de
+   * extensões permitidas (ex.: material de aula)
+   * 
+   * @param file              Arquivo para ser avaliado
+   * @param allowedExtensions Extensões aceitas, sem ponto
+   */
+  public void validate(MultipartFile file, List<String> allowedExtensions) {
 
     // Verifica se o arquivo existe
     if (file == null || file.isEmpty())
@@ -45,7 +56,7 @@ public class FileValidatorService {
 
     // Verifica a extensão do arquivo
     String extension = this.getExtension(originalName).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.contains(extension))
+    if (!allowedExtensions.contains(extension))
       throw new FileValidateException();
 
   }

@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -78,6 +79,35 @@ public class FileStorageService {
     }
 
     /**
+     * Salva um novo arquivo dentro de uma subpasta da pasta de uploads. A subpasta
+     * é criada se ainda não existir.
+     * 
+     * @param file              Arquivo Multipart recebido pela API
+     * @param newName           Nome do arquivo a ser salvo.
+     * @param subDir            Subpasta dentro de uploads (ex.: id da turma)
+     * @param allowedExtensions Extensões aceitas para este arquivo
+     * 
+     * @return {@link String} contendo o nome gerado para o arquivo
+     */
+    public String store(MultipartFile file, String newName, String subDir, List<String> allowedExtensions) {
+        fileValidator.validate(file, allowedExtensions);
+
+        String fileName = this.generateNewName(file.getOriginalFilename(), newName);
+
+        try {
+            Path directory = fileStorageLocation.resolve(subDir).normalize();
+            Files.createDirectories(directory);
+
+            Path targetLocation = directory.resolve(fileName);
+            file.transferTo(targetLocation);
+
+            return targetLocation.getFileName().toString();
+        } catch (IOException e) {
+            throw new StorageSaveFileException();
+        }
+    }
+
+    /**
      * Localiza o caminho do arquivo dentro do sistema
      * 
      * @param fileName Nome do arquivo
@@ -91,6 +121,27 @@ public class FileStorageService {
     }
 
     /**
+     * Localiza o caminho de um arquivo dentro de uma subpasta. Recusa caminhos que
+     * saiam da pasta de uploads.
+     * 
+     * @param subDir   Subpasta dentro de uploads
+     * @param fileName Nome do arquivo
+     * 
+     * @return {@link Path} caminho do arquivo
+     */
+    public Path load(String subDir, String fileName) {
+        Path path = fileStorageLocation
+                .resolve(subDir)
+                .resolve(fileName)
+                .normalize();
+
+        if (!path.startsWith(fileStorageLocation))
+            throw new StorageFileNotFoundException();
+
+        return path;
+    }
+
+    /**
      * Exclui um arquivo presente no uploads do projeto
      * 
      * @param filename Nome do arquivo a ser exclúido,
@@ -98,6 +149,20 @@ public class FileStorageService {
     public void delete(String filename) {
         try {
             Files.deleteIfExists(fileStorageLocation.resolve(filename));
+        } catch (IOException ex) {
+            throw new StorageDeleteFileException();
+        }
+    }
+
+    /**
+     * Exclui um arquivo de uma subpasta do uploads
+     * 
+     * @param subDir   Subpasta dentro de uploads
+     * @param filename Nome do arquivo a ser excluído
+     */
+    public void delete(String subDir, String filename) {
+        try {
+            Files.deleteIfExists(this.load(subDir, filename));
         } catch (IOException ex) {
             throw new StorageDeleteFileException();
         }
