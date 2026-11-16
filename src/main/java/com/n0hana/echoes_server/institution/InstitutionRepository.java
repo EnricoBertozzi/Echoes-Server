@@ -7,13 +7,14 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 /**
  * Repositorio JPA para armazenamento das instituições da aplicação.
  * 
  * @since 0.1.0
  * @author Miguel Santana da Costa
  */
+@JaversSpringDataAuditable
 public interface InstitutionRepository extends JpaRepository<InstitutionModel, UUID> {
 
     boolean existsByCnpjOrEmail(String cnpj, String email);

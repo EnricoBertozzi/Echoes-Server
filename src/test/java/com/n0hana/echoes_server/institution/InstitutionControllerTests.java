@@ -38,6 +38,10 @@ import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsEx
 import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.institution.exception.InstitutionExceptionHandler;
+import com.n0hana.echoes_server.institution.exception.InstitutionAlreadyExistsException;
+import java.time.Instant;
+
 import com.n0hana.echoes_server.user.dto.UserDTO;
 import com.n0hana.echoes_server.user.model.UserRole;
 import com.n0hana.echoes_server.user.service.UserInfoService;
@@ -68,6 +72,9 @@ public class InstitutionControllerTests {
     @MockitoBean
     private UserRepository userRepository;
 
+    @MockitoBean
+    private InstitutionHistoryService historyService;
+  
     @MockitoBean
     private UserInfoService userInfoService;
 
@@ -284,6 +291,21 @@ public class InstitutionControllerTests {
     }
 
     @Test
+    @DisplayName("GET /api/v1/institutions/{id}/history lista as alterações (200 OK)")
+    void shouldFindInstitutionHistory() throws Exception {
+        UUID uuid = UUID.randomUUID();
+        InstitutionChangeDTO change = new InstitutionChangeDTO("admin-id", Instant.now(), "active", true, false);
+
+        when(historyService.findHistory(uuid, 50)).thenReturn(List.of(change));
+
+        mockMvc.perform(get("/api/v1/institutions/{id}/history", uuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].author").value("admin-id"))
+                .andExpect(jsonPath("$[0].property").value("active"))
+                .andExpect(jsonPath("$[0].before").value(true))
+                .andExpect(jsonPath("$[0].after").value(false));
+    }
+  
     @DisplayName("GET /api/v1/institutions/{id}/users - Deve buscar por usuários de uma instituição")
     void shouldFindUsersInInstitution() throws Exception {
         UUID id = UUID.randomUUID();
