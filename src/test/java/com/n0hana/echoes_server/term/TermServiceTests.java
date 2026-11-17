@@ -1,14 +1,20 @@
 package com.n0hana.echoes_server.term;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +28,9 @@ import com.n0hana.echoes_server.term.exception.TermStatusException;
 import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.term.model.TermModel;
 import com.n0hana.echoes_server.term.model.TermStatus;
+import com.n0hana.echoes_server.term.model.UserTermAcceptance;
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.user.model.User;
 
 @ExtendWith(MockitoExtension.class)
 class TermServiceTests {
@@ -145,5 +153,71 @@ class TermServiceTests {
         assertEquals(TermStatus.DRAFT, created.getStatus());
         verify(termRepository, never())
             .findFirstByTypeAndStatusOrderByTimestampDesc(any(), any());
+    }
+
+    @Test
+    @DisplayName("Considera aceito quando existe aceite para o termo PUBLISHED atual")
+    void acceptedWhenAcceptanceMatchesCurrentPublishedTerm() {
+        UUID userId = UUID.randomUUID();
+        TermModel published = term(30L, TermStatus.PUBLISHED);
+
+        when(termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(
+            DocumentType.TERMS_OF_USE, TermStatus.PUBLISHED))
+            .thenReturn(Optional.of(published));
+        when(userTermAcceptanceRepository.findByUserIdAndTermsId(userId, 30L))
+            .thenReturn(Optional.of(new UserTermAcceptance()));
+
+        assertTrue(termService.hasAcceptedLatestTerms(userId, DocumentType.TERMS_OF_USE));
+    }
+
+    @Test
+    @DisplayName("Volta a exigir aceite quando o termo PUBLISHED muda")
+    void notAcceptedWhenPublishedTermChanged() {
+        UUID userId = UUID.randomUUID();
+        TermModel newPublished = term(31L, TermStatus.PUBLISHED);
+
+        when(termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(
+            DocumentType.TERMS_OF_USE, TermStatus.PUBLISHED))
+            .thenReturn(Optional.of(newPublished));
+        when(userTermAcceptanceRepository.findByUserIdAndTermsId(userId, 31L))
+            .thenReturn(Optional.empty());
+
+        assertFalse(termService.hasAcceptedLatestTerms(userId, DocumentType.TERMS_OF_USE));
+    }
+
+    @Test
+    @DisplayName("Lista apenas os termos obrigatórios pendentes de aceite, na ordem canônica")
+    void listsPendingRequiredTermsInCanonicalOrder() {
+        UUID userId = UUID.randomUUID();
+        when(termRepository.findTypesWithoutAcceptance(
+            eq(userId), anyCollection(), eq(TermStatus.PUBLISHED)))
+            .thenReturn(List.of(DocumentType.COOKIES_POLICY, DocumentType.TERMS_OF_USE));
+
+        List<DocumentType> pending = termService.getPendingRequiredTerms(userId);
+
+        assertEquals(List.of(DocumentType.TERMS_OF_USE, DocumentType.COOKIES_POLICY), pending);
+    }
+
+    @Test
+    @DisplayName("Aceite do termo ativo é idempotente")
+    void acceptingSameActiveTermTwiceDoesNotDuplicate() {
+        UUID userId = UUID.randomUUID();
+        User user = org.mockito.Mockito.mock(User.class);
+        when(user.getId()).thenReturn(userId);
+
+        TermModel published = term(40L, TermStatus.PUBLISHED);
+        UserTermAcceptance existing = new UserTermAcceptance(user, published);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(
+            DocumentType.TERMS_OF_USE, TermStatus.PUBLISHED))
+            .thenReturn(Optional.of(published));
+        when(userTermAcceptanceRepository.findByUserIdAndTermsId(userId, 40L))
+            .thenReturn(Optional.of(existing));
+
+        UserTermAcceptance result = termService.acceptTerms(userId, DocumentType.TERMS_OF_USE);
+
+        assertEquals(existing, result);
+        verify(userTermAcceptanceRepository, never()).save(any(UserTermAcceptance.class));
     }
 }

@@ -1,5 +1,8 @@
 package com.n0hana.echoes_server.term;
 
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,8 +28,6 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
 
-import org.springframework.http.HttpStatus;
-
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -37,6 +38,15 @@ public class TermController {
 
     private final TermService termsService;
     private final UserRepository userRepository;
+
+    @GetMapping("/pending")
+    public ResponseEntity<List<DocumentType>> getPendingTerms(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+            .orElseThrow(UserNotFoundException::new);
+
+        return ResponseEntity.ok(termsService.getPendingRequiredTerms(user.getId()));
+    }
 
     @GetMapping("/{type}")
     public ResponseEntity<String> getLatestTerms(@PathVariable DocumentType type) {

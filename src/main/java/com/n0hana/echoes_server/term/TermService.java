@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,12 +58,27 @@ public class TermService {
     }
 
     public boolean hasAcceptedLatestTerms(UUID userId, DocumentType type) {
-        return userTermAcceptanceRepository.findLatestByUserIdAndType(userId, type)
-            .map(acceptance -> {
-                TermModel latestTerms = getLatestTerms(type);
-                return acceptance.getTerm().getId() == latestTerms.getId();
-            })
-            .orElse(false);
+        Optional<TermModel> active = termRepository
+            .findFirstByTypeAndStatusOrderByTimestampDesc(type, TermStatus.PUBLISHED);
+        if (active.isEmpty()) {
+            // Sem termo publicado não há o que aceitar.
+            return true;
+        }
+        return userTermAcceptanceRepository
+            .findByUserIdAndTermsId(userId, active.get().getId())
+            .isPresent();
+    }
+
+    /**
+     * Tipos obrigatórios cujo termo PUBLISHED atual ainda não foi aceito pelo usuário.
+     * Usado para exigir novo aceite quando o ADMIN publica uma versão nova.
+     */
+    public List<DocumentType> getPendingRequiredTerms(UUID userId) {
+        List<DocumentType> pending = termRepository.findTypesWithoutAcceptance(
+            userId, REQUIRED_DOCUMENTS, TermStatus.PUBLISHED);
+        return REQUIRED_DOCUMENTS.stream()
+            .filter(pending::contains)
+            .toList();
     }
 
     // ------------------------------------------------------------------ aceites
@@ -106,11 +122,15 @@ public class TermService {
 
     private UserTermAcceptance acceptTermsInternal(User user, DocumentType type) {
         TermModel terms = getActiveTerms(type);
-        UserTermAcceptance saved = userTermAcceptanceRepository
-            .save(new UserTermAcceptance(user, terms));
-        log.debug("Aceite registrado: user={}, termId={}, version={}",
-            user.getId(), terms.getId(), terms.getVersion());
-        return saved;
+        return userTermAcceptanceRepository
+            .findByUserIdAndTermsId(user.getId(), terms.getId())
+            .orElseGet(() -> {
+                UserTermAcceptance saved = userTermAcceptanceRepository
+                    .save(new UserTermAcceptance(user, terms));
+                log.debug("Aceite registrado: user={}, termId={}, version={}",
+                    user.getId(), terms.getId(), terms.getVersion());
+                return saved;
+            });
     }
 
     public List<UserTermAcceptance> getUserAcceptances(UUID userId) {
