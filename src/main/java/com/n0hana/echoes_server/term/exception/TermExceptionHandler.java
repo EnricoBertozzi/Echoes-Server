@@ -19,4 +19,9 @@ public class TermExceptionHandler {
     public ResponseEntity<Map<String, String>> handleVersion(TermVersionException ex) {
         return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(TermStatusException.class)
+    public ResponseEntity<Map<String, String>> handleStatus(TermStatusException ex) {
+        return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+    }
 }

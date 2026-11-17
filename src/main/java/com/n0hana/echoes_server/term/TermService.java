@@ -4,17 +4,17 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.term.dto.CreateTermRequestDTO;
 import com.n0hana.echoes_server.term.exception.TermNotFoundException;
+import com.n0hana.echoes_server.term.exception.TermStatusException;
 import com.n0hana.echoes_server.term.exception.TermVersionException;
 import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.term.model.TermModel;
@@ -39,6 +39,13 @@ public class TermService {
         DocumentType.COOKIES_POLICY
     );
 
+    private static final List<DocumentType> SUPPORTED_DOCUMENT_TYPES = List.of(
+        DocumentType.TERMS_OF_USE,
+        DocumentType.PRIVACY_POLICY,
+        DocumentType.COOKIES_POLICY,
+        DocumentType.PROCESSING_OPERATIONS
+    );
+
     private final TermRepository termRepository;
     private final UserTermAcceptanceRepository userTermAcceptanceRepository;
     private final UserRepository userRepository;
@@ -56,12 +63,27 @@ public class TermService {
     }
 
     public boolean hasAcceptedLatestTerms(UUID userId, DocumentType type) {
-        return userTermAcceptanceRepository.findLatestByUserIdAndType(userId, type)
-            .map(acceptance -> {
-                TermModel latestTerms = getLatestTerms(type);
-                return acceptance.getTerm().getId() == latestTerms.getId();
-            })
-            .orElse(false);
+        Optional<TermModel> active = termRepository
+            .findFirstByTypeAndStatusOrderByTimestampDesc(type, TermStatus.PUBLISHED);
+        if (active.isEmpty()) {
+            // Sem termo publicado não há o que aceitar.
+            return true;
+        }
+        return userTermAcceptanceRepository
+            .findByUserIdAndTermsId(userId, active.get().getId())
+            .isPresent();
+    }
+
+    /**
+     * Tipos obrigatórios cujo termo PUBLISHED atual ainda não foi aceito pelo usuário.
+     * Usado para exigir novo aceite quando o ADMIN publica uma versão nova.
+     */
+    public List<DocumentType> getPendingRequiredTerms(UUID userId) {
+        List<DocumentType> pending = termRepository.findTypesWithoutAcceptance(
+            userId, REQUIRED_DOCUMENTS, TermStatus.PUBLISHED);
+        return REQUIRED_DOCUMENTS.stream()
+            .filter(pending::contains)
+            .toList();
     }
 
     // ------------------------------------------------------------------ aceites
@@ -94,24 +116,26 @@ public class TermService {
         validateRequiredAccepted(accepted);
         Set<DocumentType> unique = new LinkedHashSet<>(accepted);
         unique.forEach(type -> acceptTermsInternal(user, type));
-        log.info("{} aceite(s) registrado(s) para o usuário {}", unique.size(), user.getId());
     }
 
     @Auditable(action = "ACCEPT_TERM", entity = "Term")
     public UserTermAcceptance acceptTerms(UUID userId, DocumentType type) {
         User user = userRepository.findById(userId)
             .orElseThrow(UserNotFoundException::new);
-        log.info("Usuário {} aceitou o termo {}", userId, type);
         return acceptTermsInternal(user, type);
     }
 
     private UserTermAcceptance acceptTermsInternal(User user, DocumentType type) {
         TermModel terms = getActiveTerms(type);
-        UserTermAcceptance saved = userTermAcceptanceRepository
-            .save(new UserTermAcceptance(user, terms));
-        log.debug("Aceite registrado: user={}, termId={}, version={}",
-            user.getId(), terms.getId(), terms.getVersion());
-        return saved;
+        return userTermAcceptanceRepository
+            .findByUserIdAndTermsId(user.getId(), terms.getId())
+            .orElseGet(() -> {
+                UserTermAcceptance saved = userTermAcceptanceRepository
+                    .save(new UserTermAcceptance(user, terms));
+                log.debug("Aceite registrado: user={}, termId={}, version={}",
+                    user.getId(), terms.getId(), terms.getVersion());
+                return saved;
+            });
     }
 
     public List<UserTermAcceptance> getUserAcceptances(UUID userId) {
@@ -122,8 +146,18 @@ public class TermService {
 
     // ------------------------------------------------------------------ admin
 
-    public Page<TermModel> getAllTerms(Pageable pageable) {
-        return termRepository.findAll(pageable);
+    /**
+     * Lista todos os termos para a administração, do mais recente para o mais antigo.
+     * Os filtros são opcionais: sem eles, retorna o histórico completo (incluindo
+     * rascunhos e versões arquivadas).
+     */
+    public List<TermModel> getAllTerms(DocumentType type, TermStatus status) {
+        List<TermModel> terms = termRepository.findAllByTypes(
+            type == null ? SUPPORTED_DOCUMENT_TYPES : List.of(type));
+
+        return terms.stream()
+            .filter(term -> status == null || term.getStatus() == status)
+            .toList();
     }
 
     public TermModel getTermById(Long id) {
@@ -133,23 +167,86 @@ public class TermService {
 
     @Transactional
     public TermModel createTerm(CreateTermRequestDTO dto) {
-        termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(dto.type(), TermStatus.PUBLISHED)
-            .ifPresent(active -> {
-                if (!isVersionGreater(dto.version(), active.getVersion())) {
-                    throw new TermVersionException(
-                        "Versão deve ser maior que a atual (" + active.getVersion() + ")");
-                }
-                active.setStatus(TermStatus.ARCHIVED);
-                termRepository.save(active);
-            });
+        TermStatus targetStatus = dto.status() == null ? TermStatus.DRAFT : dto.status();
 
-        TermModel terms = new TermModel();
-        terms.setVersion(dto.version());
-        terms.setContent(dto.content());
-        terms.setType(dto.type());
-        terms.setStatus(TermStatus.PUBLISHED);
-        TermModel saved = termRepository.save(terms);
-        log.info("Nova versão de termo publicada: {} v{}", dto.type(), dto.version());
+        // Valida formato da versão
+        parseVersion(dto.version());
+
+        TermModel term = new TermModel();
+        term.setVersion(dto.version());
+        term.setContent(dto.content());
+        term.setType(dto.type());
+
+        if (targetStatus == TermStatus.PUBLISHED) {
+            termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(dto.type(), TermStatus.PUBLISHED)
+                .ifPresent(active -> {
+                    if (!isVersionGreater(dto.version(), active.getVersion())) {
+                        throw new TermVersionException(
+                            "Versão deve ser maior que a atual (" + active.getVersion() + ")");
+                    }
+                    active.setStatus(TermStatus.ARCHIVED);
+                    termRepository.save(active);
+                });
+            term.setStatus(TermStatus.PUBLISHED);
+            TermModel saved = termRepository.save(term);
+            return saved;
+        }
+
+        term.setStatus(targetStatus);
+        TermModel saved = termRepository.save(term);
+        return saved;
+    }
+
+    @Transactional
+    public TermModel updateTermContent(Long id, String content) {
+        if (content == null || content.isBlank()) {
+            throw new TermStatusException("Conteúdo é obrigatório");
+        }
+
+        TermModel term = getTermById(id);
+
+        if (term.getStatus() != TermStatus.DRAFT) {
+            throw new TermStatusException(
+                "Somente termos com status DRAFT podem ter o conteúdo editado");
+        }
+
+        term.setContent(content);
+        TermModel saved = termRepository.save(term);
+        return saved;
+    }
+
+    @Transactional
+    public TermModel updateTermStatus(Long id, TermStatus newStatus) {
+        if (newStatus == null) {
+            throw new TermStatusException("Status é obrigatório");
+        }
+
+        TermModel term = getTermById(id);
+
+        if (term.getStatus() == newStatus) {
+            return term;
+        }
+
+        if (newStatus == TermStatus.PUBLISHED) {
+            termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(term.getType(), TermStatus.PUBLISHED)
+                .filter(active -> active.getId() != term.getId())
+                .ifPresent(active -> {
+                    active.setStatus(TermStatus.ARCHIVED);
+                    termRepository.save(active);
+                });
+            term.setStatus(TermStatus.PUBLISHED);
+            TermModel saved = termRepository.save(term);
+            return saved;
+        }
+
+        if (term.getStatus() == TermStatus.PUBLISHED) {
+            throw new TermStatusException(
+                "Não é possível alterar o status do termo atualmente publicado. " +
+                "Publique outro termo do mesmo tipo para manter sempre um termo publicado.");
+        }
+
+        term.setStatus(newStatus);
+        TermModel saved = termRepository.save(term);
         return saved;
     }
 

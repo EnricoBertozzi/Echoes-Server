@@ -17,6 +17,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import com.n0hana.echoes_server.device.port.DeviceAccessPolicy;
 import com.n0hana.echoes_server.device.port.DeviceCredentialVerifier;
+import com.n0hana.echoes_server.term.TermService;
+
+import tools.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
@@ -35,9 +38,11 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
-            DeviceCredentialVerifier deviceCredentialVerifier, DeviceAccessPolicy deviceAccessPolicy)
+            DeviceCredentialVerifier deviceCredentialVerifier, DeviceAccessPolicy deviceAccessPolicy,
+            TermService termService, ObjectMapper objectMapper)
             throws Exception {
         DeviceJwtFilter deviceJwtFilter = new DeviceJwtFilter(deviceCredentialVerifier, deviceAccessPolicy);
+        TermsAcceptanceFilter termsAcceptanceFilter = new TermsAcceptanceFilter(termService, objectMapper);
 
         return httpSecurity
                 .cors(Customizer.withDefaults())
@@ -59,6 +64,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(deviceJwtFilter, JwtFilter.class)
+                .addFilterAfter(termsAcceptanceFilter, JwtFilter.class)
                 .build();
     }
 
