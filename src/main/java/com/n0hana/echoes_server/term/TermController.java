@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.term.dto.AcceptTermRequestDTO;
@@ -23,6 +24,7 @@ import com.n0hana.echoes_server.term.dto.UpdateTermContentRequestDTO;
 import com.n0hana.echoes_server.term.dto.UpdateTermStatusRequestDTO;
 import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.term.model.TermModel;
+import com.n0hana.echoes_server.term.model.TermStatus;
 import com.n0hana.echoes_server.term.model.UserTermAcceptance;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
@@ -38,6 +40,23 @@ public class TermController {
 
     private final TermService termsService;
     private final UserRepository userRepository;
+
+    /**
+     * Lista o histórico completo de termos para a administração.
+     * Filtros opcionais por tipo e status.
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<TermResponseDTO>> getAllTerms(
+            @RequestParam(required = false) DocumentType type,
+            @RequestParam(required = false) TermStatus status) {
+        List<TermResponseDTO> terms = termsService.getAllTerms(type, status)
+            .stream()
+            .map(this::toDTO)
+            .toList();
+
+        return ResponseEntity.ok(terms);
+    }
 
     @GetMapping("/pending")
     public ResponseEntity<List<DocumentType>> getPendingTerms(

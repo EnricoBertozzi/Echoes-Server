@@ -8,8 +8,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +37,13 @@ public class TermService {
         DocumentType.TERMS_OF_USE,
         DocumentType.PRIVACY_POLICY,
         DocumentType.COOKIES_POLICY
+    );
+
+    private static final List<DocumentType> SUPPORTED_DOCUMENT_TYPES = List.of(
+        DocumentType.TERMS_OF_USE,
+        DocumentType.PRIVACY_POLICY,
+        DocumentType.COOKIES_POLICY,
+        DocumentType.PROCESSING_OPERATIONS
     );
 
     private final TermRepository termRepository;
@@ -141,8 +146,18 @@ public class TermService {
 
     // ------------------------------------------------------------------ admin
 
-    public Page<TermModel> getAllTerms(Pageable pageable) {
-        return termRepository.findAll(pageable);
+    /**
+     * Lista todos os termos para a administração, do mais recente para o mais antigo.
+     * Os filtros são opcionais: sem eles, retorna o histórico completo (incluindo
+     * rascunhos e versões arquivadas).
+     */
+    public List<TermModel> getAllTerms(DocumentType type, TermStatus status) {
+        List<TermModel> terms = termRepository.findAllByTypes(
+            type == null ? SUPPORTED_DOCUMENT_TYPES : List.of(type));
+
+        return terms.stream()
+            .filter(term -> status == null || term.getStatus() == status)
+            .toList();
     }
 
     public TermModel getTermById(Long id) {

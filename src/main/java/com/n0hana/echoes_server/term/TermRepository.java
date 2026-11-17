@@ -22,6 +22,18 @@ public interface TermRepository extends JpaRepository<TermModel, Long> {
     Optional<TermModel> findTopByTypeOrderByTimestampDesc(DocumentType type);
 
     /**
+     * Lista somente os tipos conhecidos do modelo atual. Tipos antigos persistidos no banco,
+     * mas removidos do enum, são ignorados para evitar erro de conversão com ENUM do Hibernate.
+     */
+    @Query("""
+        SELECT t
+        FROM TermModel t
+        WHERE t.type IN :types
+        ORDER BY t.timestamp DESC
+        """)
+    List<TermModel> findAllByTypes(@Param("types") Collection<DocumentType> types);
+
+    /**
      * Tipos que possuem termo PUBLISHED mas cujo usuário ainda não registrou aceite
      * para aquele termo específico.
      */

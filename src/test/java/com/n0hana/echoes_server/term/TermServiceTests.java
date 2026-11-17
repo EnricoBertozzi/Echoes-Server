@@ -220,4 +220,25 @@ class TermServiceTests {
         assertEquals(existing, result);
         verify(userTermAcceptanceRepository, never()).save(any(UserTermAcceptance.class));
     }
+
+    @Test
+    @DisplayName("Lista o histórico de termos filtrando por tipo e status")
+    void listsTermsFilteredByTypeAndStatus() {
+        TermModel draft = term(50L, TermStatus.DRAFT);
+        TermModel published = new TermModel(
+            51L,
+            "2.0.0",
+            "conteúdo novo",
+            Instant.now(),
+            DocumentType.PRIVACY_POLICY,
+            TermStatus.PUBLISHED
+        );
+
+        when(termRepository.findAllByTypes(anyCollection()))
+            .thenReturn(List.of(published, draft));
+
+        List<TermModel> result = termService.getAllTerms(null, TermStatus.DRAFT);
+
+        assertEquals(List.of(draft), result);
+    }
 }
