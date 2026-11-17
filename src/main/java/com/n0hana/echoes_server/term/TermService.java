@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.term.dto.CreateTermRequestDTO;
 import com.n0hana.echoes_server.term.exception.TermNotFoundException;
+import com.n0hana.echoes_server.term.exception.TermStatusException;
 import com.n0hana.echoes_server.term.exception.TermVersionException;
 import com.n0hana.echoes_server.term.model.DocumentType;
 import com.n0hana.echoes_server.term.model.TermModel;
@@ -150,6 +151,45 @@ public class TermService {
         terms.setStatus(TermStatus.PUBLISHED);
         TermModel saved = termRepository.save(terms);
         log.info("Nova versão de termo publicada: {} v{}", dto.type(), dto.version());
+        return saved;
+    }
+
+    @Transactional
+    public TermModel updateTermStatus(Long id, TermStatus newStatus) {
+        if (newStatus == null) {
+            throw new TermStatusException("Status é obrigatório");
+        }
+
+        TermModel term = getTermById(id);
+
+        if (term.getStatus() == newStatus) {
+            return term;
+        }
+
+        if (newStatus == TermStatus.PUBLISHED) {
+            termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(term.getType(), TermStatus.PUBLISHED)
+                .filter(active -> active.getId() != term.getId())
+                .ifPresent(active -> {
+                    active.setStatus(TermStatus.ARCHIVED);
+                    termRepository.save(active);
+                    log.info("Termo {} v{} ({}) arquivado automaticamente ao publicar termo {}",
+                        active.getId(), active.getVersion(), active.getType(), term.getId());
+                });
+            term.setStatus(TermStatus.PUBLISHED);
+            TermModel saved = termRepository.save(term);
+            log.info("Termo {} ({}) publicado (v{})", saved.getId(), saved.getType(), saved.getVersion());
+            return saved;
+        }
+
+        if (term.getStatus() == TermStatus.PUBLISHED) {
+            throw new TermStatusException(
+                "Não é possível alterar o status do termo atualmente publicado. " +
+                "Publique outro termo do mesmo tipo para manter sempre um termo publicado.");
+        }
+
+        term.setStatus(newStatus);
+        TermModel saved = termRepository.save(term);
+        log.info("Status do termo {} ({}) alterado para {}", saved.getId(), saved.getType(), saved.getStatus());
         return saved;
     }
 
