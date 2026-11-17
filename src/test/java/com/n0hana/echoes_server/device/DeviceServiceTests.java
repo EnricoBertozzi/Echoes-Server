@@ -2,6 +2,7 @@ package com.n0hana.echoes_server.device;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -20,12 +21,18 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import com.n0hana.echoes_server.device.exception.DeviceNotFoundException;
+import com.n0hana.echoes_server.device.port.DeviceScopeResolver;
+import com.n0hana.echoes_server.institution.InstitutionModel;
+import com.n0hana.echoes_server.user.model.User;
 
 @ExtendWith(MockitoExtension.class)
 public class DeviceServiceTests {
 
     @Mock
     private DeviceRepository deviceRepository;
+
+    @Mock
+    private DeviceScopeResolver scope;
 
     @InjectMocks
     private DeviceService deviceService;
@@ -78,6 +85,7 @@ public class DeviceServiceTests {
     @DisplayName("Lança exceção quando o id não existe")
     void shouldThrowWhenIdDoesNotExist() {
         UUID id = UUID.randomUUID();
+
         when(deviceRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThrows(DeviceNotFoundException.class, () -> deviceService.findDeviceById(id));
@@ -120,5 +128,66 @@ public class DeviceServiceTests {
                 .thenReturn(mockPage);
 
         assertEquals(devices, deviceService.findDevicesByName(name, page, size));
+    }
+
+    @Test
+    @DisplayName("Gestor busca dispositivo da própria instituição")
+    void shouldFindDeviceByIdAsManager() {
+        UUID deviceId = UUID.randomUUID();
+        UUID institutionId = UUID.randomUUID();
+
+        User user = mock(User.class);
+
+        InstitutionModel institution = mock(InstitutionModel.class);
+
+        when(institution.getId()).thenReturn(institutionId);
+
+        DeviceModel device = DeviceModel.builder()
+                .id(deviceId)
+                .name("Dispositivo")
+                .status(DeviceStatus.ACTIVE)
+                .institution(institution)
+                .build();
+
+        when(scope.resolve(user))
+                .thenReturn(new DeviceScope.InstitutionScope(institutionId));
+
+        when(deviceRepository.findById(deviceId))
+                .thenReturn(Optional.of(device));
+
+        assertEquals(
+                device,
+                deviceService.findDeviceById(deviceId, user));
+    }
+
+    @Test
+    @DisplayName("Gestor não pode buscar dispositivo de outra instituição")
+    void shouldNotFindDeviceFromAnotherInstitution() {
+        UUID deviceId = UUID.randomUUID();
+        UUID managerInstitutionId = UUID.randomUUID();
+        UUID deviceInstitutionId = UUID.randomUUID();
+
+        User user = mock(User.class);
+
+        InstitutionModel institution = mock(InstitutionModel.class);
+
+        when(institution.getId()).thenReturn(deviceInstitutionId);
+
+        DeviceModel device = DeviceModel.builder()
+                .id(deviceId)
+                .status(DeviceStatus.ACTIVE)
+                .institution(institution)
+                .build();
+
+        when(scope.resolve(user))
+                .thenReturn(
+                        new DeviceScope.InstitutionScope(managerInstitutionId));
+
+        when(deviceRepository.findById(deviceId))
+                .thenReturn(Optional.of(device));
+
+        assertThrows(
+                DeviceNotFoundException.class,
+                () -> deviceService.findDeviceById(deviceId, user));
     }
 }
