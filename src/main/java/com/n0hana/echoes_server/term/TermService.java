@@ -95,14 +95,12 @@ public class TermService {
         validateRequiredAccepted(accepted);
         Set<DocumentType> unique = new LinkedHashSet<>(accepted);
         unique.forEach(type -> acceptTermsInternal(user, type));
-        log.info("{} aceite(s) registrado(s) para o usuário {}", unique.size(), user.getId());
     }
 
     @Auditable(action = "ACCEPT_TERM", entity = "Term")
     public UserTermAcceptance acceptTerms(UUID userId, DocumentType type) {
         User user = userRepository.findById(userId)
             .orElseThrow(UserNotFoundException::new);
-        log.info("Usuário {} aceitou o termo {}", userId, type);
         return acceptTermsInternal(user, type);
     }
 
@@ -132,17 +130,6 @@ public class TermService {
             .orElseThrow(TermNotFoundException::new);
     }
 
-    /**
-     * Cria um novo termo (conteúdo e versão imutáveis após criação).
-     * <p>
-     * Se o status for {@link TermStatus#PUBLISHED}, aplica a mesma regra de publicação:
-     * a versão deve ser maior que a do termo publicado atual (quando existir) e o termo
-     * publicado anterior do mesmo tipo é arquivado automaticamente.
-     * <p>
-     * Para outros status (ex.: DRAFT, IN_REVIEW), o termo é criado sem alterar o termo
-     * publicado atual, permitindo revisão/publicação posterior via alteração de status.
-     * Status nulo é tratado como DRAFT.
-     */
     @Transactional
     public TermModel createTerm(CreateTermRequestDTO dto) {
         TermStatus targetStatus = dto.status() == null ? TermStatus.DRAFT : dto.status();
@@ -164,18 +151,32 @@ public class TermService {
                     }
                     active.setStatus(TermStatus.ARCHIVED);
                     termRepository.save(active);
-                    log.info("Termo {} v{} ({}) arquivado automaticamente ao publicar novo termo",
-                        active.getId(), active.getVersion(), active.getType());
                 });
             term.setStatus(TermStatus.PUBLISHED);
             TermModel saved = termRepository.save(term);
-            log.info("Nova versão de termo criada e publicada: {} v{}", dto.type(), dto.version());
             return saved;
         }
 
         term.setStatus(targetStatus);
         TermModel saved = termRepository.save(term);
-        log.info("Novo termo criado: {} v{} com status {}", dto.type(), dto.version(), targetStatus);
+        return saved;
+    }
+
+    @Transactional
+    public TermModel updateTermContent(Long id, String content) {
+        if (content == null || content.isBlank()) {
+            throw new TermStatusException("Conteúdo é obrigatório");
+        }
+
+        TermModel term = getTermById(id);
+
+        if (term.getStatus() != TermStatus.DRAFT) {
+            throw new TermStatusException(
+                "Somente termos com status DRAFT podem ter o conteúdo editado");
+        }
+
+        term.setContent(content);
+        TermModel saved = termRepository.save(term);
         return saved;
     }
 
@@ -197,12 +198,9 @@ public class TermService {
                 .ifPresent(active -> {
                     active.setStatus(TermStatus.ARCHIVED);
                     termRepository.save(active);
-                    log.info("Termo {} v{} ({}) arquivado automaticamente ao publicar termo {}",
-                        active.getId(), active.getVersion(), active.getType(), term.getId());
                 });
             term.setStatus(TermStatus.PUBLISHED);
             TermModel saved = termRepository.save(term);
-            log.info("Termo {} ({}) publicado (v{})", saved.getId(), saved.getType(), saved.getVersion());
             return saved;
         }
 
@@ -214,7 +212,6 @@ public class TermService {
 
         term.setStatus(newStatus);
         TermModel saved = termRepository.save(term);
-        log.info("Status do termo {} ({}) alterado para {}", saved.getId(), saved.getType(), saved.getStatus());
         return saved;
     }
 
