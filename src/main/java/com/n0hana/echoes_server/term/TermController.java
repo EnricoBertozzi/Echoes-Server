@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.term.dto.AcceptTermRequestDTO;
+import com.n0hana.echoes_server.term.dto.CreateTermRequestDTO;
 import com.n0hana.echoes_server.term.dto.TermResponseDTO;
 import com.n0hana.echoes_server.term.dto.UpdateTermStatusRequestDTO;
 import com.n0hana.echoes_server.term.model.DocumentType;
@@ -22,6 +23,8 @@ import com.n0hana.echoes_server.term.model.UserTermAcceptance;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
+
+import org.springframework.http.HttpStatus;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +71,27 @@ public class TermController {
 
         UserTermAcceptance acceptance = termsService.acceptTerms(user.getId(), dto.type());
         return ResponseEntity.ok(toDTO(acceptance.getTerm()));
+    }
+
+    /**
+     * Cria um novo termo (conteúdo e versão imutáveis após criação).
+     * <p>
+     * Restrito ao ADMIN. Termos não podem ser deletados.
+     * <ul>
+     *   <li>Se criado com status {@code PUBLISHED}, aplica a mesma regra de publicação: o termo
+     *       publicado anterior do mesmo tipo é arquivado automaticamente e a versão deve ser maior
+     *       que a atualmente publicada (quando existir).</li>
+     *   <li>Se criado com outro status (ex.: {@code DRAFT}, {@code IN_REVIEW}), o termo fica
+     *       disponível para revisão e publicação posterior via {@code PATCH /terms/{id}/status}.</li>
+     *   <li>Se {@code status} não for informado, o padrão é {@code DRAFT}.</li>
+     * </ul>
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<TermResponseDTO> createTerm(
+            @Valid @RequestBody CreateTermRequestDTO dto) {
+        TermModel created = termsService.createTerm(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDTO(created));
     }
 
     @PatchMapping("/{id}/status")

@@ -132,25 +132,50 @@ public class TermService {
             .orElseThrow(TermNotFoundException::new);
     }
 
+    /**
+     * Cria um novo termo (conteúdo e versão imutáveis após criação).
+     * <p>
+     * Se o status for {@link TermStatus#PUBLISHED}, aplica a mesma regra de publicação:
+     * a versão deve ser maior que a do termo publicado atual (quando existir) e o termo
+     * publicado anterior do mesmo tipo é arquivado automaticamente.
+     * <p>
+     * Para outros status (ex.: DRAFT, IN_REVIEW), o termo é criado sem alterar o termo
+     * publicado atual, permitindo revisão/publicação posterior via alteração de status.
+     * Status nulo é tratado como DRAFT.
+     */
     @Transactional
     public TermModel createTerm(CreateTermRequestDTO dto) {
-        termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(dto.type(), TermStatus.PUBLISHED)
-            .ifPresent(active -> {
-                if (!isVersionGreater(dto.version(), active.getVersion())) {
-                    throw new TermVersionException(
-                        "Versão deve ser maior que a atual (" + active.getVersion() + ")");
-                }
-                active.setStatus(TermStatus.ARCHIVED);
-                termRepository.save(active);
-            });
+        TermStatus targetStatus = dto.status() == null ? TermStatus.DRAFT : dto.status();
 
-        TermModel terms = new TermModel();
-        terms.setVersion(dto.version());
-        terms.setContent(dto.content());
-        terms.setType(dto.type());
-        terms.setStatus(TermStatus.PUBLISHED);
-        TermModel saved = termRepository.save(terms);
-        log.info("Nova versão de termo publicada: {} v{}", dto.type(), dto.version());
+        // Valida formato da versão
+        parseVersion(dto.version());
+
+        TermModel term = new TermModel();
+        term.setVersion(dto.version());
+        term.setContent(dto.content());
+        term.setType(dto.type());
+
+        if (targetStatus == TermStatus.PUBLISHED) {
+            termRepository.findFirstByTypeAndStatusOrderByTimestampDesc(dto.type(), TermStatus.PUBLISHED)
+                .ifPresent(active -> {
+                    if (!isVersionGreater(dto.version(), active.getVersion())) {
+                        throw new TermVersionException(
+                            "Versão deve ser maior que a atual (" + active.getVersion() + ")");
+                    }
+                    active.setStatus(TermStatus.ARCHIVED);
+                    termRepository.save(active);
+                    log.info("Termo {} v{} ({}) arquivado automaticamente ao publicar novo termo",
+                        active.getId(), active.getVersion(), active.getType());
+                });
+            term.setStatus(TermStatus.PUBLISHED);
+            TermModel saved = termRepository.save(term);
+            log.info("Nova versão de termo criada e publicada: {} v{}", dto.type(), dto.version());
+            return saved;
+        }
+
+        term.setStatus(targetStatus);
+        TermModel saved = termRepository.save(term);
+        log.info("Novo termo criado: {} v{} com status {}", dto.type(), dto.version(), targetStatus);
         return saved;
     }
 
