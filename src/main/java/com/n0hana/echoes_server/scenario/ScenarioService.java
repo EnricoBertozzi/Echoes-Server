@@ -184,7 +184,8 @@ public class ScenarioService {
     ScenarioModel savedScenario = this.findScenarioById(id);
 
     if (!savedScenario.getName().equals(scenario.getName())) {
-      fileService.rename(savedScenario.getAudioUrl(), scenario.getName());
+      String newName = fileService.rename(savedScenario.getAudioUrl(), scenario.getName());
+      savedScenario.setAudioUrl(newName);
       savedScenario.setName(scenario.getName());
     }
 
