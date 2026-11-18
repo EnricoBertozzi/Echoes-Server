@@ -54,4 +54,6 @@ public interface TermRepository extends JpaRepository<TermModel, Long> {
         @Param("types") Collection<DocumentType> types,
         @Param("status") TermStatus status
     );
+
+    boolean existsByType(DocumentType type);
 }
