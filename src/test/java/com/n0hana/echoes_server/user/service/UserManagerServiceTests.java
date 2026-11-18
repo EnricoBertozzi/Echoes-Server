@@ -2,6 +2,9 @@ package com.n0hana.echoes_server.user.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -205,6 +208,69 @@ public class UserManagerServiceTests {
         assertEquals("joao@example.com", dto.email());
         verify(userRepository, times(1)).existsByEmail(anyString());
         verify(userRepository, never()).existsByEmail("joao@example.com");
+    }
+
+    @Test
+    @DisplayName("PATCH /me atualiza nome e e-mail do usuário autenticado")
+    void updateCurrentUserUpdatesNameAndEmail() {
+        // Arrange
+        Admin admin = newAdmin("João", "joao@example.com");
+        when(userRepository.findByEmail("joao@example.com")).thenReturn(Optional.of(admin));
+        when(userRepository.existsByEmail("novo@example.com")).thenReturn(false);
+        when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Act
+        UserDTO dto = userService.updateCurrentUser("joao@example.com",
+                new UpdateUserDTO("João Silva", "novo@example.com"));
+
+        // Assert
+        assertEquals("João Silva", dto.name());
+        assertEquals("novo@example.com", dto.email());
+        assertEquals("novo@example.com", admin.getEmail());
+        verify(userRepository).save(admin);
+    }
+
+    @Test
+    @DisplayName("DELETE /me remove logicamente o usuário autenticado")
+    void deleteCurrentUserSoftDeletesAuthenticatedUser() {
+        // Arrange
+        Manager manager = newManager("Gestor", "gestor@example.com", UUID.randomUUID());
+        when(userRepository.findByEmail("gestor@example.com")).thenReturn(Optional.of(manager));
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(2L);
+
+        // Act
+        userService.deleteCurrentUser("gestor@example.com");
+
+        // Assert
+        ArgumentCaptor<Manager> userCaptor = ArgumentCaptor.forClass(Manager.class);
+        verify(userRepository).save(userCaptor.capture());
+        Manager deletedUser = userCaptor.getValue();
+
+        assertFalse(deletedUser.isActive());
+        assertNull(deletedUser.getName());
+        assertNotNull(deletedUser.getEmail());
+        assertNotEquals("gestor@example.com", deletedUser.getEmail());
+        assertNull(deletedUser.getPassword());
+        assertEquals(0, deletedUser.getLoginAttempts());
+        assertNull(deletedUser.getLockUntil());
+        assertNull(deletedUser.getInstitution());
+        verify(classroomMemberRepository).deleteByUserId(manager.getId());
+    }
+
+    @Test
+    @DisplayName("DELETE /me não permite excluir o último gestor da instituição")
+    void deleteCurrentUserCannotDeleteLastManager() {
+        // Arrange
+        Manager manager = newManager("Gestor", "gestor@example.com", UUID.randomUUID());
+        when(userRepository.findByEmail("gestor@example.com")).thenReturn(Optional.of(manager));
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(1L);
+
+        // Act e Assert
+        assertThrows(LastManagerException.class, () -> userService.deleteCurrentUser("gestor@example.com"));
+
+        assertTrue(manager.isActive());
+        verify(userRepository, never()).save(any());
+        verify(classroomMemberRepository, never()).deleteByUserId(any());
     }
 
     private Admin newAdmin(String name, String email) {

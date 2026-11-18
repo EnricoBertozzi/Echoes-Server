@@ -207,6 +207,51 @@ public class UserManagerService {
         );
     }
 
+    @Transactional
+    @Auditable(
+        action = "UPDATE",
+        entity = "User",
+        entityId = "#result.id()"
+    )
+    public UserDTO updateCurrentUser(
+            String email,
+            UpdateUserDTO dto
+    ) {
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        applyCommonUpdate(
+                user,
+                dto.name(),
+                dto.email()
+        );
+
+        return UserUtils.toDTO(
+                userRepository.save(user)
+        );
+    }
+
+    @Transactional
+    @Auditable(
+        action = "DELETE",
+        entity = "User",
+        entityId = "#email"
+    )
+    public void deleteCurrentUser(
+            String email
+    ) {
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (user instanceof Manager manager) {
+            assertNotLastManager(manager);
+        }
+
+        softDelete(user);
+    }
+
     /**
      * Exclusão lógica de administrador.
      */
@@ -277,12 +322,30 @@ public class UserManagerService {
      */
     private void softDelete(User user) {
         user.setActive(false);
+        anonymize(user);
 
         userRepository.save(user);
 
         classroomMemberRepository.deleteByUserId(
             user.getId()
         );
+    }
+
+     */
+    private void anonymize(User user) {
+        user.setName(null);
+        user.setEmail("deleted_user_" + UUID.randomUUID() + "@deleted.local");
+        user.setPassword(null);
+        user.setLoginAttempts(0);
+        user.setLockUntil(null);
+
+        if (user instanceof Manager manager) {
+            manager.setInstitution(null);
+        } else if (user instanceof Teacher teacher) {
+            teacher.setInstitution(null);
+        } else if (user instanceof Student student) {
+            student.setInstitution(null);
+        }
     }
 
     /**
