@@ -308,6 +308,76 @@ public class AuthServiceTests {
     }
 
     @Test
+    @DisplayName("Deve alterar a senha do usuário com sucesso")
+    void shouldSuccessfullyChangePassword() {
+        // Arrange
+        String email = "teste@email.com";
+        User user = mock(User.class);
+        String currentPassword = "senhaAtual";
+        String newPassword = "novaSenha123";
+        String encodedPassword = "senhaCriptografada";
+        String newEncodedPassword = "novaSenhaCriptografada";
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getPassword()).thenReturn(encodedPassword);
+        when(passwordEncoder.matches(currentPassword, encodedPassword)).thenReturn(true);
+        when(passwordEncoder.encode(newPassword)).thenReturn(newEncodedPassword);
+        when(user.getEmail()).thenReturn(email);
+
+        // Act
+        assertDoesNotThrow(() -> authService.changePassword(email, currentPassword, newPassword));
+
+        // Assert
+        verify(userRepository).save(user);
+        verify(passwordEncoder).encode(newPassword);
+        verify(attemptService).resetLoginAttempt(email);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção AuthFailedException quando a senha atual estiver incorreta")
+    void shouldThrowAuthFailedExceptionWhenCurrentPasswordIsIncorrect() {
+        // Arrange
+        String email = "teste@email.com";
+        User user = mock(User.class);
+        String currentPassword = "senhaAtual";
+        String newPassword = "novaSenha123";
+        String encodedPassword = "senhaCriptografada";
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getPassword()).thenReturn(encodedPassword);
+        when(passwordEncoder.matches(currentPassword, encodedPassword)).thenReturn(false);
+
+        // Act e Assert
+        assertThrows(AuthFailedException.class, () -> authService.changePassword(email, currentPassword, newPassword));
+
+        // Assert
+        verify(userRepository, never()).save(any(User.class));
+        verify(attemptService, never()).resetLoginAttempt(anyString());
+    }
+
+    @Test
+    @DisplayName("Deve impedir a alteração de senha quando o usuário estiver bloqueado")
+    void shouldThrowUserBlockedExceptionWhenChangingPassword() {
+        // Arrange
+        String email = "teste@email.com";
+        User user = mock(User.class);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(false);
+
+        // Act e Assert
+        assertThrows(UserBlockedException.class, () -> authService.changePassword(email, "senhaAtual", "novaSenha123"));
+
+        // Assert
+        verify(userRepository, never()).save(any(User.class));
+        verify(attemptService, never()).resetLoginAttempt(anyString());
+    }
+
+    @Test
     @DisplayName("Deve realizar logout com sucesso quando o header for válido")
     void shouldSuccessfullyLogout() {
         // Arrange
