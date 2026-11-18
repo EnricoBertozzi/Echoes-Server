@@ -331,7 +331,6 @@ public class UserManagerService {
         );
     }
 
-     */
     private void anonymize(User user) {
         user.setName(null);
         user.setEmail("deleted_user_" + UUID.randomUUID() + "@deleted.local");

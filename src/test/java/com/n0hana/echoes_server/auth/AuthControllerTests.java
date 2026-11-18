@@ -2,7 +2,12 @@ package com.n0hana.echoes_server.auth;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
@@ -22,7 +27,7 @@ import com.n0hana.echoes_server.user.UserRepository;
 @WebMvcTest(AuthController.class)
 @ActiveProfiles("test")
 @WithMockUser
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 public class AuthControllerTests {
 
     @Autowired
@@ -51,6 +56,7 @@ public class AuthControllerTests {
 
         // Act e Assert
         mockMvc.perform(post("/api/v1/auth/login")
+                .with(csrf())
                 .content(payload)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
@@ -69,8 +75,34 @@ public class AuthControllerTests {
 
         // Act e Assert
         mockMvc.perform(post("/api/v1/auth/login")
+                .with(csrf())
                 .content(payload)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/v1/auth/password/change altera a senha do usuário autenticado (200 OK)")
+    void shouldChangePassword() throws Exception {
+        // Arrange
+        String payload = """
+                {
+                  "currentPassword": "senhaAtual",
+                  "newPassword": "novaSenha123"
+                }
+            """;
+
+        doNothing().when(service).changePassword(anyString(), anyString(), anyString());
+
+        // Act e Assert
+        mockMvc.perform(patch("/api/v1/auth/password/change")
+                .with(user("usuario@email.com"))
+                .with(csrf())
+                .content(payload)
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
+
+        // Assert
+        verify(service).changePassword(anyString(), anyString(), anyString());
     }
 }

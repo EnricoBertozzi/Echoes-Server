@@ -1,11 +1,15 @@
 package com.n0hana.echoes_server.auth;
 
+import java.security.Principal;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.auth.AuthDTO.ChangePasswordRequest;
 import com.n0hana.echoes_server.auth.AuthDTO.LoginRequest;
 import com.n0hana.echoes_server.auth.AuthDTO.MfaRequest;
 import com.n0hana.echoes_server.auth.AuthDTO.MfaResponse;
@@ -55,6 +59,19 @@ public class AuthController {
     public ResponseEntity<MfaResponse> verifyTwoFactor(@RequestBody @Valid MfaRequest dto) {
         String token = service.verifyMfaCode(dto.email(), dto.code());
         return ResponseEntity.ok(new MfaResponse(token));
+    }
+
+    /**
+     * Altera a senha do usuário autenticado.
+     * 
+     * @param dto Objeto com a senha atual e a nova senha para validação
+     * @param principal Identificação do usuário autenticado
+     * @return {@link ResponseEntity} com o código HTTP 200 (OK)
+     */
+    @PatchMapping("/password/change")
+    public ResponseEntity<Void> changePassword(@RequestBody @Valid ChangePasswordRequest dto, Principal principal) {
+        service.changePassword(principal.getName(), dto.currentPassword(), dto.newPassword());
+        return ResponseEntity.ok().build();
     }
 
     /**

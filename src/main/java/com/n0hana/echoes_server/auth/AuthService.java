@@ -111,6 +111,37 @@ public class AuthService {
     }
 
     /**
+     * Altera a senha do usuário autenticado
+     * 
+     * @param email       Email do usuário
+     * @param currentPassword Senha atual do usuário
+     * @param newPassword Nova senha do usuário
+     */
+    @Transactional
+    @Auditable(action = "PASSWORD_CHANGE", entity = "User")
+    public void changePassword(
+            String email,
+            String currentPassword,
+            String newPassword
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (!user.isAccountNonLocked() || !user.isEnabled()) {
+            throw new UserBlockedException();
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new AuthFailedException();
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        attemptService.resetLoginAttempt(user.getEmail());
+    }
+
+    /**
      * Revoga os tokens JWT de um usuário
      * 
      * @param header Cabeçalho contendo o token de autenticação

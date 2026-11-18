@@ -43,4 +43,16 @@ public class AuthDTO {
         String token
     ) {
     }
+
+    /**
+     * DTO para alteração de senha do usuário autenticado
+     * 
+     * @param currentPassword Senha atual do usuário
+     * @param newPassword     Nova senha do usuário
+     */
+    public record ChangePasswordRequest(
+        @NotBlank String currentPassword,
+        @NotBlank String newPassword
+    ) {
+    }
 }
