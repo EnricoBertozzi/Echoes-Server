@@ -25,6 +25,20 @@ public @interface Auditable {
      */
     String entityId() default "";
 
+    /**
+     * Expressão SpEL do nome legível do registro afetado (mesmas variáveis),
+     * salvo no momento da ação. Ex.: {@code "#result.title"}. Vazio = não
+     * registra.
+     */
+    String entityName() default "";
+
+    /**
+     * Expressão SpEL dos detalhes adicionais, avaliada no sucesso e salva no
+     * campo {@code details} do registro (mesmas variáveis). Vazio = não
+     * registra.
+     */
+    String details() default "";
+
     /** Expressão SpEL da instituição do registro afetado (mesmas variáveis). */
     String institutionId() default "";
 }

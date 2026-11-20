@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.n0hana.echoes_server.auth.attempt.AttemptScope;
 import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -102,6 +103,7 @@ public class PasswordService {
      * @param newPassword Nova senha do usuário
      */
     @Transactional
+    @Auditable(action = "RESET_PASSWORD", entity = "User", details = "'Senha redefinida para ' + #email")
     public void reset(String email, String token, String newPassword) {
         // TODO alterar exceção
 

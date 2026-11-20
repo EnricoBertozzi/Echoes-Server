@@ -20,8 +20,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import org.springframework.stereotype.Component;
 
+import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.user.model.User;
 import com.n0hana.echoes_server.user.model.Manager;
+import com.n0hana.echoes_server.user.model.Teacher;
+import com.n0hana.echoes_server.user.model.Student;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -53,7 +56,10 @@ public class AuditAspect {
                 "Classroom",
                 "ClassroomDevice",
                 "Device",
-                "DeviceScenario"
+                "DeviceScenario",
+                "User",
+                "Term",
+                "ClinicalPreset"
             );
 
     /**
@@ -68,14 +74,33 @@ public class AuditAspect {
             Auditable auditable,
             Object result
     ) {
+        Actor actor = this.resolveActor();
+
         eventPublisher.publishEvent(
             AuditLog.builder()
                 .userId(this.getUserId())
+                .actorName(actor.name())
+                .actorRole(actor.role())
+                .actorInstitutionName(actor.institutionName())
                 .action(auditable.action())
                 .entity(auditable.entity())
                 .entityId(
                     this.evaluate(
                         auditable.entityId(),
+                        jp,
+                        result
+                    )
+                )
+                .entityName(
+                    this.evaluate(
+                        auditable.entityName(),
+                        jp,
+                        result
+                    )
+                )
+                .details(
+                    this.evaluate(
+                        auditable.details(),
                         jp,
                         result
                     )
@@ -105,14 +130,26 @@ public class AuditAspect {
             Auditable auditable,
             Exception ex
     ) {
+        Actor actor = this.resolveActor();
+
         eventPublisher.publishEvent(
             AuditLog.builder()
                 .userId(this.getUserId())
+                .actorName(actor.name())
+                .actorRole(actor.role())
+                .actorInstitutionName(actor.institutionName())
                 .action(auditable.action())
                 .entity(auditable.entity())
                 .entityId(
                     this.evaluate(
                         auditable.entityId(),
+                        jp,
+                        null
+                    )
+                )
+                .entityName(
+                    this.evaluate(
+                        auditable.entityName(),
                         jp,
                         null
                     )
@@ -198,8 +235,10 @@ public class AuditAspect {
      *
      * Primeiro tenta a expressão da anotação.
      * Se estiver ausente e for uma entidade
-     * institucional operada por MANAGER,
-     * utiliza a instituição do gestor.
+     * institucional operada por um usuário
+     * autenticado com instituição (MANAGER,
+     * TEACHER ou STUDENT), utiliza a instituição
+     * desse usuário.
      */
     private String resolveInstitutionId(
             Auditable auditable,
@@ -231,20 +270,81 @@ public class AuditAspect {
                 .getContext()
                 .getAuthentication();
 
+        if (auth == null) {
+            return null;
+        }
+
+        Object principal = auth.getPrincipal();
+
+        InstitutionModel institution = null;
+
+        if (principal instanceof Manager manager) {
+            institution = manager.getInstitution();
+        } else if (principal instanceof Teacher teacher) {
+            institution = teacher.getInstitution();
+        } else if (principal instanceof Student student) {
+            institution = student.getInstitution();
+        }
+
         if (
-            auth != null &&
-            auth.getPrincipal() instanceof Manager manager &&
-            manager.getInstitution() != null &&
-            manager.getInstitution().getId() != null
+            institution != null &&
+            institution.getId() != null
         ) {
-            return manager
-                    .getInstitution()
+            return institution
                     .getId()
                     .toString();
         }
 
         return null;
     }
+
+    /**
+     * Resolve o autor do evento a partir do mesmo usuário autenticado usado
+     * por {@link #getUserId()}.
+     *
+     * ADMIN e eventos sem principal ficam sem instituição. Qualquer falha na
+     * leitura devolve valores nulos para não interromper a operação auditada.
+     */
+    private Actor resolveActor() {
+        try {
+            var auth = SecurityContextHolder
+                    .getContext()
+                    .getAuthentication();
+
+            if (
+                auth == null ||
+                !auth.isAuthenticated() ||
+                !(auth.getPrincipal() instanceof User user)
+            ) {
+                return new Actor(null, null, null);
+            }
+
+            InstitutionModel institution = null;
+
+            if (user instanceof Manager manager) {
+                institution = manager.getInstitution();
+            } else if (user instanceof Teacher teacher) {
+                institution = teacher.getInstitution();
+            } else if (user instanceof Student student) {
+                institution = student.getInstitution();
+            }
+
+            return new Actor(
+                user.getName(),
+                user.getUserRole() == null
+                    ? null
+                    : user.getUserRole().name(),
+                institution == null
+                    ? null
+                    : institution.getName()
+            );
+
+        } catch (Exception e) {
+            return new Actor(null, null, null);
+        }
+    }
+
+    private record Actor(String name, String role, String institutionName) {}
 
     private String getUserId() {
         var auth = SecurityContextHolder
@@ -280,4 +380,3 @@ public class AuditAspect {
         return ip;
     }
 }
-

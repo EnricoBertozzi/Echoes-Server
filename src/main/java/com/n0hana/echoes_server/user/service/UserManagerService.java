@@ -51,7 +51,8 @@ public class UserManagerService {
     @Auditable(
         action = "UPDATE",
         entity = "Admin",
-        entityId = "#id"
+        entityId = "#id",
+        entityName = "#result.name()"
     )
     public UserDTO updateAdmin(
             UUID id,
@@ -81,6 +82,7 @@ public class UserManagerService {
         action = "UPDATE",
         entity = "Manager",
         entityId = "#id",
+        entityName = "#result.name()",
         institutionId = "#result.institutionId()"
     )
     public UserDTO updateManager(
@@ -133,6 +135,7 @@ public class UserManagerService {
         action = "UPDATE",
         entity = "Teacher",
         entityId = "#id",
+        entityName = "#result.name()",
         institutionId = "#result.institutionId()"
     )
     public UserDTO updateTeacher(
@@ -174,6 +177,7 @@ public class UserManagerService {
         action = "UPDATE",
         entity = "Student",
         entityId = "#id",
+        entityName = "#result.name()",
         institutionId = "#result.institutionId()"
     )
     public UserDTO updateStudent(

@@ -67,7 +67,8 @@ public class UserRegisterService {
      */
     @Auditable(
         action = "CREATE",
-        entity = "Admin"
+        entity = "Admin",
+        entityName = "#result.name()"
     )
     public PendingRegistrationDTO createAdmin(
             CreateUserDTO dto
@@ -86,6 +87,7 @@ public class UserRegisterService {
     @Auditable(
         action = "CREATE",
         entity = "Manager",
+        entityName = "#result.name()",
         institutionId = "#dto.institutionId()"
     )
     public PendingRegistrationDTO createManager(
@@ -105,6 +107,7 @@ public class UserRegisterService {
     @Auditable(
         action = "CREATE",
         entity = "Teacher",
+        entityName = "#result.name()",
         institutionId = "#dto.institutionId()"
     )
     public PendingRegistrationDTO createTeacher(
@@ -124,6 +127,7 @@ public class UserRegisterService {
     @Auditable(
         action = "CREATE",
         entity = "Student",
+        entityName = "#result.name()",
         institutionId = "#dto.institutionId()"
     )
     public PendingRegistrationDTO createStudent(
@@ -145,6 +149,7 @@ public class UserRegisterService {
         action = "COMPLETE_REGISTRATION",
         entity = "User",
         entityId = "#result.id()",
+        entityName = "#result.name()",
         institutionId = "#result.institutionId()"
     )
     public UserDTO completeRegistration(

@@ -45,7 +45,7 @@ public class DeviceLifecycleService {
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
-  @Auditable(action = "APPROVE", entity = "Device", entityId = "#deviceId", institutionId = "#institutionId")
+  @Auditable(action = "APPROVE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#institutionId")
   public DeviceModel approve(UUID deviceId, UUID institutionId, UUID approverId) {
     DeviceModel device = findDevice(deviceId);
 
@@ -61,7 +61,7 @@ public class DeviceLifecycleService {
   }
 
   @Transactional
-  @Auditable(action = "CHANGE_INSTITUTION", entity = "Device", entityId = "#deviceId", institutionId = "#institutionId")
+  @Auditable(action = "CHANGE_INSTITUTION", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#institutionId")
   public DeviceModel changeInstitution(UUID deviceId, UUID institutionId) {
     return update(deviceId, new UpdateDeviceRequest(null, institutionId, null));
   }
@@ -79,7 +79,7 @@ public class DeviceLifecycleService {
    * </p>
    */
   @Transactional
-  @Auditable(action = "UPDATE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "UPDATE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel update(UUID deviceId, UpdateDeviceRequest request) {
     boolean hasName = request != null && request.name() != null;
     boolean hasInstitution = request != null && request.institutionId() != null;
@@ -115,7 +115,7 @@ public class DeviceLifecycleService {
   }
 
   @Transactional
-  @Auditable(action = "ACTIVATE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "ACTIVATE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel activate(UUID deviceId) {
     DeviceModel device = findDevice(deviceId);
 
@@ -128,7 +128,7 @@ public class DeviceLifecycleService {
   }
 
   @Transactional
-  @Auditable(action = "DEACTIVATE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "DEACTIVATE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel deactivate(UUID deviceId) {
     DeviceModel device = findDevice(deviceId);
 
@@ -141,7 +141,7 @@ public class DeviceLifecycleService {
   }
 
   @Transactional
-  @Auditable(action = "DELETE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "DELETE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel delete(UUID deviceId) {
     DeviceModel device = findDevice(deviceId);
 

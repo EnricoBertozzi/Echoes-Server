@@ -48,6 +48,24 @@ public class UserUtils {
     }
 
     /**
+     * Converte um usuário para um DTO com o e-mail mascarado, usado nas
+     * listagens. Exemplo: maria@escola.com vira m***@escola.com.
+     *
+     * @param user Usuário a ser convertido
+     * @return DTO com o e-mail mascarado
+     */
+    public static UserDTO toMaskedDTO(User user) {
+        UserDTO dto = toDTO(user);
+
+        return new UserDTO(
+                dto.id(),
+                dto.name(),
+                maskEmail(dto.email()),
+                dto.institutionId(),
+                dto.role());
+    }
+
+    /**
      * Adiciona o id do usuário baseado na sua subclasse
      * 
      * @param user Instãncia de usuário
@@ -64,5 +82,31 @@ public class UserUtils {
             return student.getInstitution();
         }
         return null;
+    }
+
+    /**
+     * Mascara a parte local do e-mail, mantendo o domínio completo.
+     *
+     * @param email E-mail original (pode ser nulo)
+     * @return E-mail mascarado ou nulo
+     */
+    private static String maskEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+
+        int at = email.indexOf('@');
+        if (at < 0) {
+            return email;
+        }
+
+        String localPart = email.substring(0, at);
+        String domain = email.substring(at);
+
+        if (localPart.length() <= 1) {
+            return "*" + domain;
+        }
+
+        return localPart.charAt(0) + "***" + domain;
     }
 }

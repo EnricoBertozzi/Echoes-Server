@@ -62,7 +62,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} cadastrado no banco de dados.
      */
     @Transactional
-    @Auditable(action = "CREATE", entity = "Institution")
+    @Auditable(action = "CREATE", entity = "Institution", entityName = "#result.name")
     public InstitutionModel create(InstitutionModel model) {
         String cleanCnpj = CnpjValidator.normalizar(model.getCnpj());
         model.setCnpj(cleanCnpj);
@@ -167,7 +167,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Institution", entityId = "#id", institutionId = "#id")
+    @Auditable(action = "UPDATE", entity = "Institution", entityId = "#id", entityName = "#result.name", institutionId = "#id")
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 

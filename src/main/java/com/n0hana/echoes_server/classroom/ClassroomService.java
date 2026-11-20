@@ -44,7 +44,7 @@ public class ClassroomService {
     private final ClassroomMaterialStorage materialStorage;
 
     @Transactional
-    @Auditable(action = "CREATE", entity = "Classroom", entityId = "#result.id", institutionId = "#result.institution.id")
+    @Auditable(action = "CREATE", entity = "Classroom", entityId = "#result.id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel create(String email, ClassroomDTO.Request dto) {
         User user = findUser(email);
         InstitutionModel institution = institutionOf(user);
@@ -113,7 +113,7 @@ public class ClassroomService {
     }
 
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "UPDATE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel update(String email, UUID id, ClassroomDTO.Request dto) {
         ClassroomModel classroom = findManagedClassroom(email, id);
 
@@ -127,7 +127,7 @@ public class ClassroomService {
     }
 
     @Transactional
-    @Auditable(action = "ARCHIVE", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "ARCHIVE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel archive(String email, UUID id) {
         ClassroomModel classroom = findManagedClassroom(email, id);
         classroom.setArchived(true);
@@ -135,7 +135,7 @@ public class ClassroomService {
     }
 
     @Transactional
-    @Auditable(action = "UNARCHIVE", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "UNARCHIVE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel unarchive(String email, UUID id) {
         ClassroomModel classroom = findManagedClassroom(email, id);
         classroom.setArchived(false);
@@ -144,7 +144,7 @@ public class ClassroomService {
 
     // exclusão lógica: remove os vínculos dos membros e marca a turma como excluída
     @Transactional
-    @Auditable(action = "DELETE", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "DELETE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel delete(String email, UUID id) {
         ClassroomModel classroom = findManagedClassroom(email, id);
         memberRepository.deleteByClassroomId(id);
@@ -159,7 +159,7 @@ public class ClassroomService {
 
     // limpa a turma para o próximo semestre, professores ficam
     @Transactional
-    @Auditable(action = "CLEAR_STUDENTS", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "CLEAR_STUDENTS", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel clearStudents(String email, UUID id) {
         ClassroomModel classroom = findManagedClassroom(email, id);
 
@@ -193,7 +193,7 @@ public class ClassroomService {
     }
 
     @Transactional
-    @Auditable(action = "JOIN", entity = "Classroom", entityId = "#result.id", institutionId = "#result.institution.id")
+    @Auditable(action = "JOIN", entity = "Classroom", entityId = "#result.id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel join(String email, ClassroomDTO.JoinRequest dto) {
         User user = findUser(email);
         String code = dto.code().trim().toUpperCase();
@@ -228,7 +228,7 @@ public class ClassroomService {
     }
 
     @Transactional
-    @Auditable(action = "LEAVE", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "LEAVE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel leave(String email, UUID id) {
         User user = findUser(email);
         ClassroomModel classroom = findClassroom(id);
@@ -242,7 +242,7 @@ public class ClassroomService {
 
     // gestor remove aluno ou professor de turma da própria instituição
     @Transactional
-    @Auditable(action = "REMOVE_MEMBER", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "REMOVE_MEMBER", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel removeMember(String email, UUID id, UUID userId) {
         ClassroomModel classroom = findManagedClassroom(email, id);
 
@@ -255,7 +255,7 @@ public class ClassroomService {
 
     // gestor adiciona professor da mesma instituição e o professor recebe um e-mail
     @Transactional
-    @Auditable(action = "ADD_MEMBER", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "ADD_MEMBER", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel addMember(String email, UUID id, UUID userId) {
         ClassroomModel classroom = findManagedClassroom(email, id);
 
