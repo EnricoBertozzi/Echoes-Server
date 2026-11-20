@@ -3,7 +3,6 @@ package com.n0hana.echoes_server.infra.logs;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Immutable;
 
 import jakarta.persistence.Column;
@@ -66,8 +65,11 @@ public class AuditLog {
     @Column(length = 255)
     private String actorInstitutionName;
 
-    @CreationTimestamp
+    /** definido pelo serviço antes de gravar, para fazer parte da assinatura */
     private Instant timestamp;
+
+    /** HMAC-SHA256 do conteúdo, com chave fora do banco (S15) */
+    private String signature;
 
     @PreRemove
     private void preventDelete() {
