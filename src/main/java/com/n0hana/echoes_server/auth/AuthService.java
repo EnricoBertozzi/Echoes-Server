@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.auth;
 
+import com.n0hana.echoes_server.user.UserUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -75,6 +76,7 @@ public class AuthService {
     @Transactional(dontRollbackOn = AuthFailedException.class)
     @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
     public void login(String email, String password) {
+        email = UserUtils.normalizeEmail(email);
         // Conta inexistente: mesma resposta e mesmo custo de BCrypt de uma senha errada (S8)
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
@@ -110,6 +112,7 @@ public class AuthService {
     @Transactional(dontRollbackOn = AuthFailedException.class)
     @Auditable(action = "LOGIN_SUCCESS", entity = "User")
     public String verifyMfaCode(String email, String code) {
+        email = UserUtils.normalizeEmail(email);
         mfaAttempts.assertNotBlocked(AttemptScope.MFA, email);
 
         String savedCode = authRepository.findByEmail(email)

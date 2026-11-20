@@ -77,7 +77,10 @@ public class AuthController {
     @PatchMapping("/password/change")
     public ResponseEntity<Void> changePassword(@RequestBody @Valid ChangePasswordRequest dto, Principal principal) {
         service.changePassword(principal.getName(), dto.currentPassword(), dto.newPassword());
-        return ResponseEntity.ok().build();
+        // a troca revoga as sessões anteriores: limpa também o cookie no cliente
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie.clear().toString())
+                .build();
     }
 
     /**

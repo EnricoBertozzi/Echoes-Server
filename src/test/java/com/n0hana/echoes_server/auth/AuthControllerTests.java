@@ -101,7 +101,12 @@ public class AuthControllerTests {
                 .with(csrf())
                 .content(payload)
                 .contentType(MediaType.APPLICATION_JSON))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                .header().string(org.springframework.http.HttpHeaders.SET_COOKIE,
+                    org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("echoes_session="),
+                        org.hamcrest.Matchers.containsString("Max-Age=0"))));
 
         // Assert
         verify(service).changePassword(anyString(), anyString(), anyString());
