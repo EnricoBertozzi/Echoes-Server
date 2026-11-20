@@ -5,6 +5,9 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import java.io.IOException;
+import java.io.InputStream;
+
 import org.springframework.web.multipart.MultipartFile;
 
 import com.n0hana.echoes_server.infra.file.exception.FileValidateException;
@@ -30,6 +33,34 @@ public class FileValidatorService {
    */
   public void validate(MultipartFile file) {
     validate(file, ALLOWED_EXTENSIONS);
+  }
+
+  /** áudio de cenário: só mp3, independente de EXTENSIONS_ALLOWED (B3) */
+  private static final List<String> AUDIO_EXTENSIONS = List.of("mp3");
+
+  /**
+   * Valida um áudio de cenário: extensão mp3 e assinatura MP3 (ID3 ou frame sync)
+   *
+   * @param file Arquivo enviado
+   */
+  public void validateAudio(MultipartFile file) {
+    validate(file, AUDIO_EXTENSIONS);
+    validateMp3Signature(file);
+  }
+
+  private void validateMp3Signature(MultipartFile file) {
+    byte[] head;
+    try (InputStream in = file.getInputStream()) {
+      head = in.readNBytes(3);
+    } catch (IOException e) {
+      throw new FileValidateException();
+    }
+
+    boolean id3 = head.length == 3 && head[0] == 'I' && head[1] == 'D' && head[2] == '3';
+    boolean frameSync = head.length >= 2 && (head[0] & 0xFF) == 0xFF && (head[1] & 0xE0) == 0xE0;
+
+    if (!id3 && !frameSync)
+      throw new FileValidateException();
   }
 
   /**

@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -60,7 +61,7 @@ public class ScenarioController {
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(encoding = @Encoding(name = "dto", contentType = MediaType.APPLICATION_JSON_VALUE)))
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<ScenarioInfo> newScenario(@RequestPart("dto") ScenarioRegister dto,
+  public ResponseEntity<ScenarioInfo> newScenario(@Valid @RequestPart("dto") ScenarioRegister dto,
       @RequestPart("file") MultipartFile file) {
     ScenarioInfo responseDto = ScenarioInfo
         .from(scenarioService.create(dto.toModel(), file));
@@ -169,7 +170,7 @@ public class ScenarioController {
    */
   @PatchMapping("/{id}")
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<ScenarioInfo> updateScenario(@PathVariable("id") UUID id, @RequestBody ScenarioUpdate dto) {
+  public ResponseEntity<ScenarioInfo> updateScenario(@PathVariable("id") UUID id, @Valid @RequestBody ScenarioUpdate dto) {
     ScenarioInfo responseDTO = ScenarioInfo.from(
         scenarioService.updateScenario(id, dto.toModel()));
     return ResponseEntity.ok(responseDTO);
