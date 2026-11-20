@@ -10,9 +10,11 @@ public final class RedisAvailability {
     }
 
     public static boolean redisReachable() {
+        String host = System.getProperty("spring.data.redis.host", "localhost");
+        int port = Integer.getInteger("spring.data.redis.port", 6379);
         boolean reachable;
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("localhost", 6379), 500);
+            socket.connect(new InetSocketAddress(host, port), 500);
             reachable = true;
         } catch (Exception e) {
             reachable = false;
@@ -20,7 +22,7 @@ public final class RedisAvailability {
 
         if (!reachable && Boolean.getBoolean("requireRedis")) {
             throw new IllegalStateException(
-                    "Redis indisponível em localhost:6379 e -DrequireRedis=true está ativo");
+                    "Redis indisponível em " + host + ":" + port + " e -DrequireRedis=true está ativo");
         }
         return reachable;
     }
