@@ -28,6 +28,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service para gerenciamento dde cenários clínicos
@@ -36,6 +37,7 @@ import lombok.RequiredArgsConstructor;
  * @since 0.1.0
  * @see {@link ScenarioModel}
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScenarioService {
@@ -193,9 +195,11 @@ public class ScenarioService {
     ScenarioModel savedScenario = this.findScenarioById(id);
 
     if (!Objects.equals(savedScenario.getName(), scenario.getName())) {
-      String newName = fileService.rename(savedScenario.getAudioUrl(), scenario.getName());
-      savedScenario.setAudioUrl(newName);
+      String oldAudioUrl = savedScenario.getAudioUrl();
+      String newAudioUrl = fileService.targetNameFor(oldAudioUrl, scenario.getName());
+      savedScenario.setAudioUrl(newAudioUrl);
       savedScenario.setName(scenario.getName());
+      moveFileAfterCommit(oldAudioUrl, newAudioUrl);
     }
 
     if (!Objects.equals(savedScenario.getDescription(), scenario.getDescription()))
@@ -258,6 +262,24 @@ public class ScenarioService {
 
     deleteFileAfterCommit(oldAudioUrl);
     deleteFileIfRollback(newAudioUrl);
+  }
+
+  /** renomeia o arquivo só depois que a transação comitou; em rollback ele fica como estava */
+  private void moveFileAfterCommit(String oldAudioUrl, String newAudioUrl) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        @Override
+        public void afterCommit() {
+          try {
+            fileService.move(oldAudioUrl, newAudioUrl);
+          } catch (RuntimeException ex) {
+            log.error("Falha ao renomear o áudio de {} para {} após o commit", oldAudioUrl, newAudioUrl, ex);
+          }
+        }
+      });
+    } else {
+      fileService.move(oldAudioUrl, newAudioUrl);
+    }
   }
 
   /** remove o arquivo só depois que a transação comitou (ou já, sem transação) */
