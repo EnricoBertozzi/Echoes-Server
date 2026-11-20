@@ -41,7 +41,7 @@ class RedisRepositoryTest {
 
         repo.save("a@b.com", "123456");
 
-        verify(ops).set("password:code:a@b.com", "123456", Duration.ofMinutes(15));
+        verify(ops).set("password:code:a@b.com", "123456", Duration.ofMinutes(5));
     }
 
     @Test
@@ -115,7 +115,7 @@ class RedisRepositoryTest {
         mfa.save("a@b.com", "1");
         repo.save("a@b.com", "2");
 
-        verify(ops).set("pending:login:a@b.com", "1", Duration.ofMinutes(15));
-        verify(ops).set("password:code:a@b.com", "2", Duration.ofMinutes(15));
+        verify(ops).set("pending:login:a@b.com", "1", Duration.ofMinutes(5));
+        verify(ops).set("password:code:a@b.com", "2", Duration.ofMinutes(5));
     }
 }

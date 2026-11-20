@@ -23,6 +23,13 @@ public interface LoginAttemptRepository extends JpaRepository<User, UUID> {
     @Query("update User u set u.loginAttempts = :attempts where id = :id")
     void updateUserAttempts(@Param("id") UUID id, @Param("attempts") Integer attempts);
 
+    @Modifying(clearAutomatically = true)
+    @Query("update User u set u.loginAttempts = u.loginAttempts + 1 where u.id = :id")
+    void incrementUserAttempts(@Param("id") UUID id);
+
+    @Query("select u.loginAttempts from User u where u.id = :id")
+    Integer findUserAttempts(@Param("id") UUID id);
+
     @Modifying
     @Query("update User u set u.lockUntil = :lockUntil where id = :id")
     void updateUserLockedUntil(@Param("id") UUID id, @Param("lockUntil") LocalDateTime lockUntil);

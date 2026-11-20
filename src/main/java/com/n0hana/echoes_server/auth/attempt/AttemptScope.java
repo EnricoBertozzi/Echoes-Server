@@ -13,7 +13,9 @@ public enum AttemptScope {
     LOGIN(CodeType.LOGIN_ATTEMPTS, 5),
     MFA(CodeType.MFA_ATTEMPTS, 5),
     PASSWORD_VALIDATE(CodeType.PASSWORD_VALIDATE_ATTEMPTS, 5),
-    PASSWORD_FORGOT(CodeType.PASSWORD_FORGOT_ATTEMPTS, 3);
+    PASSWORD_FORGOT(CodeType.PASSWORD_FORGOT_ATTEMPTS, 3),
+    // código de turma (32^6 combinações): limite de tentativas inválidas (S20)
+    CLASSROOM_JOIN(CodeType.CLASSROOM_JOIN_ATTEMPTS, 10);
 
     private final CodeType type;
     private final int max;

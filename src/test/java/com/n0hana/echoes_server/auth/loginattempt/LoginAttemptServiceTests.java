@@ -32,65 +32,51 @@ class LoginAttemptServiceTests {
     private final UUID userId = UUID.randomUUID();
 
     @Test
-    @DisplayName("Deve incrementar o contador após falha no login")
+    @DisplayName("Deve incrementar o contador atomicamente após falha no login")
     void shouldIncrementFailedAttempts() {
-        // Arrange
         User user = mock(User.class);
 
         when(attemptRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
-        when(user.getLoginAttempts()).thenReturn(0);
         when(user.getId()).thenReturn(userId);
+        when(attemptRepository.findUserAttempts(userId)).thenReturn(1);
 
-        // Act
         attemptService.registerFailedAttempt(email);
 
-        // Assert
-        verify(attemptRepository).updateUserAttempts(userId, 1);
-    }
-
-    @Test
-    @DisplayName("Deve acumular tentativas de autenticação")
-    void shouldAccumulateFailedAttempts() {
-        // Arrange
-        User user = mock(User.class);
-
-        when(attemptRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
-        when(user.getId()).thenReturn(userId);
-
-        when(user.getLoginAttempts()).thenReturn(0, 1, 2, 3);
-
-        // Act
-        for (int i = 0; i < 4; i++) {
-            attemptService.registerFailedAttempt(email);
-        }
-
-        // Assert
-        verify(attemptRepository).updateUserAttempts(userId, 1);
-        verify(attemptRepository).updateUserAttempts(userId, 2);
-        verify(attemptRepository).updateUserAttempts(userId, 3);
-        verify(attemptRepository).updateUserAttempts(userId, 4);
-
+        verify(attemptRepository).incrementUserAttempts(userId);
         verify(attemptRepository, never()).updateUserLockedUntil(any(UUID.class), any(LocalDateTime.class));
     }
 
     @Test
-    @DisplayName("Deve bloquear usuário ao atingir 5 tentativas")
-    void shouldBlockUserAfterFiveAttempts() {
-        // Arrange
+    @DisplayName("Deve acumular tentativas sem bloquear antes da 5ª falha")
+    void shouldAccumulateFailedAttempts() {
         User user = mock(User.class);
 
         when(attemptRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
-        when(user.getLoginAttempts()).thenReturn(5);
+        when(user.getId()).thenReturn(userId);
+        when(attemptRepository.findUserAttempts(userId)).thenReturn(1, 2, 3, 4);
+
+        for (int i = 0; i < 4; i++) {
+            attemptService.registerFailedAttempt(email);
+        }
+
+        verify(attemptRepository, times(4)).incrementUserAttempts(userId);
+        verify(attemptRepository, never()).updateUserLockedUntil(any(UUID.class), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Deve bloquear o usuário já na 5ª falha (off-by-one corrigido, B5)")
+    void shouldBlockUserOnFifthAttempt() {
+        User user = mock(User.class);
+
+        when(attemptRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
         when(user.getId()).thenReturn(userId);
         when(user.getEmail()).thenReturn(email);
+        when(attemptRepository.findUserAttempts(userId)).thenReturn(5);
 
         LocalDateTime before = LocalDateTime.now();
-
-        // Act
         attemptService.registerFailedAttempt(email);
-
-        // Assert
         LocalDateTime after = LocalDateTime.now();
+
         ArgumentCaptor<LocalDateTime> captor = ArgumentCaptor.forClass(LocalDateTime.class);
         verify(attemptRepository).updateUserLockedUntil(eq(userId), captor.capture());
         LocalDateTime lockedUntil = captor.getValue();
@@ -103,16 +89,13 @@ class LoginAttemptServiceTests {
     @Test
     @DisplayName("Deve zerar tentativas após autenticação completa")
     void shouldResetAttempts() {
-        // Arrange
         User user = mock(User.class);
 
         when(attemptRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
         when(user.getId()).thenReturn(userId);
 
-        // Act
         attemptService.resetLoginAttempt(email);
 
-        // Assert
         verify(attemptRepository).updateUserAttempts(userId, 0);
     }
 }
