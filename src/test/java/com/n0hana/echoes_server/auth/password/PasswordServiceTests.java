@@ -199,4 +199,17 @@ class PasswordServiceTests {
         verify(attempts).register(AttemptScope.PASSWORD_FORGOT, email);
         verify(codeRepository).save(email, "654321");
     }
+
+    @Test
+    @DisplayName("Reset de senha é auditado com o e-mail do titular em details, sem senha nem token")
+    void resetAuditDetailsIdentifyOwner() throws Exception {
+        var auditable = PasswordService.class
+                .getMethod("reset", String.class, String.class, String.class)
+                .getAnnotation(com.n0hana.echoes_server.infra.logs.Auditable.class);
+
+        org.junit.jupiter.api.Assertions.assertEquals("RESET_PASSWORD", auditable.action());
+        org.junit.jupiter.api.Assertions.assertTrue(auditable.details().contains("#email"));
+        org.junit.jupiter.api.Assertions.assertFalse(auditable.details().contains("#token"));
+        org.junit.jupiter.api.Assertions.assertFalse(auditable.details().contains("#newPassword"));
+    }
 }
