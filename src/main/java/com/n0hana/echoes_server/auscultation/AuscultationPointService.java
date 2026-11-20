@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.auscultation;
 
+import com.n0hana.echoes_server.infra.web.PageLimits;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -30,9 +32,7 @@ public class AuscultationPointService {
         return pointRepository
                 .findAuscultationPointsByAnimalId(
                         animalId,
-                        PageRequest.of(
-                                page,
-                                size,
+                        PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size),
                                 Sort.by("position")))
                 .toList();
     }

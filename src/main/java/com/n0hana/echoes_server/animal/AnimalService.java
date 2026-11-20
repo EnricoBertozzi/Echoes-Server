@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.animal;
 
+import com.n0hana.echoes_server.infra.web.PageLimits;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -23,16 +25,14 @@ public class AnimalService {
 
   public List<AnimalModel> findAllAnimals(int page, int size) {
     return animalRepository
-        .findAll(PageRequest.of(page, size, Sort.by("name")))
+        .findAll(PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size), Sort.by("name")))
         .toList();
   }
 
   public List<AnimalModel> findAnimalsByName(String name, int page, int size) {
     return animalRepository.findByNameContaining(
         name,
-        PageRequest.of(
-            page,
-            size,
+        PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size),
             Sort.by("name")))
         .toList();
   }

@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.user.service;
 
+import com.n0hana.echoes_server.infra.web.PageLimits;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -102,7 +104,7 @@ public class UserInfoService {
      * @return {@link Page} com dados dos usuários membros
      */
     public Page<UserDTO> findUsersByInstitution(UUID id, Integer page, Integer size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size));
         return userRepository.findUsersByInstitutionId(id, pageable).map(UserUtils::toMaskedDTO);
     }
 
@@ -116,7 +118,7 @@ public class UserInfoService {
      * @return {@link Page} com usuários que atendam a busca
      */
     public Page<UserDTO> findUsersByNameInInstitution(UUID id, String name, Integer page, Integer size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size));
         return userRepository.findUsersByNameInInstitution(id, name, pageable).map(UserUtils::toMaskedDTO);
     }
 
