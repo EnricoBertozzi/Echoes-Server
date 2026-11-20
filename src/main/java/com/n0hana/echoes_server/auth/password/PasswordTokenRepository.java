@@ -25,6 +25,11 @@ public class PasswordTokenRepository {
         return store.find(email);
     }
 
+    /** Consome o token de forma atômica: true só para quem apresentou o token correto, uma única vez */
+    public boolean consumeIfMatches(String email, String token) {
+        return token != null && store.consumeIfMatches(email, token);
+    }
+
     public void delete(String email) {
         store.delete(email);
     }
