@@ -2,6 +2,7 @@ package com.n0hana.echoes_server.auth.password;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -49,6 +50,7 @@ public class PasswordService {
      * 
      * @param email Email do usuário
      */
+    @Auditable(action = "PASSWORD_FORGOT_REQUEST", entity = "User")
     public void request(String email) {
         // conta antes de olhar o banco: e-mail que existe e que não existe se comportam igual
         attempts.assertNotBlocked(AttemptScope.PASSWORD_FORGOT, email);
@@ -68,6 +70,7 @@ public class PasswordService {
      * 
      * @param code Código para verificação
      */
+    @Auditable(action = "PASSWORD_CODE_VALIDATE", entity = "User")
     public String validate(String email, String code) {
         attempts.assertNotBlocked(AttemptScope.PASSWORD_VALIDATE, email);
 
@@ -103,18 +106,20 @@ public class PasswordService {
      * @param newPassword Nova senha do usuário
      */
     @Transactional
-    @Auditable(action = "RESET_PASSWORD", entity = "User", details = "'Senha redefinida para ' + #email")
+    @Auditable(action = "RESET_PASSWORD", entity = "User")
     public void reset(String email, String token, String newPassword) {
-        // TODO alterar exceção
-
         String savedToken = tokenRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthFailedException());
+                .orElseThrow(AuthFailedException::new);
 
-        if (!savedToken.equals(token))
+        if (!sameCode(savedToken, token))
             throw new AuthFailedException();
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException());
+        // uso único (S1/PSI 2.4): o token morre assim que é consumido
+        tokenRepository.delete(email);
+
+        User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChangedAt(Instant.now());
         userRepository.save(user);
     }
 }

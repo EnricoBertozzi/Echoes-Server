@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.user.model;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -49,6 +50,18 @@ public abstract class User implements UserDetails {
     private LocalDateTime lockUntil;
 
     private boolean active = true;
+
+    /**
+     * Momento da última troca/redefinição de senha. Tokens JWT emitidos antes
+     * desse instante são rejeitados (S2).
+     */
+    private Instant passwordChangedAt;
+
+    /**
+     * Momento em que todas as sessões foram derrubadas por ação do próprio
+     * titular (revogação de consentimento). Tokens emitidos antes são rejeitados.
+     */
+    private Instant tokensRevokedAt;
 
     /**
      * Papel do usuário, implementado por cada subclass; define a autoridade
