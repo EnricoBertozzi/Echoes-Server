@@ -43,7 +43,7 @@ import com.n0hana.echoes_server.user.service.UserRegisterService;
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @WithMockUser(roles = { "ADMIN", "MANAGER" })
-@EnabledIf("redisReachable")
+@EnabledIf("com.n0hana.echoes_server.support.RedisAvailability#redisReachable")
 class RegistrationFlowIntegrationTest {
 
     private static final String STRONG_PASSWORD = "SenhaForte123!";
