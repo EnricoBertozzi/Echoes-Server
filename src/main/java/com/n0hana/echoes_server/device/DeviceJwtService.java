@@ -31,8 +31,10 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
 
   public static final String DEVICE_ISSUER = "echoes-device";
   public static final String HARDWARE_ID_CLAIM = "hardware_id";
-  /** Nome antigo da claim, aceito durante a migração do firmware. */
-  public static final String LEGACY_CLAIM = "mac";
+  /** vida máxima aceita para o token do dispositivo (S12) */
+  static final long MAX_TOKEN_LIFETIME_MS = 5L * 60L * 1000L;
+  /** tolerância para relógio do dispositivo adiantado */
+  static final long CLOCK_SKEW_MS = 60L * 1000L;
 
   private final DeviceRepository deviceRepository;
   private final DevicePublicKeyService publicKeyService;
@@ -65,9 +67,8 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
     if (!JWSAlgorithm.ES256.equals(signedJWT.getHeader().getAlgorithm()))
       throw new SecurityException("Invalid algorithm");
 
+    // a claim legada "mac" não é mais aceita (S12)
     String hardwareId = claims.getStringClaim(HARDWARE_ID_CLAIM);
-    if (hardwareId == null || hardwareId.isBlank())
-      hardwareId = claims.getStringClaim(LEGACY_CLAIM);
     if (hardwareId == null || hardwareId.isBlank())
       throw new SecurityException("Missing hardware_id claim");
 
@@ -80,9 +81,19 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
     if (!signedJWT.verify(new ECDSAVerifier(publicKey)))
       throw new SecurityException("Invalid JWT signature");
 
+    Date now = new Date();
+
+    Date issuedAt = claims.getIssueTime();
+    if (issuedAt == null)
+      throw new SecurityException("Missing iat claim");
+    if (issuedAt.getTime() > now.getTime() + CLOCK_SKEW_MS)
+      throw new SecurityException("iat in the future");
+
     Date expiration = claims.getExpirationTime();
-    if (expiration == null || expiration.before(new Date()))
+    if (expiration == null || expiration.before(now))
       throw new SecurityException("JWT expired");
+    if (expiration.getTime() - now.getTime() > MAX_TOKEN_LIFETIME_MS)
+      throw new SecurityException("JWT lifetime too long");
 
     return device;
   }
