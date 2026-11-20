@@ -15,6 +15,9 @@ public interface ClassroomMaterialRepository extends JpaRepository<ClassroomMate
     @EntityGraph(attributePaths = {"author", "classroom", "classroom.institution"})
     Optional<ClassroomMaterial> findByIdAndClassroomId(UUID id, UUID classroomId);
 
+    @EntityGraph(attributePaths = {"classroom"})
+    List<ClassroomMaterial> findByAuthorId(UUID authorId);
+
     @Query("select m.storedFileName from ClassroomMaterial m where m.classroom.id = :classroomId")
     List<String> findStoredNamesByClassroomId(@Param("classroomId") UUID classroomId);
 

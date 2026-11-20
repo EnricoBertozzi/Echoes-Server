@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.classroom;
 
+import com.n0hana.echoes_server.auth.attempt.AttemptScope;
+import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,6 +44,7 @@ public class ClassroomService {
     private final NotifierService notifierService;
     private final ClassroomMaterialRepository materialRepository;
     private final ClassroomMaterialStorage materialStorage;
+    private final AttemptService attempts;
 
     @Transactional
     @Auditable(action = "CREATE", entity = "Classroom", entityId = "#result.id", entityName = "#result.title", institutionId = "#result.institution.id")
@@ -109,7 +112,13 @@ public class ClassroomService {
         if (!canView(user, classroom))
             throw new ClassroomForbiddenException("Sem acesso a esta turma");
 
-        return memberRepository.findByClassroomId(id, pageable).map(ClassroomDTO.MemberInfo::from);
+        // aluno vê nome e papel dos colegas, mas não o e-mail (L6)
+        boolean hideEmails = user instanceof Student;
+
+        return memberRepository.findByClassroomId(id, pageable)
+                .map(member -> hideEmails
+                        ? ClassroomDTO.MemberInfo.from(member).withoutEmail()
+                        : ClassroomDTO.MemberInfo.from(member));
     }
 
     @Transactional
@@ -196,17 +205,20 @@ public class ClassroomService {
     @Auditable(action = "JOIN", entity = "Classroom", entityId = "#result.id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel join(String email, ClassroomDTO.JoinRequest dto) {
         User user = findUser(email);
+        attempts.assertNotBlocked(AttemptScope.CLASSROOM_JOIN, user.getEmail());
         String code = dto.code().trim().toUpperCase();
 
         // código inexistente, expirado ou de outra instituição respondem igual
         ClassroomModel classroom = codeService.findClassroomId(code)
                 .flatMap(classroomRepository::findById)
-                .orElseThrow(() -> new ClassroomForbiddenException(INVALID_CODE));
+                .orElse(null);
 
         InstitutionModel institution = institutionOf(user);
-        if (!(user instanceof Student) || institution == null
-                || !institution.getId().equals(classroom.getInstitution().getId()))
+        if (classroom == null || !(user instanceof Student) || institution == null
+                || !institution.getId().equals(classroom.getInstitution().getId())) {
+            attempts.register(AttemptScope.CLASSROOM_JOIN, user.getEmail());
             throw new ClassroomForbiddenException(INVALID_CODE);
+        }
 
         // quem já é membro desta turma recebe a turma sem erro
         if (memberRepository.existsByClassroomIdAndUserId(classroom.getId(), user.getId()))

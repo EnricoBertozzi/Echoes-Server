@@ -71,5 +71,10 @@ public class ClassroomDTO {
                     user.getUserRole(),
                     member.getJoinedAt());
         }
+
+        /** cópia sem e-mail, usada quando quem consulta é aluno (L6 / minimização) */
+        public MemberInfo withoutEmail() {
+            return new MemberInfo(userId, name, null, role, joinedAt);
+        }
     }
 }

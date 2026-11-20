@@ -58,6 +58,9 @@ class ClassroomServiceTests {
     private ClassroomRepository classroomRepository;
 
     @Mock
+    private com.n0hana.echoes_server.auth.attempt.AttemptService attempts;
+
+    @Mock
     private ClassroomMemberRepository memberRepository;
 
     @Mock
