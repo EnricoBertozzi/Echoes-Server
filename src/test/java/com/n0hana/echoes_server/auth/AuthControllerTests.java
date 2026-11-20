@@ -28,6 +28,7 @@ import com.n0hana.echoes_server.user.UserRepository;
 @ActiveProfiles("test")
 @WithMockUser
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(com.n0hana.echoes_server.auth.session.SessionCookie.class)
 public class AuthControllerTests {
 
     @Autowired
@@ -88,7 +89,7 @@ public class AuthControllerTests {
         String payload = """
                 {
                   "currentPassword": "senhaAtual",
-                  "newPassword": "novaSenha123"
+                  "newPassword": "NovaSenha@123"
                 }
             """;
 

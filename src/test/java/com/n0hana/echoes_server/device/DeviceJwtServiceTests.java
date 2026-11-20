@@ -74,20 +74,43 @@ public class DeviceJwtServiceTests {
     }
 
     @Test
-    @DisplayName("Aceita a claim antiga mac enquanto o firmware migra")
-    void shouldAcceptLegacyMacClaim() throws Exception {
-        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
-
+    @DisplayName("Rejeita a claim antiga mac: só hardware_id é aceito (S12)")
+    void shouldRejectLegacyMacClaim() throws Exception {
         SignedJWT jwt = new SignedJWT(
                 new JWSHeader(JWSAlgorithm.ES256),
                 new JWTClaimsSet.Builder()
                         .issuer(DeviceJwtService.DEVICE_ISSUER)
-                        .claim(DeviceJwtService.LEGACY_CLAIM, MAC)
+                        .claim("mac", MAC)
+                        .issueTime(new Date())
                         .expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
                         .build());
         jwt.sign(new ECDSASigner((ECPrivateKey) keyPair.getPrivate()));
 
-        assertEquals(device, deviceJwtService.validateToken(jwt.serialize()));
+        assertThrows(Exception.class, () -> deviceJwtService.validateToken(jwt.serialize()));
+    }
+
+    @Test
+    @DisplayName("Rejeita token sem iat (S12)")
+    void shouldRejectTokenWithoutIat() throws Exception {
+        SignedJWT jwt = new SignedJWT(
+                new JWSHeader(JWSAlgorithm.ES256),
+                new JWTClaimsSet.Builder()
+                        .issuer(DeviceJwtService.DEVICE_ISSUER)
+                        .claim(DeviceJwtService.HARDWARE_ID_CLAIM, MAC)
+                        .expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
+                        .build());
+        jwt.sign(new ECDSASigner((ECPrivateKey) keyPair.getPrivate()));
+
+        assertThrows(Exception.class, () -> deviceJwtService.validateToken(jwt.serialize()));
+    }
+
+    @Test
+    @DisplayName("Rejeita token com vida maior que 5 minutos (S12)")
+    void shouldRejectTokenWithLifetimeOverFiveMinutes() throws Exception {
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
+        String token = createToken(MAC, Instant.now().plus(30, ChronoUnit.MINUTES), keyPair);
+
+        assertThrows(Exception.class, () -> deviceJwtService.validateToken(token));
     }
 
     @Test
@@ -145,7 +168,7 @@ public class DeviceJwtServiceTests {
                 new JWTClaimsSet.Builder()
                         .issuer("echoes-server")
                         .claim(DeviceJwtService.HARDWARE_ID_CLAIM, MAC)
-                        .expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
+                        .issueTime(new Date()).expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
                         .build());
         jwt.sign(new ECDSASigner((ECPrivateKey) keyPair.getPrivate()));
 
@@ -159,7 +182,7 @@ public class DeviceJwtServiceTests {
                 new JWSHeader(JWSAlgorithm.ES256),
                 new JWTClaimsSet.Builder()
                         .issuer(DeviceJwtService.DEVICE_ISSUER)
-                        .expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
+                        .issueTime(new Date()).expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.MINUTES)))
                         .build());
         jwt.sign(new ECDSASigner((ECPrivateKey) keyPair.getPrivate()));
 
@@ -172,7 +195,7 @@ public class DeviceJwtServiceTests {
                 new JWTClaimsSet.Builder()
                         .issuer(DeviceJwtService.DEVICE_ISSUER)
                         .claim(DeviceJwtService.HARDWARE_ID_CLAIM, hardwareId)
-                        .expirationTime(Date.from(expiration))
+                        .issueTime(new Date()).expirationTime(Date.from(expiration))
                         .build());
 
         jwt.sign(new ECDSASigner((ECPrivateKey) signerKeyPair.getPrivate()));

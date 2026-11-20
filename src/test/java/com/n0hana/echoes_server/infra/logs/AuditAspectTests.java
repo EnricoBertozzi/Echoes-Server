@@ -6,12 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.UUID;
 
 import org.aspectj.lang.JoinPoint;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import org.mockito.ArgumentCaptor;
@@ -61,10 +63,14 @@ class AuditAspectTests {
         HttpServletRequest request =
                 mock(HttpServletRequest.class);
 
+        AuditLogService auditLogService =
+                mock(AuditLogService.class);
+
         AuditAspect aspect =
                 new AuditAspect(
                     publisher,
-                    request
+                    request,
+                    auditLogService
                 );
 
         Auditable auditable =
@@ -84,7 +90,8 @@ class AuditAspectTests {
                     AuditLog.class
                 );
 
-        verify(publisher).publishEvent(
+        // falhas vão pelo caminho síncrono de auditoria (B4)
+        verify(auditLogService).recordFailure(
             captor.capture()
         );
 
@@ -126,10 +133,13 @@ class AuditAspectTests {
         ApplicationEventPublisher publisher =
                 mock(ApplicationEventPublisher.class);
 
+        AuditLogService auditLogService = mock(AuditLogService.class);
+
         AuditAspect aspect =
                 new AuditAspect(
                     publisher,
-                    mock(HttpServletRequest.class)
+                    mock(HttpServletRequest.class),
+                    auditLogService
                 );
 
         aspect.onFailure(
@@ -143,7 +153,8 @@ class AuditAspectTests {
                     AuditLog.class
                 );
 
-        verify(publisher).publishEvent(
+        // falhas vão pelo caminho síncrono de auditoria (B4)
+        verify(auditLogService).recordFailure(
             captor.capture()
         );
 
@@ -194,5 +205,30 @@ class AuditAspectTests {
             }
         };
     }
-}
 
+    @Test
+    @DisplayName("Login com senha errada grava FAILED de forma síncrona (B4)")
+    void failedLoginIsRecordedSynchronously() throws Exception {
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+        AuditLogService auditLogService = mock(AuditLogService.class);
+        AuditAspect aspect = new AuditAspect(publisher, mock(HttpServletRequest.class), auditLogService);
+
+        Auditable auditable = Sample.class.getDeclaredMethod("login").getAnnotation(Auditable.class);
+
+        aspect.onFailure(mock(JoinPoint.class), auditable,
+                new com.n0hana.echoes_server.auth.exception.AuthFailedException());
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogService).recordFailure(captor.capture());
+        assertEquals("FAILED", captor.getValue().getStatus());
+        assertEquals("LOGIN_ATTEMPT", captor.getValue().getAction());
+        assertEquals("User", captor.getValue().getEntity());
+        verifyNoInteractions(publisher);
+    }
+
+    static class Sample {
+        @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
+        public void login() {
+        }
+    }
+}

@@ -47,6 +47,7 @@ public interface TermRepository extends JpaRepository<TermModel, Long> {
               FROM UserTermAcceptance uta
               WHERE uta.user.id = :userId
                 AND uta.term.id = t.id
+                AND uta.revokedAt IS NULL
           )
         """)
     List<DocumentType> findTypesWithoutAcceptance(

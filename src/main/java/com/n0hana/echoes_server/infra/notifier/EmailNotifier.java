@@ -48,7 +48,8 @@ public class EmailNotifier implements Notifier<EmailMessage<?>> {
 
             javaMailSender.send(mimeMessage);
         } catch (Exception e) {
-            log.info("Erro ao enviar email: " + e.getMessage());
+            // não registra o destinatário (dado pessoal) nem o corpo; registra a causa
+            log.error("Falha ao enviar e-mail '{}': {}", message.getTitle(), e.getMessage(), e);
         }
     }
 }

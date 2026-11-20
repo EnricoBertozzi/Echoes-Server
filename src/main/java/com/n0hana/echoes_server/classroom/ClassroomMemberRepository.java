@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ClassroomMemberRepository extends JpaRepository<ClassroomMember, UUID> {
@@ -20,6 +21,9 @@ public interface ClassroomMemberRepository extends JpaRepository<ClassroomMember
     Page<ClassroomMember> findByClassroomId(UUID classroomId, Pageable pageable);
 
     List<ClassroomMember> findByClassroomId(UUID classroomId);
+
+    @EntityGraph(attributePaths = {"classroom"})
+    List<ClassroomMember> findByUserId(UUID userId);
 
     void deleteByClassroomId(UUID classroomId);
     void deleteByUserId(UUID userId);

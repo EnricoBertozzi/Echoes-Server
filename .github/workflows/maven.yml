@@ -44,9 +44,9 @@ jobs:
         SERVER_PORT: 8080
         DATABASE_URL: jdbc:mysql://localhost:3306/echoes_db_test?createDatabaseIfNotExist=true&serverTimezone=UTC
         DATABASE_USER: root
-        DATABASE_PASSWORD: root_password
+        DATABASE_USER_PASSWORD: root_password
         JWT_SECRET: ${{ secrets.JWT_SECRET || 'uma_chave_secreta_dummy_com_mais_de_32_caracteres_para_testes' }}
         USE_SSL: false
-        SPRING_MAIL_HOST: localhost
-        SPRING_MAIL_PORT: 587
+        EMAIL_HOST: localhost
+        EMAIL_PORT: 587
       run: ./mvnw clean test

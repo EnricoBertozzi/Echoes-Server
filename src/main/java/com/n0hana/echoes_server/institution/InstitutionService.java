@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.institution;
 
+import com.n0hana.echoes_server.infra.web.PageLimits;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -140,7 +142,7 @@ public class InstitutionService {
     @Transactional(readOnly = true)
     public Page<InstitutionModel> findAll(String name, int size, int pageNumber, String sort) {
         Sort sortSpec = this.parseSort(sort);
-        Pageable pageable = PageRequest.of(pageNumber, size, sortSpec);
+        Pageable pageable = PageRequest.of(PageLimits.clampPage(pageNumber), PageLimits.clamp(size), sortSpec);
 
         if (name != null && !name.isBlank()) {
             return repository.findByNameContainingIgnoreCase(name, pageable);

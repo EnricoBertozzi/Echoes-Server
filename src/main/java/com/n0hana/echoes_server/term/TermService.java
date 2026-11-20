@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.term;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -139,9 +140,7 @@ public class TermService {
     }
 
     public List<UserTermAcceptance> getUserAcceptances(UUID userId) {
-        return userTermAcceptanceRepository.findAll().stream()
-            .filter(a -> a.getUser().getId().equals(userId))
-            .toList();
+        return userTermAcceptanceRepository.findAllByUserId(userId);
     }
 
     // ------------------------------------------------------------------ admin
@@ -279,10 +278,22 @@ public class TermService {
         }
     }
 
+    /**
+     * Revoga o consentimento do titular (RF17 / PSI 4.6).
+     *
+     * <p>
+     * Os aceites são marcados com {@code revokedAt} (o histórico é preservado como
+     * prova do consentimento dado) e todas as sessões são derrubadas. A conta
+     * continua ativa: o {@code TermsAcceptanceFilter} passa a bloquear o uso até
+     * que o titular aceite novamente os termos obrigatórios.
+     * </p>
+     */
     @Transactional
+    @Auditable(action = "REVOKE_TERMS", entity = "User", entityId = "#user.id")
     public void revoke(User user) {
-        userTermAcceptanceRepository.deleteAll(user.getId());
-        user.setActive(false);
+        Instant now = Instant.now();
+        userTermAcceptanceRepository.revokeAllByUserId(user.getId(), now);
+        user.setTokensRevokedAt(now);
         userRepository.save(user);
     }
 }

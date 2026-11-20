@@ -1,6 +1,7 @@
 
 package com.n0hana.echoes_server.infra.logs;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +29,7 @@ import com.n0hana.echoes_server.user.model.UserRole;
 import jakarta.persistence.criteria.Predicate;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Propagation;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -37,6 +39,7 @@ public class AuditLogService {
 
     private final AuditLogRepository repository;
     private final DeviceScopeResolver scopeResolver;
+    private final AuditSigner auditSigner;
 
     /**
      * Persiste eventos confirmados pela transação.
@@ -58,7 +61,7 @@ public class AuditLogService {
     @Async
     @TransactionalEventListener(
             phase = TransactionPhase.AFTER_ROLLBACK,
-            fallbackExecution = true
+            fallbackExecution = false
     )
     public void onRollback(AuditLog logEvent) {
         if ("SUCCESS".equals(logEvent.getStatus())) {
@@ -68,6 +71,14 @@ public class AuditLogService {
             );
         }
 
+        saveLog(logEvent);
+    }
+
+    /**
+     * Grava uma falha de forma síncrona e em transação própria (B4).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordFailure(AuditLog logEvent) {
         saveLog(logEvent);
     }
 
@@ -91,6 +102,9 @@ public class AuditLogService {
                     .actorInstitutionName(logEvent.getActorInstitutionName())
                     .institutionId(logEvent.getInstitutionId())
                     .build();
+
+            fresh.setTimestamp(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+            fresh.setSignature(auditSigner.sign(fresh));
 
             repository.save(fresh);
 
@@ -235,5 +249,17 @@ public class AuditLogService {
         }
 
         return value.trim();
+    }
+
+    /**
+     * Ids dos registros cuja assinatura não confere (S15). Registros gravados antes
+     * da assinatura existir aparecem aqui como não verificados.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<UUID> findTamperedIds() {
+        return repository.findAll().stream()
+                .filter(log -> !auditSigner.verify(log))
+                .map(AuditLog::getId)
+                .toList();
     }
 }

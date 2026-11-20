@@ -55,6 +55,9 @@ public class CurrentUserControllerTests {
     private UserManagerService userManagerService;
 
     @MockitoBean
+    private com.n0hana.echoes_server.user.export.UserDataExportService userDataExportService;
+
+    @MockitoBean
     private JwtFilter filter;
 
     @BeforeEach
@@ -126,7 +129,7 @@ public class CurrentUserControllerTests {
         // Arrange
         String email = "usuario@email.com";
         UserDTO userDTO = new UserDTO(UUID.randomUUID(), "Novo Nome", "novo@email.com", UUID.randomUUID(), UserRole.STUDENT);
-        UpdateUserDTO updateUserDTO = new UpdateUserDTO("Novo Nome", "novo@email.com");
+        UpdateUserDTO updateUserDTO = new UpdateUserDTO("Novo Nome");
 
         when(userManagerService.updateCurrentUser(email, updateUserDTO)).thenReturn(userDTO);
 

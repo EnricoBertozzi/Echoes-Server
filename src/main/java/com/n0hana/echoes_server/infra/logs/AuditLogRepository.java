@@ -1,6 +1,7 @@
 
 package com.n0hana.echoes_server.infra.logs;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,5 +16,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface AuditLogRepository
         extends JpaRepository<AuditLog, UUID>,
                 JpaSpecificationExecutor<AuditLog> {
+
+    /** registros de auditoria em que o próprio usuário é o autor (exportação LGPD) */
+    List<AuditLog> findByUserIdOrderByTimestampDesc(String userId);
 }
 

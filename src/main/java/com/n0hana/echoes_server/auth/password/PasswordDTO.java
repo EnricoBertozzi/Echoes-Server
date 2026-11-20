@@ -3,6 +3,7 @@ package com.n0hana.echoes_server.auth.password;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -34,7 +35,7 @@ public class PasswordDTO {
     public record RequestReset(
             @NotBlank @Email String email,
             @NotBlank String token,
-            @NotBlank String newPassword) {
+            @NotBlank @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE) String newPassword) {
     }
 
     /**

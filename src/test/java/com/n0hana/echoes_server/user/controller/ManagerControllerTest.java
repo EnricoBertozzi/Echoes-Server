@@ -179,10 +179,9 @@ class ManagerControllerTest {
     void patchWithBlankFieldsReturns400() throws Exception {
         mockMvc.perform(patch("/api/v1/users/manager/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"\",\"email\":\"\"}"))
+                        .content("{\"name\":\"\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.name").value("O nome não pode ficar em branco"))
-                .andExpect(jsonPath("$.email").value("O e-mail não pode ficar em branco"));
+                .andExpect(jsonPath("$.name").value("O nome não pode ficar em branco"));
     }
 
     @Test

@@ -3,8 +3,10 @@ package com.n0hana.echoes_server.auth;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -22,7 +24,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.n0hana.echoes_server.auth.attempt.AttemptScope;
+import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.auth.exception.TooManyAttemptsException;
 import com.n0hana.echoes_server.auth.exception.InvalidMfaCodeException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
 import com.n0hana.echoes_server.auth.exception.UserBlockedException;
@@ -56,6 +61,9 @@ public class AuthServiceTests {
 
     @Mock
     private LoginAttemptService attemptService;
+
+    @Mock
+    private AttemptService mfaAttempts;
 
     @InjectMocks
     private AuthService authService;
@@ -96,7 +104,7 @@ public class AuthServiceTests {
     }
 
     @Test
-    @DisplayName("Deve lançar exceção UserBlockedException quando o usuário estiver bloqueado durante o login")
+    @DisplayName("Conta bloqueada no login responde como senha errada, sem revelar o bloqueio (S8)")
     void shouldThrowUserBlockedExceptionWhenUserIsBlocked() {
         String email = "teste@email.com";
         String password = "senha123";
@@ -105,7 +113,7 @@ public class AuthServiceTests {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(user.isAccountNonLocked()).thenReturn(false);
 
-        assertThrows(UserBlockedException.class, () -> authService.login(email, password));
+        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
     }
 
     @Test
@@ -183,7 +191,7 @@ public class AuthServiceTests {
         when(user.isAccountNonLocked()).thenReturn(false);
 
         // Act e Assert
-        assertThrows(UserBlockedException.class, () -> authService.login(email, password));
+        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
 
     }
 
@@ -246,8 +254,56 @@ public class AuthServiceTests {
         // Act e Assert
         assertThrows(InvalidMfaCodeException.class, () -> authService.verifyMfaCode(email, wrongCode));
 
-        verify(attemptService).registerFailedAttempt(email);
+        verify(mfaAttempts).register(AttemptScope.MFA, email);
+        verify(attemptService, never()).registerFailedAttempt(email);
         verify(jwtTokenService, never()).generate(any());
+    }
+
+    @Test
+    @DisplayName("InvalidMfaCodeException deve ser AuthFailedException para não sofrer rollback no login (B1)")
+    void invalidMfaCodeIsAuthFailed() {
+        assertTrue(new InvalidMfaCodeException() instanceof AuthFailedException);
+    }
+
+    @Test
+    @DisplayName("Código MFA deve ser apagado ao estourar o limite de tentativas (B1)")
+    void shouldDeleteMfaCodeWhenAttemptLimitIsReached() {
+        String email = "teste@email.com";
+        when(authRepository.findByEmail(email)).thenReturn(Optional.of("123456"));
+        when(mfaAttempts.register(AttemptScope.MFA, email)).thenReturn(true);
+
+        assertThrows(InvalidMfaCodeException.class, () -> authService.verifyMfaCode(email, "000000"));
+
+        verify(authRepository).delete(email);
+    }
+
+    @Test
+    @DisplayName("Deve bloquear MFA sem consultar o código quando já estourou o limite (B1)")
+    void shouldRejectMfaWhenAttemptsExhausted() {
+        String email = "teste@email.com";
+        doThrow(new TooManyAttemptsException()).when(mfaAttempts).assertNotBlocked(AttemptScope.MFA, email);
+
+        assertThrows(TooManyAttemptsException.class, () -> authService.verifyMfaCode(email, "123456"));
+
+        verifyNoInteractions(authRepository);
+        verify(jwtTokenService, never()).generate(any());
+    }
+
+    @Test
+    @DisplayName("Código MFA correto deve zerar o contador de tentativas")
+    void shouldClearMfaAttemptsOnSuccess() {
+        String email = "teste@email.com";
+        User user = mock(User.class);
+        when(authRepository.findByEmail(email)).thenReturn(Optional.of("123456"));
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getEmail()).thenReturn(email);
+        when(jwtTokenService.generate(user)).thenReturn("token");
+
+        assertEquals("token", authService.verifyMfaCode(email, "123456"));
+
+        verify(mfaAttempts).clear(AttemptScope.MFA, email);
     }
 
     @Test
@@ -275,7 +331,8 @@ public class AuthServiceTests {
         assertThrows(AuthFailedException.class, () -> authService.login(email, password));
         assertThrows(InvalidMfaCodeException.class, () -> authService.verifyMfaCode(email, wrongCode));
 
-        verify(attemptService, times(2)).registerFailedAttempt(email);
+        verify(attemptService, times(1)).registerFailedAttempt(email);
+        verify(mfaAttempts, times(1)).register(AttemptScope.MFA, email);
         verify(attemptService, never()).resetLoginAttempt(anyString());
     }
 
@@ -300,7 +357,7 @@ public class AuthServiceTests {
         when(twoFactorService.generateCode()).thenReturn("123456");
 
         // Act e Assert
-        assertThrows(UserBlockedException.class, () -> authService.login(email, password));
+        assertThrows(AuthFailedException.class, () -> authService.login(email, password));
         assertDoesNotThrow(() -> authService.login(email, password));
 
         verify(authRepository).save(email, "123456");

@@ -10,7 +10,10 @@ import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+
+import com.n0hana.echoes_server.infra.web.ClientIpResolver;
 
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
@@ -37,6 +40,11 @@ public class AuditAspect {
 
     private final ApplicationEventPublisher eventPublisher;
     private final HttpServletRequest request;
+    private final AuditLogService auditLogService;
+
+    /** só confia em X-Forwarded-For atrás de proxy conhecido (S13) */
+    @Value("${api.security.trust-forwarded-for:false}")
+    private boolean trustForwardedFor;
 
     private final ExpressionParser parser =
             new SpelExpressionParser();
@@ -132,7 +140,9 @@ public class AuditAspect {
     ) {
         Actor actor = this.resolveActor();
 
-        eventPublisher.publishEvent(
+        // Falha gravada de forma síncrona em transação própria (REQUIRES_NEW), como
+        // ocorre com dontRollbackOn no login (B4).
+        auditLogService.recordFailure(
             AuditLog.builder()
                 .userId(this.getUserId())
                 .actorName(actor.name())
@@ -363,20 +373,6 @@ public class AuditAspect {
     }
 
     private String getClientIp() {
-        String ip = request.getHeader(
-            "X-Forwarded-For"
-        );
-
-        if (
-            ip == null ||
-            ip.isEmpty() ||
-            ip.equalsIgnoreCase("unknown")
-        ) {
-            ip = request.getRemoteAddr();
-        } else {
-            ip = ip.split(",")[0].trim();
-        }
-
-        return ip;
+        return ClientIpResolver.resolve(request, trustForwardedFor);
     }
 }

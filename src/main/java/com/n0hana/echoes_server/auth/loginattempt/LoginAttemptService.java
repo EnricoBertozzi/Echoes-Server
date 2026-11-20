@@ -32,12 +32,13 @@ public class LoginAttemptService {
      */
     public void registerFailedAttempt(String email) {
         User user = this.findUserByEmail(email);
-        Integer attempts = user.getLoginAttempts();
 
-        if (attempts < ATTEMPTS_LIMIT) {
-            attempts += 1;
-            attemptRepository.updateUserAttempts(user.getId(), attempts);
-        } else {
+        // incremento atômico no banco (B5): requisições paralelas não perdem contagem
+        attemptRepository.incrementUserAttempts(user.getId());
+        Integer attempts = attemptRepository.findUserAttempts(user.getId());
+
+        // a 5ª falha já bloqueia (antes o bloqueio só ocorria na 6ª)
+        if (attempts >= ATTEMPTS_LIMIT) {
             this.blockUser(user);
         }
     }
