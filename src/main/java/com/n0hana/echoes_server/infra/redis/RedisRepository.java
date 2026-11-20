@@ -5,9 +5,18 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import java.util.List;
+
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 
 public class RedisRepository<T> {
+
+    // GET + DEL num único passo no servidor: só remove se o valor for idêntico ao esperado
+    private static final RedisScript<Long> CONSUME_IF_MATCHES = new DefaultRedisScript<>(
+            "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
+            Long.class);
 
     private final StringRedisTemplate template;
     private final RedisNamespace namespace;
@@ -60,6 +69,15 @@ public class RedisRepository<T> {
 
     public void delete(String id) {
         template.delete(key(id));
+    }
+
+    /**
+     * Remove a chave atomicamente apenas se o valor armazenado for igual ao esperado.
+     * Valor diferente ou chave ausente: nada é removido e retorna false.
+     */
+    public boolean consumeIfMatches(String id, T expected) {
+        Long removed = template.execute(CONSUME_IF_MATCHES, List.of(key(id)), codec.encode(expected));
+        return removed != null && removed == 1L;
     }
 
     public Optional<Duration> remainingTtl(String id) {

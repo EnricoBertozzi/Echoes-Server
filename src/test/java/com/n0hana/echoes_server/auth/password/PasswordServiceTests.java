@@ -145,13 +145,12 @@ class PasswordServiceTests {
     @DisplayName("Token de redefinição é apagado após o uso e a senha marca passwordChangedAt (S1/S2)")
     void resetConsumesTokenAndMarksPasswordChange() {
         com.n0hana.echoes_server.user.model.User user = org.mockito.Mockito.mock(com.n0hana.echoes_server.user.model.User.class);
-        when(tokenRepository.findByEmail(email)).thenReturn(Optional.of("token-ok"));
+        when(tokenRepository.consumeIfMatches(email, "token-ok")).thenReturn(true);
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(passwordEncoder.encode("Nova@Senha1")).thenReturn("hash");
 
         service.reset(email, "token-ok", "Nova@Senha1");
 
-        verify(tokenRepository).delete(email);
         verify(user).setPassword("hash");
         verify(user).setPasswordChangedAt(org.mockito.ArgumentMatchers.any(java.time.Instant.class));
     }
@@ -159,12 +158,45 @@ class PasswordServiceTests {
     @Test
     @DisplayName("Token errado não é aceito e não é consumido")
     void resetWithWrongTokenKeepsToken() {
-        when(tokenRepository.findByEmail(email)).thenReturn(Optional.of("token-ok"));
+        when(tokenRepository.consumeIfMatches(email, "outro")).thenReturn(false);
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 com.n0hana.echoes_server.auth.exception.AuthFailedException.class,
                 () -> service.reset(email, "outro", "Nova@Senha1"));
 
         verify(tokenRepository, never()).delete(anyString());
+        verify(userRepository, never()).findByEmail(anyString());
+    }
+
+    @Test
+    @DisplayName("Validate e reset normalizam o e-mail: caixa diferente usa a mesma chave do Redis")
+    void passwordFlowIsCaseInsensitive() {
+        when(codeRepository.findByEmail(email)).thenReturn(Optional.of("123456"));
+
+        String token = service.validate("  TESTE@Email.com ", "123456");
+
+        verify(attempts).assertNotBlocked(AttemptScope.PASSWORD_VALIDATE, email);
+        verify(tokenRepository).save(email, token);
+
+        com.n0hana.echoes_server.user.model.User user = org.mockito.Mockito.mock(com.n0hana.echoes_server.user.model.User.class);
+        when(tokenRepository.consumeIfMatches(email, token)).thenReturn(true);
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("Nova@Senha1")).thenReturn("hash");
+
+        service.reset("Teste@EMAIL.com", token, "Nova@Senha1");
+
+        verify(user).setPassword("hash");
+    }
+
+    @Test
+    @DisplayName("Pedido de reset normaliza o e-mail antes de contar tentativa e gravar o código")
+    void requestNormalizesEmail() {
+        when(userRepository.existsByEmail(email)).thenReturn(true);
+        when(twoFactorService.generateCode()).thenReturn("654321");
+
+        service.request("TESTE@email.COM");
+
+        verify(attempts).register(AttemptScope.PASSWORD_FORGOT, email);
+        verify(codeRepository).save(email, "654321");
     }
 }
