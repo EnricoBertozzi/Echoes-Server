@@ -102,6 +102,50 @@ class AccessGuardTest {
     }
 
     @Test
+    @DisplayName("Gestor acessa aluno da própria instituição mesmo com instâncias diferentes da mesma instituição")
+    void managerAccessesStudentWithDistinctInstitutionInstances() {
+        UUID institutionId = UUID.randomUUID();
+        InstitutionModel managerSide = InstitutionModel.builder().id(institutionId).build();
+        InstitutionModel studentSide = InstitutionModel.builder().id(institutionId).build();
+        InstitutionModel foreign = InstitutionModel.builder().id(UUID.randomUUID()).build();
+
+        Manager manager = new Manager();
+        manager.setId(UUID.randomUUID());
+        manager.setInstitution(managerSide);
+        Student sameInstitution = student(studentSide);
+        Student otherInstitution = student(foreign);
+        Student noInstitutionId = student(InstitutionModel.builder().build());
+
+        when(userRepository.findById(sameInstitution.getId())).thenReturn(Optional.of(sameInstitution));
+        when(userRepository.findById(otherInstitution.getId())).thenReturn(Optional.of(otherInstitution));
+        when(userRepository.findById(noInstitutionId.getId())).thenReturn(Optional.of(noInstitutionId));
+        loginAs(manager);
+
+        org.junit.jupiter.api.Assertions.assertNotSame(managerSide, studentSide);
+        assertTrue(guard.canAccess(sameInstitution.getId()));
+        assertFalse(guard.canAccess(otherInstitution.getId()));
+        assertFalse(guard.canAccess(noInstitutionId.getId()));
+    }
+
+    @Test
+    @DisplayName("Gestor sem instituição ou aluno sem instituição nega o acesso")
+    void missingInstitutionDeniesAccess() {
+        Manager manager = new Manager();
+        manager.setId(UUID.randomUUID());
+        manager.setInstitution(InstitutionModel.builder().id(UUID.randomUUID()).build());
+        Student withoutInstitution = student(null);
+        when(userRepository.findById(withoutInstitution.getId())).thenReturn(Optional.of(withoutInstitution));
+        loginAs(manager);
+
+        assertFalse(guard.canAccess(withoutInstitution.getId()));
+
+        Manager orphan = new Manager();
+        orphan.setId(UUID.randomUUID());
+        loginAs(orphan);
+        assertFalse(guard.canAccess(UUID.randomUUID()));
+    }
+
+    @Test
     @DisplayName("Verifica o acesso negado a usuários não autenticados")
     void withoutLoginEverythingIsDenied() {
         // Arrange
