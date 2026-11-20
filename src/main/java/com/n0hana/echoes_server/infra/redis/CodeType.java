@@ -29,7 +29,10 @@ public enum CodeType implements RedisNamespace {
     KNOWN_DEVICE_USER(Duration.ofDays(180), "known-device-user:"),
 
     // TTL customizado na chamada (calculado a partir da expiração do JWT)
-    JWT_BLACKLIST(Duration.ofHours(2), "blacklist:token:");
+    JWT_BLACKLIST(Duration.ofHours(2), "blacklist:token:"),
+
+    // corte de revogação dos tokens de um dispositivo: vida máxima do token (5 min) + tolerância de relógio
+    DEVICE_TOKENS_REVOKED(Duration.ofMinutes(6), "device:tokens-revoked-at:");
 
     private final Duration duration;
     private final String prefix;
