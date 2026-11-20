@@ -460,4 +460,38 @@ public class AuthServiceTests {
         // Assert
         verifyNoInteractions(jwtTokenService);
     }
+
+    @Test
+    @DisplayName("Login normaliza o e-mail (caixa e espaços) antes de consultar o banco e gravar o código no Redis")
+    void loginNormalizesEmail() {
+        User user = mock(User.class);
+        when(userRepository.findByEmail("teste@email.com")).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getPassword()).thenReturn("hash");
+        when(passwordEncoder.matches("senha123", "hash")).thenReturn(true);
+        when(twoFactorService.generateCode()).thenReturn("123456");
+
+        authService.login("  Teste@Email.COM ", "senha123");
+
+        verify(authRepository).save("teste@email.com", "123456");
+        verify(notifier).sendMfaCode("teste@email.com", "123456");
+    }
+
+    @Test
+    @DisplayName("MFA com e-mail em outra caixa usa a mesma chave do Redis e o mesmo contador")
+    void verifyMfaNormalizesEmail() {
+        User user = mock(User.class);
+        when(authRepository.findByEmail("teste@email.com")).thenReturn(Optional.of("123456"));
+        when(userRepository.findByEmail("teste@email.com")).thenReturn(Optional.of(user));
+        when(user.isAccountNonLocked()).thenReturn(true);
+        when(user.isEnabled()).thenReturn(true);
+        when(jwtTokenService.generate(user)).thenReturn("jwt");
+
+        assertEquals("jwt", authService.verifyMfaCode("TESTE@Email.com", "123456"));
+
+        verify(mfaAttempts).assertNotBlocked(
+                com.n0hana.echoes_server.auth.attempt.AttemptScope.MFA, "teste@email.com");
+        verify(authRepository).delete("teste@email.com");
+    }
 }
