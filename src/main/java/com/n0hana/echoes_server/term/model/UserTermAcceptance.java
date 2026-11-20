@@ -42,6 +42,13 @@ public class UserTermAcceptance {
     @CreationTimestamp
     private Instant acceptedAt;
 
+    /**
+     * Preenchido quando o titular revoga o consentimento (RF17). O registro é
+     * mantido como prova do consentimento dado; só aceites ativos (revokedAt nulo)
+     * contam para liberar o uso do sistema.
+     */
+    private Instant revokedAt;
+
     public UserTermAcceptance(User user, TermModel term) {
         this.user = user;
         this.term = term;
