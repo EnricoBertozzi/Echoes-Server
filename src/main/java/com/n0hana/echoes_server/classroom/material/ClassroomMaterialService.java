@@ -29,7 +29,7 @@ public class ClassroomMaterialService {
     }
 
     @Transactional
-    @Auditable(action = "UPLOAD", entity = "ClassroomMaterial", entityId = "#result.id", institutionId = "#result.classroom.institution.id")
+    @Auditable(action = "UPLOAD", entity = "ClassroomMaterial", entityId = "#result.id", entityName = "#result.title", institutionId = "#result.classroom.institution.id")
     public ClassroomMaterial create(String email, UUID classroomId, String title, String description, MultipartFile file) {
         ClassroomModel classroom = classroomService.requireTeacherForMaterials(email, classroomId);
         String checkedTitle = validateTitle(title);
@@ -45,7 +45,7 @@ public class ClassroomMaterialService {
     }
 
     @Transactional
-    @Auditable(action = "UPDATE", entity = "ClassroomMaterial", entityId = "#materialId", institutionId = "#result.classroom.institution.id")
+    @Auditable(action = "UPDATE", entity = "ClassroomMaterial", entityId = "#materialId", entityName = "#result.title", institutionId = "#result.classroom.institution.id")
     public ClassroomMaterial update(String email, UUID classroomId, UUID materialId, ClassroomMaterialDTO.Update request) {
         classroomService.requireTeacherForMaterials(email, classroomId);
         ClassroomMaterial material = findMaterial(materialId, classroomId);
@@ -55,7 +55,7 @@ public class ClassroomMaterialService {
     }
 
     @Transactional
-    @Auditable(action = "REPLACE_FILE", entity = "ClassroomMaterial", entityId = "#materialId", institutionId = "#result.classroom.institution.id")
+    @Auditable(action = "REPLACE_FILE", entity = "ClassroomMaterial", entityId = "#materialId", entityName = "#result.title", institutionId = "#result.classroom.institution.id")
     public ClassroomMaterial replace(String email, UUID classroomId, UUID materialId, MultipartFile file) {
         classroomService.requireTeacherForMaterials(email, classroomId);
         ClassroomMaterial material = findMaterial(materialId, classroomId);
@@ -68,7 +68,7 @@ public class ClassroomMaterialService {
     }
 
     @Transactional
-    @Auditable(action = "DELETE", entity = "ClassroomMaterial", entityId = "#materialId", institutionId = "#result.classroom.institution.id")
+    @Auditable(action = "DELETE", entity = "ClassroomMaterial", entityId = "#materialId", entityName = "#result.title", institutionId = "#result.classroom.institution.id")
     public ClassroomMaterial delete(String email, UUID classroomId, UUID materialId) {
         classroomService.requireTeacherForMaterials(email, classroomId);
         ClassroomMaterial material = findMaterial(materialId, classroomId);

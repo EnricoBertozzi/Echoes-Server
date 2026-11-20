@@ -50,7 +50,7 @@ public class ClassroomDeviceService {
 
     // se o dispositivo já estava em outra turma da instituição, ele passa para esta
     @Transactional
-    @Auditable(action = "ADD_DEVICE", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "ADD_DEVICE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel addDevice(String email, UUID id, UUID deviceId) {
         ClassroomModel classroom = findManagedClassroom(email, id);
 
@@ -70,7 +70,7 @@ public class ClassroomDeviceService {
     }
 
     @Transactional
-    @Auditable(action = "REMOVE_DEVICE", entity = "Classroom", entityId = "#id", institutionId = "#result.institution.id")
+    @Auditable(action = "REMOVE_DEVICE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel removeDevice(String email, UUID id, UUID deviceId) {
         ClassroomModel classroom = findManagedClassroom(email, id);
 

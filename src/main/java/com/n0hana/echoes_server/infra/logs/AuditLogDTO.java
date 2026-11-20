@@ -18,8 +18,12 @@ import java.util.UUID;
 public record AuditLogDTO(
         UUID id,
         String userId,
+        String actorName,
+        String actorRole,
+        String actorInstitutionName,
         String action,
         String entity,
+        String entityName,
         String status,
         String details,
         String ip,
@@ -34,14 +38,31 @@ public record AuditLogDTO(
      * @return {@link AuditLogDTO} com os campos expostos na API.
      */
     public static AuditLogDTO from(AuditLog log) {
+        return from(log, true);
+    }
+
+    /**
+     * Mapeia a entidade de domínio para o DTO de resposta, controlando a
+     * exposição do IP.
+     *
+     * @param log       Registro de auditoria persistido.
+     * @param includeIp {@code true} para incluir o IP; {@code false} devolve
+     *                  {@code null}.
+     * @return {@link AuditLogDTO} com os campos expostos na API.
+     */
+    public static AuditLogDTO from(AuditLog log, boolean includeIp) {
         return new AuditLogDTO(
                 log.getId(),
                 log.getUserId(),
+                log.getActorName(),
+                log.getActorRole(),
+                log.getActorInstitutionName(),
                 log.getAction(),
                 log.getEntity(),
+                log.getEntityName(),
                 log.getStatus(),
                 log.getDetails(),
-                log.getIp(),
+                includeIp ? log.getIp() : null,
                 log.getEntityId(),
                 log.getInstitutionId(),
                 log.getTimestamp());

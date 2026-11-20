@@ -85,6 +85,10 @@ public class AuditLogService {
                     .details(logEvent.getDetails())
                     .ip(logEvent.getIp())
                     .entityId(logEvent.getEntityId())
+                    .entityName(logEvent.getEntityName())
+                    .actorName(logEvent.getActorName())
+                    .actorRole(logEvent.getActorRole())
+                    .actorInstitutionName(logEvent.getActorInstitutionName())
                     .institutionId(logEvent.getInstitutionId())
                     .build();
 
@@ -233,4 +237,3 @@ public class AuditLogService {
         return value.trim();
     }
 }
-

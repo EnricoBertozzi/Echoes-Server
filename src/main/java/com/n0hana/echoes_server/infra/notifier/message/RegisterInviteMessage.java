@@ -36,7 +36,7 @@ public class RegisterInviteMessage implements EmailMessage<RegisterInviteData> {
             <html>
                 <body>
                     <h1>Bem-vindo ao echoes!</h1>
-                    <p>Para continuar o registro, clique <a href="http://localhost:5173/register?code=%s&email=%s">aqui</a></p>
+                    <p>Para continuar o registro, clique <a href="https://echoes.avraham.dev.br/register?code=%s&email=%s">aqui</a></p>
                     <strong>Lembre-se, o link é válido por 5 minutos</strong>
                 </body>
             </html>

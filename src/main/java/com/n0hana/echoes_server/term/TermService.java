@@ -166,6 +166,7 @@ public class TermService {
     }
 
     @Transactional
+    @Auditable(action = "CREATE", entity = "Term", entityId = "#result.id")
     public TermModel createTerm(CreateTermRequestDTO dto) {
         TermStatus targetStatus = dto.status() == null ? TermStatus.DRAFT : dto.status();
 
@@ -198,6 +199,7 @@ public class TermService {
     }
 
     @Transactional
+    @Auditable(action = "UPDATE_CONTENT", entity = "Term", entityId = "#id")
     public TermModel updateTermContent(Long id, String content) {
         if (content == null || content.isBlank()) {
             throw new TermStatusException("Conteúdo é obrigatório");
@@ -216,6 +218,7 @@ public class TermService {
     }
 
     @Transactional
+    @Auditable(action = "UPDATE_STATUS", entity = "Term", entityId = "#id")
     public TermModel updateTermStatus(Long id, TermStatus newStatus) {
         if (newStatus == null) {
             throw new TermStatusException("Status é obrigatório");

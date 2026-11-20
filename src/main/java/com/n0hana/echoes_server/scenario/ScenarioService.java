@@ -17,6 +17,7 @@ import com.n0hana.echoes_server.auscultation.AuscultationPointService;
 import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
 import com.n0hana.echoes_server.infra.file.exception.StorageFileNotFoundException;
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
 import jakarta.transaction.Transactional;
@@ -46,6 +47,7 @@ public class ScenarioService {
    * @param file  Arquivo de áudio enviado.
    */
   @Transactional
+  @Auditable(action = "CREATE", entity = "Scenario", entityId = "#result.id", entityName = "#result.name")
   public ScenarioModel create(ScenarioModel model, MultipartFile file) {
     String audioPath = fileService.store(file, model.getName());
 
@@ -180,6 +182,7 @@ public class ScenarioService {
    * @param scenario Objeto com dados a serem atualizados
    */
   @Transactional
+  @Auditable(action = "UPDATE", entity = "Scenario", entityId = "#result.id", entityName = "#result.name")
   public ScenarioModel updateScenario(UUID id, ScenarioModel scenario) {
     ScenarioModel savedScenario = this.findScenarioById(id);
 
@@ -201,6 +204,7 @@ public class ScenarioService {
    * @param id Identificador do cenário a ser excluído.
    */
   @Transactional
+  @Auditable(action = "DELETE", entity = "Scenario", entityId = "#id")
   public void deleteScenario(UUID id) {
     ScenarioModel model = this.findScenarioById(id);
 
@@ -232,6 +236,7 @@ public class ScenarioService {
    * @param id   Identificador do cenário
    * @param file Arquivo de áudio enviado.
    */
+  @Auditable(action = "REPLACE_FILE", entity = "Scenario", entityId = "#id")
   public void reuploadFile(UUID id, MultipartFile file) {
     ScenarioModel model = this.findScenarioById(id);
     fileService.delete(model.getAudioUrl());

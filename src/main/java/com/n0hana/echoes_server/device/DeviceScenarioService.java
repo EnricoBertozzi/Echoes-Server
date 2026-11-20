@@ -124,6 +124,7 @@ public class DeviceScenarioService {
 
   /** Cria um caso completo, sem alterar a configuracao atual do ESP32. */
   @Transactional
+  @Auditable(action = "CREATE", entity = "ClinicalPreset", entityId = "#result.id()", entityName = "#result.name()")
   public ClinicalPresetInfo createPreset(User user, UUID deviceId, CreateClinicalPresetRequest request) {
     DeviceModel device = findDevice(deviceId);
     assertCanManage(user, device);

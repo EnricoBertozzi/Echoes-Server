@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 import com.n0hana.echoes_server.user.model.User;
+import com.n0hana.echoes_server.user.model.UserRole;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,8 @@ import lombok.RequiredArgsConstructor;
  *
  * MANAGER:
  * - Consulta exclusivamente sua instituição.
+ *
+ * O campo {@code ip} só é retornado para ADMIN; para MANAGER vem nulo.
  *
  * A escrita permanece exclusiva do AuditAspect.
  */
@@ -89,7 +92,10 @@ public class AuditLogController {
                     status,
                     pageable
                 )
-                .map(AuditLogDTO::from);
+                .map(log -> AuditLogDTO.from(
+                    log,
+                    user.getUserRole() == UserRole.ADMIN
+                ));
 
         return ResponseEntity.ok(page);
     }

@@ -174,6 +174,16 @@ class AuditAspectTests {
             }
 
             @Override
+            public String entityName() {
+                return "";
+            }
+
+            @Override
+            public String details() {
+                return "";
+            }
+
+            @Override
             public String institutionId() {
                 return "";
             }
