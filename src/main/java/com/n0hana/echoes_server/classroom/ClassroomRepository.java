@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.classroom;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -16,6 +17,9 @@ public interface ClassroomRepository extends JpaRepository<ClassroomModel, UUID>
     // gestor vê todas as turmas da instituição
     Page<ClassroomModel> findByInstitutionIdAndTitleContainingIgnoreCase(UUID institutionId, String title,
             Pageable pageable);
+
+    // turmas ativas da instituição (usado no cascade de exclusão)
+    List<ClassroomModel> findByInstitutionId(UUID institutionId);
 
     // professor e aluno veem as turmas em que são membros
     @Query("select c from ClassroomModel c where lower(c.title) like lower(concat('%', :name, '%')) "

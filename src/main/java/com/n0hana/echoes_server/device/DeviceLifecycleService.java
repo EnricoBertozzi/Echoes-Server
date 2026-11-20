@@ -140,6 +140,17 @@ public class DeviceLifecycleService {
     return saveAndNotify(device);
   }
 
+  /**
+   * Inativa em bloco os dispositivos de uma instituição excluída. Não exige
+   * usuário: é uma transição de sistema, disparada pelo cascade de exclusão.
+   * A atualização é feita direto no banco para não ser filtrada pelo
+   * {@code @SQLRestriction} da instituição já excluída.
+   */
+  @Transactional
+  public void deactivateByInstitution(UUID institutionId) {
+    deviceRepository.deactivateActiveByInstitutionId(institutionId);
+  }
+
   @Transactional
   @Auditable(action = "DELETE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
   public DeviceModel delete(UUID deviceId) {

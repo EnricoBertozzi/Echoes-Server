@@ -39,6 +39,17 @@ public interface DeviceRepository extends JpaRepository<DeviceModel, UUID> {
     @EntityGraph(attributePaths = { "animal", "institution" })
     List<DeviceModel> findByClassroomIdOrderByNameAsc(UUID classroomId);
 
+    /**
+     * Inativa os dispositivos ativos da instituição no cascade de exclusão.
+     * Native query de propósito: uma consulta JPQL que referencia
+     * {@code d.institution.id} acaba aplicando o {@code @SQLRestriction} da
+     * instituição (já marcada como excluída) e não encontra os devices.
+     */
+    @Modifying
+    @Query(value = "update device_tb set status = 'INACTIVE' "
+            + "where institution_id = :institutionId and status = 'ACTIVE'", nativeQuery = true)
+    int deactivateActiveByInstitutionId(@Param("institutionId") UUID institutionId);
+
     // ---- Dashboard ----
 
     /** Linhas {status, quantidade} de todos os dispositivos. */

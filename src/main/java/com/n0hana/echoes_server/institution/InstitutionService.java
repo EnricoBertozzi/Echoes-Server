@@ -45,6 +45,7 @@ public class InstitutionService {
     private final NotifierService notifier;
     private final ApplicationEventPublisher eventPublisher;
     private final UserInfoService userInfoService;
+    private final InstitutionDeletionService deletionService;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -213,6 +214,9 @@ public class InstitutionService {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setDeleted(true);
         model.setDeleteToken(UUID.randomUUID().toString());
+
+        // anonimiza a instituição e desliga turmas, dispositivos e usuários
+        deletionService.delete(model);
 
         repository.save(model);
         eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), true));

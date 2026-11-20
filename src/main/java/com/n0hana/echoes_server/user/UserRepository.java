@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -50,5 +51,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query(value = "SELECT u.* FROM users u WHERE u.institution_id = :institutionId AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') AND u.name LIKE CONCAT('%', :name, '%') ORDER BY u.id", countQuery = "SELECT COUNT(*) FROM users u WHERE u.institution_id = :institutionId AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') AND u.name LIKE CONCAT('%', :name, '%')", nativeQuery = true)
     Page<User> findUsersByNameInInstitution(@Param("institutionId") UUID institutionId, @Param("name") String name, Pageable pageable);
+
+    /** Desativa (sem excluir) todos os usuários vinculados à instituição. */
+    @Modifying
+    @Query(value = "update users set active = false where institution_id = :institutionId", nativeQuery = true)
+    int deactivateByInstitutionId(@Param("institutionId") UUID institutionId);
 
 }

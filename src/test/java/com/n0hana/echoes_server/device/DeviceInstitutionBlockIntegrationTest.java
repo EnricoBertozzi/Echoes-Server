@@ -87,6 +87,7 @@ class DeviceInstitutionBlockIntegrationTest {
     DeviceModel device = reload();
 
     assertThat(device.getInstitution()).isNull();
+    assertThat(device.getStatus()).isEqualTo(DeviceStatus.INACTIVE);
     assertThat(accessPolicy.canOperate(device)).isFalse();
   }
 

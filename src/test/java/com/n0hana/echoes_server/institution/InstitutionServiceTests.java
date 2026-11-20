@@ -58,6 +58,9 @@ public class InstitutionServiceTests {
     @Mock
     private UserInfoService userInfoService;
 
+    @Mock
+    private InstitutionDeletionService deletionService;
+
     @InjectMocks
     private InstitutionService service;
 
@@ -351,6 +354,7 @@ public class InstitutionServiceTests {
         service.delete(uuid);
 
         verify(model).setDeleted(eq(true));
+        verify(deletionService).delete(model);
 
         InstitutionStatusChanged event = capturedEvent();
         assertEquals(uuid, event.institutionId());

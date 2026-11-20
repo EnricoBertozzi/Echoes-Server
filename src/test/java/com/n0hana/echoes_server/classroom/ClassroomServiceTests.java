@@ -34,8 +34,6 @@ import com.n0hana.echoes_server.classroom.exception.ClassroomCodeActiveException
 import com.n0hana.echoes_server.classroom.exception.ClassroomForbiddenException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomNotFoundException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomStudentEnrolledException;
-import com.n0hana.echoes_server.classroom.material.ClassroomMaterialRepository;
-import com.n0hana.echoes_server.classroom.material.ClassroomMaterialStorage;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -69,8 +67,8 @@ class ClassroomServiceTests {
     @Mock
     private NotifierService notifierService;
 
-    @Mock private ClassroomMaterialRepository materialRepository;
-    @Mock private ClassroomMaterialStorage materialStorage;
+    @Mock
+    private ClassroomDeletionService deletionService;
 
     @InjectMocks
     private ClassroomService service;
@@ -364,18 +362,16 @@ class ClassroomServiceTests {
     }
 
     @Test
-    @DisplayName("Gestor exclui a turma e os vínculos dos membros")
+    @DisplayName("Gestor exclui a turma delegando a limpeza ao serviço de exclusão")
     void managerDeletesClassroom() {
         InstitutionModel institution = institution(true);
         ClassroomModel classroom = classroom(institution, false);
         mockManager(manager(institution), classroom);
+        when(deletionService.delete(classroom)).thenReturn(classroom);
 
         service.delete(EMAIL, classroom.getId());
 
-        verify(memberRepository).deleteByClassroomId(classroom.getId());
-        // exclusão lógica: a turma é marcada e salva, nunca apagada do banco
-        assertTrue(classroom.isDeleted());
-        verify(classroomRepository).save(classroom);
+        verify(deletionService).delete(classroom);
         verify(classroomRepository, never()).delete(any());
     }
 
