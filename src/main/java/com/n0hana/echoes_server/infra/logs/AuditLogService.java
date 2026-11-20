@@ -75,8 +75,9 @@ public class AuditLogService {
     }
 
     /**
-     * Grava uma falha de forma síncrona e em transação própria (B4).
+     * Grava uma falha em transação própria (B4), sem segurar a conexão da transação externa.
      */
+    @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordFailure(AuditLog logEvent) {
         saveLog(logEvent);
