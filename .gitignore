@@ -94,3 +94,6 @@ estrutura*.png
 estrutura*.jpg
 estrutura*.zip
 estrutura*.xz
+
+# credenciais do broker MQTT geradas localmente (mosquitto/create-passwd.sh)
+mosquitto/config/passwd
