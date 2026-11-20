@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.infra.notifier;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.infra.notifier.data.ClassroomTeacherAddedData;
@@ -43,7 +44,7 @@ public class NotifierService {
      * @param to   e-mail do destinatário
      * @param code código de verificação
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendMfaCode(String to, String code) {
         MfaCodeEmailMessage message = new MfaCodeEmailMessage();
         message.setData(new MfaCodeData(code));
@@ -58,7 +59,7 @@ public class NotifierService {
      * @param code  código de convite
      * @param email e-mail do destinário
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendRegisterInvite(String to, String code, String email) {
         RegisterInviteMessage message = new RegisterInviteMessage();
         message.setFrontendUrl(frontendUrl);
@@ -73,7 +74,7 @@ public class NotifierService {
      * @param to   e-mail do destinatário
      * @param code código de redefinição
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendNewDeviceLogin(String to, String ip, String userAgent, java.time.Instant when) {
         NewDeviceLoginEmailMessage message = new NewDeviceLoginEmailMessage();
         message.setData(new com.n0hana.echoes_server.infra.notifier.data.NewDeviceLoginData(ip, userAgent, when));
@@ -81,7 +82,7 @@ public class NotifierService {
         emailNotifier.send(to, message);
     }
 
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendPasswordReset(String to, String code) {
         PasswordResetEmailMessage message = new PasswordResetEmailMessage();
         message.setData(new PasswordResetData(code));
@@ -98,7 +99,7 @@ public class NotifierService {
      * @param reason motivo da
      */
 
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendInstitutionPending(String to, String name, String cnpj, String reason) {
         InstitutionPendingVerificationEmailMessage message = new InstitutionPendingVerificationEmailMessage();
         message.setData(new InstitutionPendingVerificationData(reason, name, cnpj));
@@ -113,7 +114,7 @@ public class NotifierService {
      * @param name nome da instituição
      * @param cnpj cnpj da instituição
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendInstituitionCompleted(String to, String name, String cnpj) {
         InstitutionVerificationCompletedEmailMessage message = new InstitutionVerificationCompletedEmailMessage();
         message.setData(new InstituitionVerificationCompletedData(name, cnpj));
@@ -129,7 +130,7 @@ public class NotifierService {
      * @param cnpj   cnpj da instituição
      * @param reason razão do erro de verrificação
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendInstitutionRejected(String to, String name, String cnpj, String reason) {
         InstitutionVerificationRejectedEmailMessage message = new InstitutionVerificationRejectedEmailMessage();
         message.setData(new InstitutionVerificationRejectedData(reason, name, cnpj));
@@ -144,7 +145,7 @@ public class NotifierService {
      * @param classroomTitle título da turma
      * @param period         período da turma no formato AAAA/SS
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendClassroomTeacherAdded(String to, String classroomTitle, String period) {
         ClassroomTeacherAddedEmailMessage message = new ClassroomTeacherAddedEmailMessage();
         message.setData(new ClassroomTeacherAddedData(classroomTitle, period));
