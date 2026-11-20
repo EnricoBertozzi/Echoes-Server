@@ -19,6 +19,7 @@ import com.n0hana.echoes_server.user.dto.UserDTO;
 
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
+import com.n0hana.echoes_server.user.exception.LastAdminException;
 import com.n0hana.echoes_server.user.exception.LastManagerException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 
@@ -65,8 +66,7 @@ public class UserManagerService {
 
         applyCommonUpdate(
             admin,
-            dto.name(),
-            dto.email()
+            dto.name()
         );
 
         return UserUtils.toDTO(
@@ -96,8 +96,7 @@ public class UserManagerService {
 
         applyCommonUpdate(
             manager,
-            dto.name(),
-            dto.email()
+            dto.name()
         );
 
         if (dto.institutionId() != null) {
@@ -149,8 +148,7 @@ public class UserManagerService {
 
         applyCommonUpdate(
             teacher,
-            dto.name(),
-            dto.email()
+            dto.name()
         );
 
         if (dto.institutionId() != null) {
@@ -191,8 +189,7 @@ public class UserManagerService {
 
         applyCommonUpdate(
             student,
-            dto.name(),
-            dto.email()
+            dto.name()
         );
 
         if (dto.institutionId() != null) {
@@ -227,8 +224,7 @@ public class UserManagerService {
 
         applyCommonUpdate(
                 user,
-                dto.name(),
-                dto.email()
+                dto.name()
         );
 
         return UserUtils.toDTO(
@@ -240,9 +236,9 @@ public class UserManagerService {
     @Auditable(
         action = "DELETE",
         entity = "User",
-        entityId = "#email"
+        entityId = "#result"
     )
-    public void deleteCurrentUser(
+    public UUID deleteCurrentUser(
             String email
     ) {
         User user = userRepository
@@ -253,7 +249,14 @@ public class UserManagerService {
             assertNotLastManager(manager);
         }
 
+        if (user instanceof Admin admin) {
+            assertNotLastAdmin(admin);
+        }
+
+        UUID id = user.getId();
         softDelete(user);
+        // a auditoria grava o id, nunca o e-mail (L4)
+        return id;
     }
 
     /**
@@ -266,9 +269,10 @@ public class UserManagerService {
         entityId = "#id"
     )
     public void deleteAdmin(UUID id) {
-        softDelete(
-            findTyped(id, Admin.class)
-        );
+        Admin admin = findTyped(id, Admin.class);
+        assertNotLastAdmin(admin);
+
+        softDelete(admin);
     }
 
     /**
@@ -354,6 +358,12 @@ public class UserManagerService {
     /**
      * Impede que a instituição fique sem gestor.
      */
+    /** o último admin ativo não pode ser excluído (B14) */
+    private void assertNotLastAdmin(Admin admin) {
+        if (admin.isActive() && userRepository.countActiveAdmins() <= 1)
+            throw new LastAdminException();
+    }
+
     private void assertNotLastManager(
             Manager manager
     ) {
@@ -396,25 +406,10 @@ public class UserManagerService {
      */
     private void applyCommonUpdate(
             User user,
-            String name,
-            String email
+            String name
     ) {
         if (name != null) {
             user.setName(name);
-        }
-
-        if (email != null) {
-            String normalized =
-                    UserUtils.normalizeEmail(email);
-
-            if (
-                !normalized.equals(
-                    user.getEmail()
-                )
-            ) {
-                assertEmailAvailable(normalized);
-                user.setEmail(normalized);
-            }
         }
     }
 

@@ -27,6 +27,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmail(String email);
 
+    @Query("select count(a) from Admin a where a.active = true")
+    long countActiveAdmins();
+
     @Query("select a from Admin a where a.active = true")
     Page<Admin> findAdmins(Pageable pageable);
 
@@ -42,13 +45,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select s from Student s where s.active = true and (:institutionId is null or s.institution.id = :institutionId)")
     Page<Student> findStudents(@Param("institutionId") UUID institutionId, Pageable pageable);
 
-    @Query("select a from Admin a where a.name like concat('%', :name, '%')")
+    @Query("select a from Admin a where a.active = true and a.name like concat('%', :name, '%')")
     Page<Admin> findAdminsByName(@Param("name") String name, Pageable pageable);
 
-    @Query(value = "SELECT u.* FROM users u WHERE u.institution_id = :institutionId AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') ORDER BY u.id", countQuery = "SELECT COUNT(*) FROM users u WHERE u.institution_id = :institutionId AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER')", nativeQuery = true)
+    @Query(value = "SELECT u.* FROM users u WHERE u.institution_id = :institutionId AND u.active = TRUE AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') ORDER BY u.id", countQuery = "SELECT COUNT(*) FROM users u WHERE u.institution_id = :institutionId AND u.active = TRUE AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER')", nativeQuery = true)
     Page<User> findUsersByInstitutionId(@Param("institutionId") UUID institutionId, Pageable pageable);
 
-    @Query(value = "SELECT u.* FROM users u WHERE u.institution_id = :institutionId AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') AND u.name LIKE CONCAT('%', :name, '%') ORDER BY u.id", countQuery = "SELECT COUNT(*) FROM users u WHERE u.institution_id = :institutionId AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') AND u.name LIKE CONCAT('%', :name, '%')", nativeQuery = true)
+    @Query(value = "SELECT u.* FROM users u WHERE u.institution_id = :institutionId AND u.active = TRUE AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') AND u.name LIKE CONCAT('%', :name, '%') ORDER BY u.id", countQuery = "SELECT COUNT(*) FROM users u WHERE u.institution_id = :institutionId AND u.active = TRUE AND u.role IN ('STUDENT', 'TEACHER', 'MANAGER') AND u.name LIKE CONCAT('%', :name, '%')", nativeQuery = true)
     Page<User> findUsersByNameInInstitution(@Param("institutionId") UUID institutionId, @Param("name") String name, Pageable pageable);
 
 }

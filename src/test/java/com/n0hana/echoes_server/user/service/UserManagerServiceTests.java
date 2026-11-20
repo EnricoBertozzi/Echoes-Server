@@ -62,27 +62,11 @@ public class UserManagerServiceTests {
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO("João Silva", null));
+        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO("João Silva"));
 
         assertEquals("João Silva", dto.name());
         assertEquals("joao@example.com", dto.email());
         assertEquals("joao@example.com", admin.getEmail());
-    }
-
-    @Test
-    @DisplayName("PATCH apenas com e-mail: nome permanece inalterado e e-mail é normalizado")
-    void patchEmailOnlyKeepsName() {
-        Admin admin = newAdmin("João", "joao@example.com");
-        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
-        when(userRepository.existsByEmail("novo@example.com")).thenReturn(false);
-        when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO(null,
-                "  NOVO@Example.COM "));
-
-        assertEquals("novo@example.com", dto.email());
-        assertEquals("João", dto.name());
-        assertEquals("novo@example.com", admin.getEmail());
     }
 
     @Test
@@ -102,7 +86,7 @@ public class UserManagerServiceTests {
         // a instituição de origem tem outro gestor, então ele pode sair
         when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(2L);
         UserDTO dto = userService.updateManager(manager.getId(),
-                new UpdateInstitutionUserDTO(null, null, newInstitutionId));
+                new UpdateInstitutionUserDTO(null, newInstitutionId));
 
         assertEquals(newInstitutionId, dto.institutionId());
         assertEquals("Gestor", dto.name());
@@ -116,8 +100,7 @@ public class UserManagerServiceTests {
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO(null,
-                null));
+        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO(null));
 
         assertEquals("João", dto.name());
         assertEquals("joao@example.com", dto.email());
@@ -170,7 +153,7 @@ public class UserManagerServiceTests {
         when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(1L);
 
         assertThrows(LastManagerException.class, () -> userService.updateManager(manager.getId(),
-                new UpdateInstitutionUserDTO(null, null, newInstitutionId)));
+                new UpdateInstitutionUserDTO(null, newInstitutionId)));
 
         verify(userRepository, never()).save(any());
     }
@@ -186,47 +169,27 @@ public class UserManagerServiceTests {
         when(userRepository.save(any(Manager.class))).thenAnswer(inv -> inv.getArgument(0));
         when(institutionService.findById(institutionId)).thenReturn(sameInstitution);
 
-        userService.updateManager(manager.getId(), new UpdateInstitutionUserDTO(null, null, institutionId));
+        userService.updateManager(manager.getId(), new UpdateInstitutionUserDTO(null, institutionId));
 
         verify(userRepository, never()).countActiveManagers(any());
     }
 
     @Test
-    @DisplayName("Update para e-mail já usado lança EmailAlreadyInUseException; mesmo e-mail (no-op) é aceito sem verificação")
-    void updateToUsedEmailThrowsAndSameEmailIsAcceptedWithoutCheck() {
-        Admin admin = newAdmin("João", "joao@example.com");
-        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
-        when(userRepository.existsByEmail("novo@example.com")).thenReturn(true);
-        when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        assertThrows(EmailAlreadyInUseException.class, () -> userService.updateAdmin(
-                admin.getId(), new UpdateUserDTO(null, "novo@example.com")));
-
-        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO(null,
-                "JOAO@example.com"));
-
-        assertEquals("joao@example.com", dto.email());
-        verify(userRepository, times(1)).existsByEmail(anyString());
-        verify(userRepository, never()).existsByEmail("joao@example.com");
-    }
-
-    @Test
-    @DisplayName("PATCH /me atualiza nome e e-mail do usuário autenticado")
-    void updateCurrentUserUpdatesNameAndEmail() {
+    @DisplayName("PATCH /me atualiza só o nome; e-mail não é editável (S11)")
+    void updateCurrentUserUpdatesNameOnly() {
         // Arrange
         Admin admin = newAdmin("João", "joao@example.com");
         when(userRepository.findByEmail("joao@example.com")).thenReturn(Optional.of(admin));
-        when(userRepository.existsByEmail("novo@example.com")).thenReturn(false);
         when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
         UserDTO dto = userService.updateCurrentUser("joao@example.com",
-                new UpdateUserDTO("João Silva", "novo@example.com"));
+                new UpdateUserDTO("João Silva"));
 
         // Assert
         assertEquals("João Silva", dto.name());
-        assertEquals("novo@example.com", dto.email());
-        assertEquals("novo@example.com", admin.getEmail());
+        assertEquals("joao@example.com", dto.email());
+        assertEquals("joao@example.com", admin.getEmail());
         verify(userRepository).save(admin);
     }
 

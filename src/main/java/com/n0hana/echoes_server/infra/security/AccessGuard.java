@@ -70,9 +70,14 @@ public class AccessGuard {
             return false;
         }
 
-        InstitutionModel institution = institutionRepository.findById(institutionId).orElseThrow(InstitutionNotFoundException::new);
+        // instituição inexistente ou usuário sem instituição: nega (sem 404/NPE dentro do @PreAuthorize)
         InstitutionModel studentInstitution = instituicaoDe((User) auth.getPrincipal());
-        return institution.getId().equals(studentInstitution.getId());
+        if (studentInstitution == null)
+            return false;
+
+        return institutionRepository.findById(institutionId)
+                .map(institution -> institution.getId().equals(studentInstitution.getId()))
+                .orElse(false);
     }
 
     private boolean isAdmin(Authentication auth) {
