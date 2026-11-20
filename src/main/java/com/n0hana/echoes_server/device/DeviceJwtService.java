@@ -1,10 +1,14 @@
 package com.n0hana.echoes_server.device;
 
 import java.security.interfaces.ECPublicKey;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 import java.util.Date;
 
 import org.springframework.stereotype.Service;
 
+import com.n0hana.echoes_server.infra.security.JwtBlackListRepository;
 import com.n0hana.echoes_server.device.exception.DeviceAuthenticationException;
 import com.n0hana.echoes_server.device.port.DeviceCredentialVerifier;
 
@@ -20,9 +24,9 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>
  * O dispositivo gera um JWT ES256 com as claims {@code iss=echoes-device},
- * {@code hardware_id} e {@code exp}. O servidor localiza o dispositivo pelo hardware_id,
+ * {@code hardware_id}, {@code iat}, {@code exp} e {@code jti}. O servidor localiza o dispositivo pelo hardware_id,
  * recupera a chave pública cadastrada e valida a assinatura. Como esses tokens
- * têm curta duração, não há necessidade de revogação/lista negra.
+ * têm curta duração (máx. 5 min), a revogação é feita pelo jti ou pelo corte por dispositivo.
  * </p>
  */
 @Service
@@ -38,6 +42,8 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
 
   private final DeviceRepository deviceRepository;
   private final DevicePublicKeyService publicKeyService;
+  private final JwtBlackListRepository blackList;
+  private final DeviceTokenRevocationRepository tokenRevocations;
 
   @Override
   public boolean supports(String credential) {
@@ -95,6 +101,34 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
     if (expiration.getTime() - now.getTime() > MAX_TOKEN_LIFETIME_MS)
       throw new SecurityException("JWT lifetime too long");
 
+    String jti = claims.getJWTID();
+    if (jti == null || jti.isBlank())
+      throw new SecurityException("Missing jti claim");
+    if (blackList.exists(jti))
+      throw new SecurityException("JWT revoked");
+
+    // revogação de todos os tokens do dispositivo: vale para quem foi emitido até o corte
+    tokenRevocations.findCutoff(device.getId()).ifPresent(cutoff -> {
+      if (issuedAt.getTime() / 1000 <= cutoff)
+        throw new SecurityException("JWT revoked");
+    });
+
     return device;
+  }
+
+  /** Revoga um token específico até a data de expiração dele. */
+  public void revokeToken(String jti, Instant expiresAt) {
+    Duration remaining = Duration.between(Instant.now(), expiresAt);
+    if (jti != null && !jti.isBlank() && !remaining.isNegative() && !remaining.isZero())
+      blackList.save(jti, remaining);
+  }
+
+  /**
+   * Revoga todos os tokens já emitidos para o dispositivo. Os jti são criados pelo
+   * próprio dispositivo, então a revogação é por corte de emissão (iat), como em
+   * {@code tokensRevokedAt} dos usuários.
+   */
+  public void revokeAllForDevice(UUID deviceId) {
+    tokenRevocations.revokeUntil(deviceId, Instant.now().getEpochSecond());
   }
 }
