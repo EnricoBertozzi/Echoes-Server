@@ -1,4 +1,4 @@
-name: Echoes Server - Esteira de segurança
+name: Devsecops - Avançado
 
 on:
   push:
@@ -62,11 +62,8 @@ jobs:
         id: bearer_privacy
         continue-on-error: true
         uses: bearer/bearer-action@v2
-        env:
-          BEARER_REPORT: privacy
         with:
-          format: json
-          output: bearer-privacy.json
+          config-file: .github/bearer/bearer-privacy.yml
 
       # Docker - Build
       - name: Compilar imagem Docker
