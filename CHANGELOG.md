@@ -5,19 +5,6 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
-### Adicionado
-- Histórico (Javers) com política de retenção por tipo de entidade (`javers_retention_policy`), poda agendada (`javers.retention.cron`) e poda manual por `POST /api/v1/admin/javers/prune/run`. A poda mantém sempre os snapshots mais recentes de cada entidade.
-- Anonimização do histórico de um usuário excluído: e-mail e nome dos snapshots antigos são substituídos depois do commit da exclusão.
-- Checkpoints com aprovação de outra pessoa e rollback de entidades (`/api/v1/admin/javers/...`), com efeitos por tipo: usuário restaurado nunca recupera a senha e tem as sessões encerradas; instituição inativa não é reativada sozinha; turma excluída recupera os membros.
-- Checkpoint automático antes de limpar mais alunos de uma turma que `javers.checkpoint.threshold`.
-- `POST /api/v1/admin/devices/{id}/revoke-tokens` revoga os tokens já emitidos de um dispositivo.
-- Monitor de crescimento do histórico com alerta por e-mail acima de `javers.monitor.snapshot-bytes-threshold-mb`.
-- Flag `api.device.jwt.require-jti` para aceitar firmware sem `jti` durante a migração (padrão: exigir).
-
-### Alterado
-- Usuários, turmas, dispositivos, cenários, animais e pontos de ausculta passam a ter histórico no Javers (senha e contadores de login ficam fora do histórico).
-- `AuditAspect` não falha mais fora de uma requisição HTTP (scheduler e tarefas assíncronas).
-
 ## [2026-11-23]
 
 ### Segurança
@@ -30,6 +17,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - S17: comparação em tempo constante (`MessageDigest.isEqual`) para códigos MFA, códigos de cadastro, token de redefinição e assinatura de auditoria.
 - E-mail normalizado (caixa e espaços) no login, MFA e fluxo de redefinição de senha, evitando chaves duplicadas no Redis.
 - `ADMIN_PASSWORD` fora da política de senha aborta a subida em vez de criar um administrador fraco.
+- `User.password` (e contadores de login) ficam fora dos snapshots do Javers (`@DiffIgnore`); a senha nunca entra no histórico.
+- `UserTermAcceptance`, `AuditLog` e os repositórios Redis não são versionados pelo Javers.
+- Os endpoints `/api/v1/admin/javers/*` e `POST /api/v1/admin/devices/{id}/revoke-tokens` exigem `ADMIN` e são auditados (`@Auditable`); aprovar um checkpoint exige um usuário diferente do solicitante e o aprovador é sempre o usuário autenticado.
+- `AuditAspect` não lança `IllegalStateException` fora de uma requisição HTTP (scheduler e `@Async`): o IP do evento fica nulo.
+- O token do dispositivo passa a exigir `jti` (flag `api.device.jwt.require-jti`, padrão ligada) e pode ser revogado por `jti` ou por dispositivo.
+- `/actuator/health` é público; `/actuator/prometheus` continua exigindo login e só é exposto no perfil `dev`.
 
 ### Adicionado
 - Bloqueio de força bruta no Redis: login e MFA bloqueiam na 5ª falha (429) e liberam ao expirar a janela de 15 minutos, que não é renovada por novas falhas.
@@ -39,15 +32,33 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Testes de integração contra Redis real (reset concorrente, bloqueio e TTL, revogação de JWT) e teste de isolamento da exportação entre usuários.
 - Testes de `RateLimitFilter`, `AuditLogController`, `SuperUserInitializer` e `PasswordController`.
 - `-DrequireRedis=true` faz os testes de integração com Redis falharem, em vez de serem pulados, quando o Redis não está acessível.
+- Política de retenção do Javers por entidade (`javers_retention_policy`), com janela quente e janela legal separadas.
+- Poda transacional do histórico (`JaversPruner`) com ordem segura para as chaves estrangeiras e remoção de órfãos.
+- Scheduler da poda (`JaversRetentionScheduler`), que preserva a janela quente e os snapshots mais recentes de cada entidade.
+- Anonimização do histórico de um usuário excluído, no próprio banco (`JaversAnonymizationService`).
+- Checkpoint antes de operações em lote com aprovação de outra pessoa (`JaversCheckpointService`), criado automaticamente ao limpar alunos de uma turma ou manualmente por `POST /api/v1/admin/javers/checkpoint`.
+- Rollback auditado com efeitos por tipo (`JaversRollbackService`, `JaversRollbackController`). O rollback de um usuário devolve `candidateDevices` e `manualActionRequired`: nenhum token de dispositivo é revogado automaticamente.
+- Endpoint manual `POST /api/v1/admin/devices/{id}/revoke-tokens`.
+- Monitor de crescimento do Javers (`JaversGrowthMonitor`) com alerta por e-mail.
+- Gauges `javers.snapshot.count` e `javers.snapshot.bytes` expostos por Actuator e Prometheus (perfil `dev`).
+- E-mails assíncronos em executor dedicado (`taskExecutor`).
 
 ### Corrigido
 - A falha de auditoria (`recordFailure`) é gravada de forma assíncrona, liberando a conexão do pool Hikari da transação externa; antes, falhas concorrentes podiam esgotar o pool.
 - `./mvnw -P coverage verify` não gerava o relatório JaCoCo porque o `argLine` do surefire sobrescrevia o agente.
 - `create-passwd.sh` falhava ao criar o arquivo de senhas e gerava um arquivo ilegível para o usuário do broker no container.
 - `.env.example`: URL do broker coerente com o Mosquitto local e remoção da variável sem uso `MATERIAL_EXTENSIONS_ALLOWED`.
+- `AccessGuard.canAccess` compara a instituição pelo id: o gestor agora consegue excluir e editar usuários da própria instituição.
+- `updateScenario` só renomeia o arquivo de áudio depois do commit.
+- Registro de criação do admin e de conexão e inscrição MQTT no log.
+- `.env.example` documenta `AUDIT_HMAC_KEY`, `REDIS_PASSWORD`, `ADMIN_PASSWORD` e as variáveis de tuning do Javers.
 
 ### Removido
 - `env.example` duplicado; `.env.example` é a única referência.
+
+### Documentação
+- Política de retenção 1.0.0 em `src/main/resources/legal/retention-policy/`.
+- `scripts/e2e.sh` e `scripts/e2e-javers.sh` versionados.
 
 ### Pendente
 - Política `1.1.0`: depende de revisão e aprovação do texto jurídico e não é ativada automaticamente.
