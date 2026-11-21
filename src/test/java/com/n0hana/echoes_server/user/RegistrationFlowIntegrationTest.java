@@ -7,8 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,7 +41,7 @@ import com.n0hana.echoes_server.user.service.UserRegisterService;
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @WithMockUser(roles = { "ADMIN", "MANAGER" })
-@EnabledIf("redisReachable")
+@EnabledIf("com.n0hana.echoes_server.support.RedisAvailability#redisReachable")
 class RegistrationFlowIntegrationTest {
 
     private static final String STRONG_PASSWORD = "SenhaForte123!";
@@ -71,14 +69,6 @@ class RegistrationFlowIntegrationTest {
     @Autowired
     private UserTermAcceptanceRepository userTermAcceptanceRepository;
 
-    static boolean redisReachable() {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("localhost", 6379), 500);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
 
     @BeforeEach
     void seedRequiredTerms() {

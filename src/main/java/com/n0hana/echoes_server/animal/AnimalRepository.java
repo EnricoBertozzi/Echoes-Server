@@ -1,11 +1,13 @@
 package com.n0hana.echoes_server.animal;
 
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+@JaversSpringDataAuditable
 public interface AnimalRepository extends JpaRepository<AnimalModel, UUID> {
 
   Page<AnimalModel> findByNameContaining(String name, Pageable pageable);

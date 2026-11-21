@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.device;
 
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import org.springframework.data.repository.query.Param;
  * A instituição entra no grafo porque o filtro de segurança decide se o
  * dispositivo pode operar fora de uma transação, sem carregamento tardio.
  */
+@JaversSpringDataAuditable
 public interface DeviceRepository extends JpaRepository<DeviceModel, UUID> {
 
     @EntityGraph(attributePaths = { "animal", "institution" })
@@ -38,6 +40,8 @@ public interface DeviceRepository extends JpaRepository<DeviceModel, UUID> {
     // dispositivos de uma turma, em ordem de nome
     @EntityGraph(attributePaths = { "animal", "institution" })
     List<DeviceModel> findByClassroomIdOrderByNameAsc(UUID classroomId);
+
+    List<DeviceModel> findByInstitutionId(UUID institutionId);
 
     // ---- Dashboard ----
 

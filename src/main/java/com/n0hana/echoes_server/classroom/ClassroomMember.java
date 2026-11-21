@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.classroom;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -38,10 +39,12 @@ public class ClassroomMember {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @ShallowReference
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "classroom_id", nullable = false)
     private ClassroomModel classroom;
 
+    @ShallowReference
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

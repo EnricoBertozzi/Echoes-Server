@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.auth.password;
 
+import com.n0hana.echoes_server.user.UserUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -52,6 +53,7 @@ public class PasswordService {
      */
     @Auditable(action = "PASSWORD_FORGOT_REQUEST", entity = "User")
     public void request(String email) {
+        email = UserUtils.normalizeEmail(email);
         // conta antes de olhar o banco: e-mail que existe e que não existe se comportam igual
         attempts.assertNotBlocked(AttemptScope.PASSWORD_FORGOT, email);
         attempts.register(AttemptScope.PASSWORD_FORGOT, email);
@@ -72,6 +74,7 @@ public class PasswordService {
      */
     @Auditable(action = "PASSWORD_CODE_VALIDATE", entity = "User")
     public String validate(String email, String code) {
+        email = UserUtils.normalizeEmail(email);
         attempts.assertNotBlocked(AttemptScope.PASSWORD_VALIDATE, email);
 
         String savedCode = codeRepository.findByEmail(email).orElse(null);
@@ -106,16 +109,12 @@ public class PasswordService {
      * @param newPassword Nova senha do usuário
      */
     @Transactional
-    @Auditable(action = "RESET_PASSWORD", entity = "User")
+    @Auditable(action = "RESET_PASSWORD", entity = "User", details = "'Senha redefinida para ' + #email")
     public void reset(String email, String token, String newPassword) {
-        String savedToken = tokenRepository.findByEmail(email)
-                .orElseThrow(AuthFailedException::new);
-
-        if (!sameCode(savedToken, token))
+        email = UserUtils.normalizeEmail(email);
+        // uso único (S1/PSI 2.4): comparação e remoção atômicas no Redis; token errado não apaga o válido
+        if (!tokenRepository.consumeIfMatches(email, token))
             throw new AuthFailedException();
-
-        // uso único (S1/PSI 2.4): o token morre assim que é consumido
-        tokenRepository.delete(email);
 
         User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
         user.setPassword(passwordEncoder.encode(newPassword));

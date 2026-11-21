@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import com.n0hana.echoes_server.device.DeviceRegistrationResult;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -31,6 +32,7 @@ import tools.jackson.databind.ObjectMapper;
  * segundo plano.
  * </p>
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DeviceRegistrationMqttClient implements SmartLifecycle {
@@ -116,11 +118,13 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
 
       @Override
       public void connectComplete(boolean reconnect, String serverURI) {
+        log.info("MQTT conectado como {} ao broker {}", properties.getClientId(), properties.getBrokerUrl());
         subscribe();
       }
 
       @Override
       public void connectionLost(Throwable cause) {
+        log.warn("MQTT conexão perdida: {}", cause == null ? "desconhecida" : cause.getMessage());
       }
 
       @Override
@@ -146,7 +150,9 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
 
     try {
       current.subscribe(properties.getRegistrationTopic(), properties.getQos());
+      log.info("MQTT inscrito em {}", properties.getRegistrationTopic());
     } catch (MqttException exception) {
+      log.warn("MQTT falha ao se inscrever em {}: {}", properties.getRegistrationTopic(), exception.getMessage());
       scheduleSubscribeRetry();
     }
   }

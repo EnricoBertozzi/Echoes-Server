@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.device;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +38,7 @@ public class ClinicalScenarioPresetModel {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @OnDelete(action = OnDeleteAction.CASCADE)
   @JoinColumn(name = "animal_id", nullable = false)

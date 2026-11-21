@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.classroom;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
+import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -58,6 +60,7 @@ public class ClassroomModel {
     private boolean deleted = false;
 
     // a turma pertence à instituição do gestor que a criou
+    @ShallowReference
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "institution_id", nullable = false)
     private InstitutionModel institution;
@@ -68,5 +71,6 @@ public class ClassroomModel {
 
     @UpdateTimestamp
     @Column(name = "updated_at")
+    @DiffIgnore
     private LocalDateTime updatedAt;
 }

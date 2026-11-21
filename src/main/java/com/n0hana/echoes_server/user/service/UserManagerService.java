@@ -5,9 +5,12 @@ import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.javers.anonymization.JaversAnonymizationService;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.institution.InstitutionService;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -44,6 +47,7 @@ public class UserManagerService {
     private final UserRepository userRepository;
     private final InstitutionService institutionService;
     private final ClassroomMemberRepository classroomMemberRepository;
+    private final JaversAnonymizationService javersAnonymization;
 
     /**
      * Atualiza um administrador.
@@ -337,6 +341,22 @@ public class UserManagerService {
         classroomMemberRepository.deleteByUserId(
             user.getId()
         );
+
+        anonymizeHistoryAfterCommit(user.getId());
+    }
+
+    /** o histórico do Javers só é anonimizado depois que a exclusão foi confirmada */
+    private void anonymizeHistoryAfterCommit(UUID userId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    javersAnonymization.anonymizeAfterSoftDelete(userId);
+                }
+            });
+        } else {
+            javersAnonymization.anonymizeAfterSoftDelete(userId);
+        }
     }
 
     private void anonymize(User user) {

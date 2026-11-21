@@ -194,19 +194,41 @@ public class FileStorageService {
      * @return {@link String} Nome do novo arquivo gerado
      */
     public String rename(String oldName, String newName) {
+        String fileName = targetNameFor(oldName, newName);
+        move(oldName, fileName);
+        return fileName;
+    }
+
+    /**
+     * Calcula o nome que o arquivo terá após a renomeação, sem mover nada.
+     * 
+     * @param oldName Nome do arquivo atual (precisa existir)
+     * @param newName Novo nome base
+     * 
+     * @return {@link String} Nome final do arquivo
+     */
+    public String targetNameFor(String oldName, String newName) {
+        if (!Files.exists(this.load(oldName)))
+            throw new StorageFileNotFoundException();
+
+        return this.generateNewName(oldName, newName);
+    }
+
+    /**
+     * Move um arquivo para um nome já calculado por {@link #targetNameFor}.
+     * 
+     * @param oldName    Nome do arquivo atual
+     * @param targetName Nome final do arquivo
+     */
+    public void move(String oldName, String targetName) {
         Path oldFilePath = this.load(oldName);
 
         if (!Files.exists(oldFilePath))
             throw new StorageFileNotFoundException();
 
-        String fileName = this.generateNewName(oldName, newName);
         try {
-            Path newFilePath = fileStorageLocation.resolve(fileName);
-
             // sem REPLACE_EXISTING: nunca sobrescreve outro arquivo (B8)
-            Files.move(oldFilePath, newFilePath);
-
-            return fileName;
+            Files.move(oldFilePath, fileStorageLocation.resolve(targetName));
         } catch (IOException ex) {
             throw new StorageSaveFileException();
         }

@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.infra.notifier;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.infra.notifier.data.ClassroomTeacherAddedData;
@@ -13,6 +14,10 @@ import com.n0hana.echoes_server.infra.notifier.message.ClassroomTeacherAddedEmai
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionPendingVerificationEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationCompletedEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationRejectedEmailMessage;
+import com.n0hana.echoes_server.infra.notifier.data.AccountRestoredData;
+import com.n0hana.echoes_server.infra.notifier.data.JaversStorageAlertData;
+import com.n0hana.echoes_server.infra.notifier.message.AccountRestoredEmailMessage;
+import com.n0hana.echoes_server.infra.notifier.message.JaversStorageAlertEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.MfaCodeEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.PasswordResetEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.RegisterInviteMessage;
@@ -43,7 +48,7 @@ public class NotifierService {
      * @param to   e-mail do destinatário
      * @param code código de verificação
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendMfaCode(String to, String code) {
         MfaCodeEmailMessage message = new MfaCodeEmailMessage();
         message.setData(new MfaCodeData(code));
@@ -58,7 +63,7 @@ public class NotifierService {
      * @param code  código de convite
      * @param email e-mail do destinário
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendRegisterInvite(String to, String code, String email) {
         RegisterInviteMessage message = new RegisterInviteMessage();
         message.setFrontendUrl(frontendUrl);
@@ -73,7 +78,7 @@ public class NotifierService {
      * @param to   e-mail do destinatário
      * @param code código de redefinição
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendNewDeviceLogin(String to, String ip, String userAgent, java.time.Instant when) {
         NewDeviceLoginEmailMessage message = new NewDeviceLoginEmailMessage();
         message.setData(new com.n0hana.echoes_server.infra.notifier.data.NewDeviceLoginData(ip, userAgent, when));
@@ -81,7 +86,42 @@ public class NotifierService {
         emailNotifier.send(to, message);
     }
 
-    @org.springframework.scheduling.annotation.Async
+    /**
+     * Alerta o administrador de que o histórico do Javers passou do limite de armazenamento
+     * 
+     * @param to          e-mail do destinatário
+     * @param bytes       tamanho atual da tabela de snapshots
+     * @param thresholdMb limite configurado, em MB
+     */
+    @Async("taskExecutor")
+    public void sendJaversStorageAlert(String to, long bytes, long thresholdMb) {
+        JaversStorageAlertEmailMessage message = new JaversStorageAlertEmailMessage();
+        message.setData(new JaversStorageAlertData(bytes, thresholdMb));
+
+        emailNotifier.send(to, message);
+    }
+
+    /**
+     * Avisa o titular que a conta foi restaurada por um administrador
+     * 
+     * @param to   e-mail do destinatário
+     * @param name nome do usuário
+     */
+    @Async("taskExecutor")
+    public void sendAccountRestored(String to, String name) {
+        AccountRestoredEmailMessage message = new AccountRestoredEmailMessage();
+        message.setData(new AccountRestoredData(name));
+
+        emailNotifier.send(to, message);
+    }
+
+    /**
+     * Envia o código de redefinição de senha
+     * 
+     * @param to   e-mail do destinatário
+     * @param code código de verificação
+     */
+    @Async("taskExecutor")
     public void sendPasswordReset(String to, String code) {
         PasswordResetEmailMessage message = new PasswordResetEmailMessage();
         message.setData(new PasswordResetData(code));
@@ -98,7 +138,7 @@ public class NotifierService {
      * @param reason motivo da
      */
 
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendInstitutionPending(String to, String name, String cnpj, String reason) {
         InstitutionPendingVerificationEmailMessage message = new InstitutionPendingVerificationEmailMessage();
         message.setData(new InstitutionPendingVerificationData(reason, name, cnpj));
@@ -113,7 +153,7 @@ public class NotifierService {
      * @param name nome da instituição
      * @param cnpj cnpj da instituição
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendInstituitionCompleted(String to, String name, String cnpj) {
         InstitutionVerificationCompletedEmailMessage message = new InstitutionVerificationCompletedEmailMessage();
         message.setData(new InstituitionVerificationCompletedData(name, cnpj));
@@ -129,7 +169,7 @@ public class NotifierService {
      * @param cnpj   cnpj da instituição
      * @param reason razão do erro de verrificação
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendInstitutionRejected(String to, String name, String cnpj, String reason) {
         InstitutionVerificationRejectedEmailMessage message = new InstitutionVerificationRejectedEmailMessage();
         message.setData(new InstitutionVerificationRejectedData(reason, name, cnpj));
@@ -144,7 +184,7 @@ public class NotifierService {
      * @param classroomTitle título da turma
      * @param period         período da turma no formato AAAA/SS
      */
-    @org.springframework.scheduling.annotation.Async
+    @Async("taskExecutor")
     public void sendClassroomTeacherAdded(String to, String classroomTitle, String period) {
         ClassroomTeacherAddedEmailMessage message = new ClassroomTeacherAddedEmailMessage();
         message.setData(new ClassroomTeacherAddedData(classroomTitle, period));

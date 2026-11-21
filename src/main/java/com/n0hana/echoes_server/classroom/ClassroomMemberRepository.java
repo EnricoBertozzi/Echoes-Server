@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.classroom;
 
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+@JaversSpringDataAuditable
 public interface ClassroomMemberRepository extends JpaRepository<ClassroomMember, UUID> {
 
     boolean existsByClassroomIdAndUserId(UUID classroomId, UUID userId);
