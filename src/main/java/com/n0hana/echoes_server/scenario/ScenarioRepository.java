@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.scenario;
 
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * @since 0.1.0
  * @see {@link ScenarioModel}
  */
+@JaversSpringDataAuditable
 public interface ScenarioRepository extends JpaRepository<ScenarioModel, UUID> {
 
   /**

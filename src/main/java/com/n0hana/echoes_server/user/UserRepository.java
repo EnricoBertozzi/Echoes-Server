@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.user;
 
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +22,7 @@ import com.n0hana.echoes_server.user.model.User;
  * 
  * @author Avraham Ben Aram
  */
+@JaversSpringDataAuditable
 public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
