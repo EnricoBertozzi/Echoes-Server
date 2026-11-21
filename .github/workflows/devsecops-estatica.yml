@@ -28,8 +28,9 @@ jobs:
             --volume "$PWD:/repo:ro" \
             trufflesecurity/trufflehog:latest \
             git file:///repo \
-              --results=verified,unknown \
+              --results=verified \
               --fail \
+              --fail-on-scan-errors \
               --no-update
 
   # SEMGREP
