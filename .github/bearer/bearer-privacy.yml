@@ -1,18 +1,15 @@
-# Bearer privacy report configuration
+# bearer-privacy.yml
 
 report:
   format: json
   output: bearer-privacy.json
   report: privacy
-  severity: critical
+  severity: critical,high,medium,low,warning
 
 scan:
   scanner:
     - sast
     - secrets
 
-  # Evita consultas externas durante a classificação de dados.
   disable-domain-resolution: true
-
-  # Evita exibir mensagens desnecessárias.
   quiet: false
