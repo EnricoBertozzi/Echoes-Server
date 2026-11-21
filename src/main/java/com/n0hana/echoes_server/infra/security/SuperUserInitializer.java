@@ -53,9 +53,11 @@ public class SuperUserInitializer {
                 user.setLoginAttempts(0);
                 user.setLockUntil(null);
                 user.setActive(true);
+                // RF07: a senha do seed vem do ambiente; o primeiro acesso exige trocá-la
+                user.setMustChangePassword(true);
 
                 repository.save(user);
-                log.info("SuperUser inicializado: {}", adminEmail);
+                log.info("SuperUser inicializado");
             }
         };
     }

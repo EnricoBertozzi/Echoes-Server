@@ -17,6 +17,11 @@ import org.springframework.data.repository.query.Param;
  */
 public interface DeviceEventRepository extends JpaRepository<DeviceEventModel, UUID> {
 
+  /** Expurgo por prazo (L8). */
+  @org.springframework.data.jpa.repository.Modifying
+  @Query("delete from DeviceEventModel e where e.occurredAt < :cutoff")
+  int deleteOlderThan(@Param("cutoff") java.time.LocalDateTime cutoff);
+
   /** Linhas {dia, tipo, quantidade}. */
   @Query("""
       select e.occurredOn, e.type, count(e)

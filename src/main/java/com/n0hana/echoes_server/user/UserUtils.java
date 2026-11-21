@@ -44,7 +44,8 @@ public class UserUtils {
                 user.getName(),
                 user.getEmail(),
                 institutionId,
-                user.getUserRole());
+                user.getUserRole(),
+                user.isMustChangePassword());
     }
 
     /**
@@ -62,7 +63,8 @@ public class UserUtils {
                 dto.name(),
                 maskEmail(dto.email()),
                 dto.institutionId(),
-                dto.role());
+                dto.role(),
+                false);
     }
 
     /**
@@ -90,7 +92,7 @@ public class UserUtils {
      * @param email E-mail original (pode ser nulo)
      * @return E-mail mascarado ou nulo
      */
-    private static String maskEmail(String email) {
+    public static String maskEmail(String email) {
         if (email == null) {
             return null;
         }

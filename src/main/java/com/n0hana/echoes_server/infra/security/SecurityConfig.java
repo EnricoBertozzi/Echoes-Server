@@ -43,6 +43,7 @@ public class SecurityConfig {
             throws Exception {
         DeviceJwtFilter deviceJwtFilter = new DeviceJwtFilter(deviceCredentialVerifier, deviceAccessPolicy);
         TermsAcceptanceFilter termsAcceptanceFilter = new TermsAcceptanceFilter(termService, objectMapper);
+        PasswordChangeRequiredFilter passwordChangeRequiredFilter = new PasswordChangeRequiredFilter(objectMapper);
 
         return httpSecurity
                 .cors(Customizer.withDefaults())
@@ -66,7 +67,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(deviceJwtFilter, JwtFilter.class)
-                .addFilterAfter(termsAcceptanceFilter, JwtFilter.class)
+                .addFilterAfter(passwordChangeRequiredFilter, JwtFilter.class)
+                .addFilterAfter(termsAcceptanceFilter, PasswordChangeRequiredFilter.class)
                 .build();
     }
 

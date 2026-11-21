@@ -19,6 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import com.n0hana.echoes_server.auth.exception.InvalidMfaCodeException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
 import com.n0hana.echoes_server.auth.exception.UserBlockedException;
+import com.n0hana.echoes_server.auth.exception.PasswordUnchangedException;
 import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
@@ -201,8 +202,14 @@ public class AuthService {
             throw new AuthFailedException();
         }
 
+        // no primeiro acesso a "troca" para a mesma senha anularia o objetivo da flag
+        if (user.isMustChangePassword() && passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new PasswordUnchangedException();
+        }
+
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordChangedAt(Instant.now());
+        user.setMustChangePassword(false);
         userRepository.save(user);
 
         attemptService.resetLoginAttempt(user.getEmail());

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Mesmo formato padrão do Spring Boot, com duas trocas (L11 / RNF10):
+  %m e %wEx passam pelo PiiMasker, então e-mail, JWT, Bearer, senha= e CPF
+  nunca chegam ao console, nem pela mensagem nem pela mensagem das exceções.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <conversionRule conversionWord="m" class="com.n0hana.echoes_server.infra.logs.PiiMaskingConverter"/>
+    <conversionRule conversionWord="msg" class="com.n0hana.echoes_server.infra.logs.PiiMaskingConverter"/>
+    <conversionRule conversionWord="message" class="com.n0hana.echoes_server.infra.logs.PiiMaskingConverter"/>
+    <conversionRule conversionWord="wEx" class="com.n0hana.echoes_server.infra.logs.PiiMaskingThrowableConverter"/>
+
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

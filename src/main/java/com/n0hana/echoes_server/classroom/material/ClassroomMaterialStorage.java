@@ -25,7 +25,7 @@ import com.n0hana.echoes_server.infra.file.FileStorageProperties;
 @Component
 public class ClassroomMaterialStorage {
     private static final Logger log = LoggerFactory.getLogger(ClassroomMaterialStorage.class);
-    public static final long MAX_BYTES = 18L * 1024 * 1024;
+    public static final long MAX_BYTES = 50L * 1024 * 1024;
     private final Path root;
     private final Set<String> allowedExtensions;
 
@@ -44,7 +44,7 @@ public class ClassroomMaterialStorage {
 
     public Stored store(MultipartFile file) {
         if (file == null || file.isEmpty()) throw MaterialException.invalid("Selecione um arquivo");
-        if (file.getSize() > MAX_BYTES) throw MaterialException.invalid("O limite é de 18 MB");
+        if (file.getSize() > MAX_BYTES) throw MaterialException.invalid("O limite é de 50 MB");
         String original = file.getOriginalFilename();
         MaterialFileType type = MaterialFileType.fromFilename(original);
         // só os tipos configurados em MATERIAL_EXTENSIONS_ALLOWED são aceitos em upload
@@ -61,7 +61,7 @@ public class ClassroomMaterialStorage {
                 int count;
                 while ((count = input.read(buffer)) != -1) {
                     size += count;
-                    if (size > MAX_BYTES) throw MaterialException.invalid("O limite é de 18 MB");
+                    if (size > MAX_BYTES) throw MaterialException.invalid("O limite é de 50 MB");
                     out.write(buffer, 0, count);
                 }
             }

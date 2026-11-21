@@ -9,5 +9,12 @@ public record UserDTO(
     String name,
     String email,
     UUID institutionId,
-    UserRole role
-) {}
+    UserRole role,
+    boolean mustChangePassword
+) {
+
+  /** Forma sem a flag de troca obrigatória (listagens e usos que não a expõem). */
+  public UserDTO(UUID id, String name, String email, UUID institutionId, UserRole role) {
+    this(id, name, email, institutionId, role, false);
+  }
+}
