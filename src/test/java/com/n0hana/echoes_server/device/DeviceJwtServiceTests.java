@@ -236,6 +236,20 @@ public class DeviceJwtServiceTests {
     }
 
     @Test
+    @DisplayName("Com a flag desligada, token sem jti é aceito (firmware antigo); com jti revogado continua rejeitado")
+    void shouldAcceptTokenWithoutJtiWhenFlagIsOff() throws Exception {
+        org.springframework.test.util.ReflectionTestUtils.setField(deviceJwtService, "requireJti", false);
+        when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
+        String legacy = tokenWith(null, Instant.now(), Instant.now().plus(1, ChronoUnit.MINUTES));
+
+        assertEquals(device, deviceJwtService.validateToken(legacy));
+
+        when(blackList.exists("jti-revogado")).thenReturn(true);
+        String revoked = tokenWith("jti-revogado", Instant.now(), Instant.now().plus(1, ChronoUnit.MINUTES));
+        assertThrows(SecurityException.class, () -> deviceJwtService.validateToken(revoked));
+    }
+
+    @Test
     @DisplayName("Rejeita token com jti em branco")
     void shouldRejectTokenWithBlankJti() throws Exception {
         when(deviceRepository.findByHardwareId(MAC)).thenReturn(Optional.of(device));
