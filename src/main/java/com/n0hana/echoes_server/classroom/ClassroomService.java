@@ -2,11 +2,13 @@ package com.n0hana.echoes_server.classroom;
 
 import com.n0hana.echoes_server.auth.attempt.AttemptScope;
 import com.n0hana.echoes_server.auth.attempt.AttemptService;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import com.n0hana.echoes_server.classroom.exception.ClassroomForbiddenException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomNotFoundException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomStudentEnrolledException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.javers.checkpoint.JaversCheckpointService;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -45,6 +48,11 @@ public class ClassroomService {
     private final ClassroomMaterialRepository materialRepository;
     private final ClassroomMaterialStorage materialStorage;
     private final AttemptService attempts;
+    private final JaversCheckpointService checkpoints;
+
+    /** limpar mais alunos que isto cria antes um checkpoint de restauração (Javers) */
+    @Value("${javers.checkpoint.threshold:10}")
+    private int checkpointThreshold = 10;
 
     @Transactional
     @Auditable(action = "CREATE", entity = "Classroom", entityId = "#result.id", entityName = "#result.title", institutionId = "#result.institution.id")
@@ -176,6 +184,9 @@ public class ClassroomService {
         List<ClassroomMember> students = memberRepository.findByClassroomId(id).stream()
                 .filter(member -> member.getUser().getUserRole() == UserRole.STUDENT)
                 .toList();
+
+        if (students.size() > checkpointThreshold)
+            checkpoints.create(ClassroomMember.class.getName(), new ArrayList<Object>(students), email);
 
         memberRepository.deleteAll(students);
         return classroom;

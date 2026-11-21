@@ -14,6 +14,8 @@ import com.n0hana.echoes_server.infra.notifier.message.ClassroomTeacherAddedEmai
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionPendingVerificationEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationCompletedEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationRejectedEmailMessage;
+import com.n0hana.echoes_server.infra.notifier.data.AccountRestoredData;
+import com.n0hana.echoes_server.infra.notifier.message.AccountRestoredEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.MfaCodeEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.PasswordResetEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.RegisterInviteMessage;
@@ -82,6 +84,26 @@ public class NotifierService {
         emailNotifier.send(to, message);
     }
 
+    /**
+     * Avisa o titular que a conta foi restaurada por um administrador
+     * 
+     * @param to   e-mail do destinatário
+     * @param name nome do usuário
+     */
+    @Async("taskExecutor")
+    public void sendAccountRestored(String to, String name) {
+        AccountRestoredEmailMessage message = new AccountRestoredEmailMessage();
+        message.setData(new AccountRestoredData(name));
+
+        emailNotifier.send(to, message);
+    }
+
+    /**
+     * Envia o código de redefinição de senha
+     * 
+     * @param to   e-mail do destinatário
+     * @param code código de verificação
+     */
     @Async("taskExecutor")
     public void sendPasswordReset(String to, String code) {
         PasswordResetEmailMessage message = new PasswordResetEmailMessage();
