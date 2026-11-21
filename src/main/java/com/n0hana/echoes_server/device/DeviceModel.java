@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.device;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
 import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -67,10 +68,12 @@ public class DeviceModel {
    * de acesso trata "sem instituição" como "não pode operar".
    */
   @NotFound(action = NotFoundAction.IGNORE)
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
   @JoinColumn(name = "institution_id", nullable = true)
   private InstitutionModel institution;
 
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
   @JoinColumn(name = "animal", nullable = true)
   @OnDelete(action = OnDeleteAction.SET_NULL)
@@ -82,6 +85,7 @@ public class DeviceModel {
    * devolve null em vez de lançar.
    */
   @NotFound(action = NotFoundAction.IGNORE)
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
   @JoinColumn(name = "classroom_id", nullable = true)
   private ClassroomModel classroom;

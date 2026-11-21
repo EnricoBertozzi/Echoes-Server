@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.user.model;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 
 import jakarta.persistence.DiscriminatorValue;
@@ -20,6 +21,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Student extends User {
 
+    @ShallowReference
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id")
     private InstitutionModel institution;

@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.scenario;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
 import java.util.UUID;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
@@ -36,6 +37,7 @@ public class ScenarioModel {
 
   private String audioUrl;
 
+  @ShallowReference
   @ManyToOne
   @JoinColumn(name = "auscultation_point")
   private AuscultationPointModel auscultationPoint;

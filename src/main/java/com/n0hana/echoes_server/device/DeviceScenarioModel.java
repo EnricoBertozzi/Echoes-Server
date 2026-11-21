@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.device;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -48,16 +49,19 @@ public class DeviceScenarioModel {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @OnDelete(action = OnDeleteAction.CASCADE)
   @JoinColumn(name = "device_id", nullable = false)
   private DeviceModel device;
 
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @OnDelete(action = OnDeleteAction.CASCADE)
   @JoinColumn(name = "point_id", nullable = false)
   private AuscultationPointModel point;
 
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @OnDelete(action = OnDeleteAction.CASCADE)
   @JoinColumn(name = "scenario_id", nullable = false)

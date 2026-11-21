@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.auscultation;
 
+import org.javers.core.metamodel.annotation.DiffIgnore;
+import org.javers.core.metamodel.annotation.ShallowReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,10 +33,12 @@ public class AuscultationPointModel {
 
   private String position;
 
+  @ShallowReference
   @ManyToOne
   @JoinColumn(name = "animal")
   private AnimalModel animal;
 
+  @DiffIgnore
   @OneToMany(mappedBy = "auscultationPoint", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ScenarioModel> scenarios = new ArrayList<>();
 
