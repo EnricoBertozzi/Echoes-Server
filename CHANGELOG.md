@@ -5,6 +5,19 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
+### Adicionado
+- Histórico (Javers) com política de retenção por tipo de entidade (`javers_retention_policy`), poda agendada (`javers.retention.cron`) e poda manual por `POST /api/v1/admin/javers/prune/run`. A poda mantém sempre os snapshots mais recentes de cada entidade.
+- Anonimização do histórico de um usuário excluído: e-mail e nome dos snapshots antigos são substituídos depois do commit da exclusão.
+- Checkpoints com aprovação de outra pessoa e rollback de entidades (`/api/v1/admin/javers/...`), com efeitos por tipo: usuário restaurado nunca recupera a senha e tem as sessões encerradas; instituição inativa não é reativada sozinha; turma excluída recupera os membros.
+- Checkpoint automático antes de limpar mais alunos de uma turma que `javers.checkpoint.threshold`.
+- `POST /api/v1/admin/devices/{id}/revoke-tokens` revoga os tokens já emitidos de um dispositivo.
+- Monitor de crescimento do histórico com alerta por e-mail acima de `javers.monitor.snapshot-bytes-threshold-mb`.
+- Flag `api.device.jwt.require-jti` para aceitar firmware sem `jti` durante a migração (padrão: exigir).
+
+### Alterado
+- Usuários, turmas, dispositivos, cenários, animais e pontos de ausculta passam a ter histórico no Javers (senha e contadores de login ficam fora do histórico).
+- `AuditAspect` não falha mais fora de uma requisição HTTP (scheduler e tarefas assíncronas).
+
 ## [2026-11-23]
 
 ### Segurança
