@@ -52,6 +52,10 @@ public class UserManagerServiceTests {
 
     @Mock
     private ClassroomMemberRepository classroomMemberRepository;
+
+    @Mock
+    private com.n0hana.echoes_server.infra.javers.anonymization.JaversAnonymizationService javersAnonymization;
+
     @InjectMocks
     private UserInfoService userInfoService;
 
@@ -218,6 +222,28 @@ public class UserManagerServiceTests {
         assertNull(deletedUser.getLockUntil());
         assertNull(deletedUser.getInstitution());
         verify(classroomMemberRepository).deleteByUserId(manager.getId());
+        verify(javersAnonymization).anonymizeAfterSoftDelete(manager.getId());
+    }
+
+    @Test
+    @DisplayName("Com transação ativa, o histórico só é anonimizado depois do commit")
+    void javersAnonymizationRunsOnlyAfterCommit() {
+        Manager manager = newManager("Gestor", "gestor@example.com", UUID.randomUUID());
+        when(userRepository.findByEmail("gestor@example.com")).thenReturn(Optional.of(manager));
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(2L);
+
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            userService.deleteCurrentUser("gestor@example.com");
+
+            org.mockito.Mockito.verifyNoInteractions(javersAnonymization);
+
+            for (var sync : org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations())
+                sync.afterCommit();
+            verify(javersAnonymization).anonymizeAfterSoftDelete(manager.getId());
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test
