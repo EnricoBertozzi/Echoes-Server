@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.springframework.web.multipart.MultipartFile;
+import java.util.Locale;
 
 import com.n0hana.echoes_server.infra.file.exception.FileValidateException;
 
@@ -35,32 +36,38 @@ public class FileValidatorService {
     validate(file, ALLOWED_EXTENSIONS);
   }
 
-  /** áudio de cenário: só mp3, independente de EXTENSIONS_ALLOWED (B3) */
-  private static final List<String> AUDIO_EXTENSIONS = List.of("mp3");
+  /**
+   * Extensões de áudio de cenário aceitas em upload. Vem de
+   * {@code SCENARIO_AUDIO_EXTENSIONS}; o padrão do código vale só sem Spring (testes).
+   */
+  @Value("#{'${api.scenario.audio-extensions:mp3,wav,ogg,m4a}'.split(',')}")
+  private List<String> audioExtensions = List.of("mp3", "wav", "ogg", "m4a");
 
   /**
-   * Valida um áudio de cenário: extensão mp3 e assinatura MP3 (ID3 ou frame sync)
+   * Valida um áudio de cenário: extensão permitida pela configuração, formato
+   * reconhecido e conteúdo compatível com a extensão.
    *
    * @param file Arquivo enviado
    */
   public void validateAudio(MultipartFile file) {
-    validate(file, AUDIO_EXTENSIONS);
-    validateMp3Signature(file);
+    validate(file, audioExtensions);
+
+    String extension = getExtension(file.getOriginalFilename());
+    AudioFileType type = AudioFileType.fromExtension(extension)
+            .orElseThrow(FileValidateException::new);
+
+    if (!matchesSignature(file, type))
+      throw new FileValidateException();
   }
 
-  private void validateMp3Signature(MultipartFile file) {
+  private boolean matchesSignature(MultipartFile file, AudioFileType type) {
     byte[] head;
     try (InputStream in = file.getInputStream()) {
-      head = in.readNBytes(3);
+      head = in.readNBytes(16);
     } catch (IOException e) {
       throw new FileValidateException();
     }
-
-    boolean id3 = head.length == 3 && head[0] == 'I' && head[1] == 'D' && head[2] == '3';
-    boolean frameSync = head.length >= 2 && (head[0] & 0xFF) == 0xFF && (head[1] & 0xE0) == 0xE0;
-
-    if (!id3 && !frameSync)
-      throw new FileValidateException();
+    return type.matches(head);
   }
 
   /**

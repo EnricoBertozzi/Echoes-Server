@@ -69,6 +69,36 @@ class RegistrationFlowIntegrationTest {
     @Autowired
     private UserTermAcceptanceRepository userTermAcceptanceRepository;
 
+    /**
+     * Redis utilizável para o teste: responde PING sem autenticação, ou há
+     * REDIS_PASSWORD no ambiente (o perfil de teste usa essa senha). Só a porta
+     * aberta não basta: um Redis com senha fazia o teste rodar e falhar.
+     */
+    static boolean redisReachable() {
+        if (System.getenv("REDIS_PASSWORD") != null && !System.getenv("REDIS_PASSWORD").isBlank()) {
+            return isOpen();
+        }
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress("localhost", 6379), 500);
+            socket.setSoTimeout(500);
+            socket.getOutputStream().write("PING\r\n".getBytes());
+            socket.getOutputStream().flush();
+            byte[] buf = new byte[32];
+            int n = socket.getInputStream().read(buf);
+            return n > 0 && new String(buf, 0, n).startsWith("+PONG");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isOpen() {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress("localhost", 6379), 500);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     @BeforeEach
     void seedRequiredTerms() {

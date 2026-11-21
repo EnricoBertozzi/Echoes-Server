@@ -1,130 +1,118 @@
 package com.n0hana.echoes_server.infra.notifier;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
 import java.util.Properties;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.n0hana.echoes_server.infra.notifier.message.EmailMessage;
+import com.n0hana.echoes_server.infra.logs.AuditLog;
+import com.n0hana.echoes_server.infra.logs.AuditLogService;
+import com.n0hana.echoes_server.infra.notifier.data.MfaCodeData;
+import com.n0hana.echoes_server.infra.notifier.message.MfaCodeEmailMessage;
 
-import jakarta.mail.Message;
 import jakarta.mail.Session;
+import jakarta.mail.SendFailedException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 
-@ExtendWith(MockitoExtension.class)
 class EmailNotifierTests {
 
-    @Mock
-    private JavaMailSender javaMailSender;
+    private final JavaMailSender sender = mock(JavaMailSender.class);
+    private final AuditLogService audit = mock(AuditLogService.class);
+    private final EmailNotifier notifier = new EmailNotifier(sender, audit);
 
-    @InjectMocks
-    private EmailNotifier emailNotifier;
+    private EmailNotifier notifier() {
+        ReflectionTestUtils.setField(notifier, "origin", "noreply@echoes.test");
+        return notifier;
+    }
 
-    @BeforeEach
-    void setUp() {
-        String origin = "echoes@email.com";
+    private static MfaCodeEmailMessage message() {
+        MfaCodeEmailMessage m = new MfaCodeEmailMessage();
+        m.setData(new MfaCodeData("123456"));
+        return m;
+    }
 
-        // Injeta dentro do campo origin o valor do remetente, devido ao valor ser
-        // passado por @Value
-        ReflectionTestUtils.setField(emailNotifier, "origin", origin);
+    private AuditLog recorded() {
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(audit).recordEmailOutcome(captor.capture());
+        return captor.getValue();
     }
 
     @Test
-    @DisplayName("Deve enviar um e-mail com os dados configurados")
-    void shouldSendEmailWithCorrectConfiguration() throws Exception {
-        // Arrange
-        String origin = "echoes@email.com";
-        String recipient = "example@email.com";
-        String subject = "Código de autenticação";
-        String content = "<h1>123456</h1>";
+    @DisplayName("Envio aceito pelo SMTP é auditado como SUCCESS")
+    void sentIsAuditedAsSuccess() throws Exception {
+        when(sender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
 
-        MimeMessage mimeMessage = new MimeMessage(
-                Session.getInstance(new Properties()));
+        notifier().send("ana@exemplo.com", message());
 
-        EmailMessage<?> message = mock(EmailMessage.class);
-
-        when(javaMailSender.createMimeMessage()).thenReturn(mimeMessage);
-        when(message.getTitle()).thenReturn(subject);
-        when(message.getContent()).thenReturn(content);
-
-        // Act
-        emailNotifier.send(recipient, message);
-        mimeMessage.saveChanges();
-
-        // Assert
-        verify(javaMailSender).send(mimeMessage);
-
-        assertEquals(origin, ((InternetAddress) mimeMessage.getFrom()[0]).getAddress());
-
-        assertEquals(recipient, (
-                (InternetAddress) mimeMessage.getRecipients(Message.RecipientType.TO)[0]
-            ).getAddress());
-
-        assertEquals(subject, mimeMessage.getSubject());
-
-        assertTrue(mimeMessage.isMimeType("text/html"));
-        assertEquals(content, mimeMessage.getContent());
+        AuditLog log = recorded();
+        assertEquals("SUCCESS", log.getStatus());
+        assertEquals("SEND", log.getAction());
+        assertEquals("Email", log.getEntity());
+        assertTrue(log.getDetails().startsWith(EmailNotifier.RESULT_SENT));
+        assertTrue(log.getDetails().contains("a***@exemplo.com"));
+        assertFalse(log.getDetails().contains("ana@exemplo.com"));
     }
 
     @Test
-    @DisplayName("Não deve enviar e-mails quando ocorrer falha na criação da mensagem")
-    void shouldNotSendEmailWhenMimeMessageCreationFails() {
-        // Arrange
-        String recipient = "example@email.com";
+    @DisplayName("Destinatário recusado pelo SMTP é auditado como inexistente")
+    void recipientRejectedIsAuditedAsNotFound() throws Exception {
+        when(sender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
+        SendFailedException rejected = new SendFailedException(
+                "550 user unknown", null, null, null,
+                new InternetAddress[] { new InternetAddress("ana@exemplo.com") });
+        doThrow(new MailSendException(Map.of("ana", rejected))).when(sender).send(any(MimeMessage.class));
 
-        EmailMessage<?> message = mock(EmailMessage.class);
+        notifier().send("ana@exemplo.com", message());
 
-        when(javaMailSender.createMimeMessage())
-                .thenThrow(new MailSendException("Falha ao criar a mensagem"));
-
-        // Act e Assert
-        assertDoesNotThrow(() -> emailNotifier.send(recipient, message));
-
-        verify(javaMailSender, never()).send(any(MimeMessage.class));
+        AuditLog log = recorded();
+        assertEquals("FAILED", log.getStatus());
+        assertTrue(log.getDetails().startsWith(EmailNotifier.RESULT_NOT_FOUND));
     }
 
     @Test
-    @DisplayName("Deve tratar falha ao enviar e-mail")
-    void shouldHandleEmailSendingFailure() throws Exception {
-        // Arrange
-        String recipient = "example@email.com";
-        String subject = "Código de autenticação";
-        String content = "123456";
+    @DisplayName("Endereço com formato inválido é auditado como inexistente")
+    void invalidAddressIsAuditedAsNotFound() throws Exception {
+        when(sender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
 
-        MimeMessage mimeMessage = new MimeMessage(
-                Session.getInstance(new Properties())
-        );
+        notifier().send("nao-e-email", message());
 
-        EmailMessage<?> message = mock(EmailMessage.class);
+        AuditLog log = recorded();
+        assertEquals("FAILED", log.getStatus());
+        assertTrue(log.getDetails().startsWith(EmailNotifier.RESULT_NOT_FOUND));
+    }
 
-        when(javaMailSender.createMimeMessage()).thenReturn(mimeMessage);
-        when(message.getTitle()).thenReturn(subject);
-        when(message.getContent()).thenReturn(content);
+    @Test
+    @DisplayName("Erro de conexão é auditado como falha de envio, não como endereço inexistente")
+    void connectionErrorIsAuditedAsFailure() throws Exception {
+        when(sender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
+        doThrow(new MailSendException("connect timed out")).when(sender).send(any(MimeMessage.class));
 
-        doThrow(new MailSendException("Falha no servidor SMTP")).when(javaMailSender).send(mimeMessage);
+        notifier().send("ana@exemplo.com", message());
 
-        // Act e Assert
-        assertDoesNotThrow(() -> emailNotifier.send(recipient, message));
+        AuditLog log = recorded();
+        assertEquals("FAILED", log.getStatus());
+        assertTrue(log.getDetails().startsWith(EmailNotifier.RESULT_FAILED));
+    }
 
-        verify(javaMailSender).send(mimeMessage);
+    @Test
+    @DisplayName("Máscara do e-mail não expõe o endereço completo")
+    void maskHidesLocalPart() {
+        assertEquals("j***@dominio.com.br", EmailNotifier.mask("joao@dominio.com.br"));
+        assertEquals("***", EmailNotifier.mask("sem-arroba"));
     }
 }

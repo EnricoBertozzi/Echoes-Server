@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.n0hana.echoes_server.infra.web.ClientIpResolver;
+import com.n0hana.echoes_server.institution.InstitutionRepository;
 
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
@@ -41,6 +42,7 @@ public class AuditAspect {
     private final ApplicationEventPublisher eventPublisher;
     private final HttpServletRequest request;
     private final AuditLogService auditLogService;
+    private final InstitutionRepository institutionRepository;
 
     /** só confia em X-Forwarded-For atrás de proxy conhecido (S13) */
     @Value("${api.security.trust-forwarded-for:false}")
@@ -344,14 +346,26 @@ public class AuditAspect {
                 user.getUserRole() == null
                     ? null
                     : user.getUserRole().name(),
-                institution == null
-                    ? null
-                    : institution.getName()
+                institutionName(institution)
             );
 
         } catch (Exception e) {
             return new Actor(null, null, null);
         }
+    }
+
+    /**
+     * Nome da instituição do ator. A associação é LAZY: ler o nome direto do proxy
+     * fora de uma sessão lança LazyInitializationException, o que zerava nome e
+     * papel do ator (ex.: gestor no logout). Busca pelo id, em transação própria.
+     */
+    private String institutionName(InstitutionModel institution) {
+        if (institution == null || institution.getId() == null) {
+            return null;
+        }
+        return institutionRepository.findById(institution.getId())
+                .map(InstitutionModel::getName)
+                .orElse(null);
     }
 
     private record Actor(String name, String role, String institutionName) {}

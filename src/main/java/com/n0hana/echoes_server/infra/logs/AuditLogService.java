@@ -84,6 +84,15 @@ public class AuditLogService {
     }
 
     /**
+     * Grava o resultado de um envio de e-mail, em transação própria: não depende
+     * do método que pediu o envio (que pode já ter terminado ou sido revertido).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordEmailOutcome(AuditLog logEvent) {
+        saveLog(logEvent);
+    }
+
+    /**
      * Persiste uma instância nova para evitar problemas
      * com entidades detached.
      */

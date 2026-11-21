@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.aspectj.lang.JoinPoint;
@@ -24,6 +26,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.n0hana.echoes_server.institution.InstitutionModel;
+import com.n0hana.echoes_server.institution.InstitutionRepository;
 import com.n0hana.echoes_server.user.model.Manager;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -70,7 +73,8 @@ class AuditAspectTests {
                 new AuditAspect(
                     publisher,
                     request,
-                    auditLogService
+                    auditLogService,
+                    mock(InstitutionRepository.class)
                 );
 
         Auditable auditable =
@@ -139,7 +143,8 @@ class AuditAspectTests {
                 new AuditAspect(
                     publisher,
                     mock(HttpServletRequest.class),
-                    auditLogService
+                    auditLogService,
+                    mock(InstitutionRepository.class)
                 );
 
         aspect.onFailure(
@@ -211,7 +216,8 @@ class AuditAspectTests {
     void failedLoginIsRecordedSynchronously() throws Exception {
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         AuditLogService auditLogService = mock(AuditLogService.class);
-        AuditAspect aspect = new AuditAspect(publisher, mock(HttpServletRequest.class), auditLogService);
+        AuditAspect aspect = new AuditAspect(publisher, mock(HttpServletRequest.class), auditLogService,
+                mock(InstitutionRepository.class));
 
         Auditable auditable = Sample.class.getDeclaredMethod("login").getAnnotation(Auditable.class);
 
@@ -224,6 +230,42 @@ class AuditAspectTests {
         assertEquals("LOGIN_ATTEMPT", captor.getValue().getAction());
         assertEquals("User", captor.getValue().getEntity());
         verifyNoInteractions(publisher);
+    }
+
+    @Test
+    @DisplayName("Gestor com instituição LAZY: ator mantém nome, papel e instituição (regressão)")
+    void managerActorKeepsNameWhenInstitutionIsLazy() throws Exception {
+        UUID institutionId = UUID.randomUUID();
+        InstitutionModel institution = new InstitutionModel();
+        institution.setId(institutionId);
+
+        Manager manager = new Manager(institution);
+        manager.setId(UUID.randomUUID());
+        manager.setName("Ana Gestora");
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(manager, null, manager.getAuthorities()));
+
+        InstitutionRepository institutions = mock(InstitutionRepository.class);
+        InstitutionModel stored = new InstitutionModel();
+        stored.setId(institutionId);
+        stored.setName("Escola Teste");
+        when(institutions.findById(institutionId)).thenReturn(Optional.of(stored));
+
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+        AuditLogService auditLogService = mock(AuditLogService.class);
+        AuditAspect aspect = new AuditAspect(publisher, mock(HttpServletRequest.class),
+                auditLogService, institutions);
+
+        aspect.onFailure(mock(JoinPoint.class),
+                annotation("LOGOUT", "User"),
+                new IllegalStateException("x"));
+
+        ArgumentCaptor<AuditLog> recorded = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogService).recordFailure(recorded.capture());
+        assertEquals("Ana Gestora", recorded.getValue().getActorName());
+        assertEquals("MANAGER", recorded.getValue().getActorRole());
+        assertEquals("Escola Teste", recorded.getValue().getActorInstitutionName());
     }
 
     static class Sample {
