@@ -13,10 +13,12 @@ import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.User;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Classe de configuração para inicialização do super usuário
  */
+@Slf4j
 @Configuration
 @Profile("!test")
 @RequiredArgsConstructor
@@ -53,6 +55,7 @@ public class SuperUserInitializer {
                 user.setActive(true);
 
                 repository.save(user);
+                log.info("SuperUser inicializado: {}", adminEmail);
             }
         };
     }
