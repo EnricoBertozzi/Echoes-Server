@@ -1,6 +1,9 @@
 
 package com.n0hana.echoes_server.user.service;
 
+import com.n0hana.echoes_server.user.dto.PendingInvitationDTO;
+import org.springframework.security.access.AccessDeniedException;
+import java.util.List;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import java.util.UUID;
@@ -375,5 +378,40 @@ public class UserRegisterService {
             throw new EmailAlreadyInUseException();
         }
     }
-}
 
+    /**
+     * Convites pendentes visíveis para quem consulta. Admin vê todos (ou só os de
+     * uma instituição, se pedir). Gestor vê só os da própria instituição; pedir
+     * outra instituição resulta em acesso negado.
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<PendingInvitationDTO> listPending(String requesterEmail, UUID institutionFilter) {
+        // Busca dentro da transação: a instituição do gestor é LAZY.
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(UserNotFoundException::new);
+        UUID scope = institutionFilter;
+
+        if (requester instanceof Manager manager) {
+            UUID own = manager.getInstitution() == null ? null : manager.getInstitution().getId();
+            if (own == null) {
+                return List.of();
+            }
+            if (institutionFilter != null && !institutionFilter.equals(own)) {
+                throw new AccessDeniedException("Sem acesso aos convites de outra instituição");
+            }
+            scope = own;
+        }
+
+        UUID filter = scope;
+        return pendingRepository.listActive().stream()
+                .filter(p -> filter == null || filter.equals(p.institutionId()))
+                .map(p -> new PendingInvitationDTO(
+                        p.name(),
+                        p.email(),
+                        UserRole.valueOf(p.role()),
+                        p.institutionId(),
+                        p.createdAt(),
+                        p.expiresAt()))
+                .toList();
+    }
+}
