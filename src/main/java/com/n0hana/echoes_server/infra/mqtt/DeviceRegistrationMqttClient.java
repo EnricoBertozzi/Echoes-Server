@@ -175,6 +175,30 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
     }
   }
 
+  /**
+   * Publica uma mensagem avulsa (usada pelo aviso de status, RF44).
+   *
+   * @return {@code true} se o broker aceitou a publicação; {@code false} se o
+   *         cliente está desligado ou desconectado, ou se a publicação falhou
+   */
+  public boolean publish(String topic, byte[] payload, boolean retained) {
+    MqttClient current = client;
+
+    if (!running || current == null || !current.isConnected())
+      return false;
+
+    try {
+      MqttMessage message = new MqttMessage(payload);
+      message.setQos(properties.getQos());
+      message.setRetained(retained);
+      current.publish(topic, message);
+      return true;
+    } catch (MqttException exception) {
+      log.warn("MQTT falha ao publicar em {}: {}", topic, exception.getReasonCode());
+      return false;
+    }
+  }
+
   private String ackTopic(String hardwareId) {
     String template = properties.getAckTopic();
 
@@ -189,7 +213,7 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
         .replace("{mac}", segment);
   }
 
-  private String topicSegment(String hardwareId) {
+  static String topicSegment(String hardwareId) {
     if (hardwareId == null || hardwareId.isBlank())
       return "unknown";
 
