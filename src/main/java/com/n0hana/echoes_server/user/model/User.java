@@ -56,6 +56,13 @@ public abstract class User implements UserDetails {
     private boolean active = true;
 
     /**
+     * RF07: verdadeiro enquanto o usuário precisa trocar a senha (admin criado
+     * pelo seed). O filtro de troca obrigatória barra as demais rotas até a troca.
+     */
+    @DiffIgnore
+    private boolean mustChangePassword;
+
+    /**
      * Momento da última troca/redefinição de senha. Tokens JWT emitidos antes
      * desse instante são rejeitados (S2).
      */
