@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.animal;
 
+import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +32,7 @@ public class AnimalModel {
 
   private String model;
 
+  @DiffIgnore
   @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<AuscultationPointModel> points = new ArrayList<>();
 
