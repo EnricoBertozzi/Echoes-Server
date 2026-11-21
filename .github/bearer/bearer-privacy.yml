@@ -1,0 +1,15 @@
+# bearer-privacy.yml
+
+report:
+  format: json
+  output: bearer-privacy.json
+  report: privacy
+  severity: critical,high,medium,low,warning
+
+scan:
+  scanner:
+    - sast
+    - secrets
+
+  disable-domain-resolution: true
+  quiet: false
