@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.Date;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.infra.security.JwtBlackListRepository;
@@ -44,6 +45,10 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
   private final DevicePublicKeyService publicKeyService;
   private final JwtBlackListRepository blackList;
   private final DeviceTokenRevocationRepository tokenRevocations;
+
+  /** false permite firmware antigo (sem jti) durante a migração; o padrão é exigir */
+  @Value("${api.device.jwt.require-jti:true}")
+  private boolean requireJti = true;
 
   @Override
   public boolean supports(String credential) {
@@ -102,9 +107,10 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
       throw new SecurityException("JWT lifetime too long");
 
     String jti = claims.getJWTID();
-    if (jti == null || jti.isBlank())
+    boolean hasJti = jti != null && !jti.isBlank();
+    if (!hasJti && requireJti)
       throw new SecurityException("Missing jti claim");
-    if (blackList.exists(jti))
+    if (hasJti && blackList.exists(jti))
       throw new SecurityException("JWT revoked");
 
     // revogação de todos os tokens do dispositivo: vale para quem foi emitido até o corte
