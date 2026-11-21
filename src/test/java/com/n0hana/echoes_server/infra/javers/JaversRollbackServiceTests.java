@@ -83,6 +83,7 @@ class JaversRollbackServiceTests {
     @Autowired private ScenarioRepository scenarios;
     @Autowired private FileStorageService files;
     @Autowired private Events events;
+    @Autowired private com.n0hana.echoes_server.infra.javers.retention.JaversRetentionPolicyRepository policies;
     @MockitoBean private NotifierService notifier;
 
     private InstitutionModel institution;
@@ -102,6 +103,7 @@ class JaversRollbackServiceTests {
     void cleanup() throws Exception {
         RequestContextHolder.resetRequestAttributes();
         checkpointRepository.deleteAll();
+        policies.deleteAll();
         // pelo id: os relacionamentos são lazy e não há sessão aberta aqui
         classroomIds.forEach(id -> members.findByClassroomId(id).forEach(members::delete));
         memberIds.forEach(id -> members.findById(id).ifPresent(members::delete));
@@ -303,5 +305,50 @@ class JaversRollbackServiceTests {
         assertEquals("B original", users.findById(b.getId()).orElseThrow().getName());
         assertEquals(com.n0hana.echoes_server.infra.javers.checkpoint.JaversCheckpointStatus.EXECUTED,
                 checkpointRepository.findById(cp.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    @DisplayName("ClassroomMember individual: recria o membro removido a partir do snapshot")
+    void singleMemberRollback() {
+        Student student = newStudent("Aluno");
+        ClassroomModel classroom = classrooms.save(ClassroomModel.builder().title("T").period("2026/2").institution(institution).build());
+        classroomIds.add(classroom.getId());
+        ClassroomMember member = members.save(ClassroomMember.builder().classroom(classroom).user(student).build());
+        JaversCheckpoint cp = approvedCheckpoint(member);
+        members.delete(member);
+        assertTrue(members.findByClassroomId(classroom.getId()).isEmpty());
+
+        RollbackResult result = rollback.rollbackEntity(cp.getId(), ClassroomMember.class, member.getId());
+
+        assertEquals(ClassroomMember.class.getName(), result.entityType());
+        assertEquals(1, members.findByClassroomId(classroom.getId()).size());
+        memberIds.add(members.findByClassroomId(classroom.getId()).get(0).getId());
+    }
+
+    @Test
+    @DisplayName("User restaurado com e-mail anonimizado publica o evento mas não envia e-mail")
+    void anonymizedUserIsNotEmailed() {
+        Student student = newStudent("Aluno");
+        student.setEmail("deleted_user_x@deleted.local");
+        users.save(student);
+        JaversCheckpoint cp = approvedCheckpoint(student);
+        student.setActive(false);
+        users.save(student);
+
+        rollback.rollbackEntity(cp.getId(), User.class, student.getId());
+
+        assertTrue(events.received.stream().anyMatch(e -> e instanceof UserRestoredEvent));
+        org.mockito.Mockito.verify(notifier, org.mockito.Mockito.never()).sendAccountRestored(anyString(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("resolveType aceita nome simples ou completo e recusa tipo sem política")
+    void resolveType() {
+        new com.n0hana.echoes_server.infra.javers.retention.JaversRetentionPolicyInitializer(policies).seed();
+
+        assertEquals(User.class, rollback.resolveType("User"));
+        assertEquals(User.class, rollback.resolveType(User.class.getName()));
+        assertThrows(IllegalStateException.class, () -> rollback.resolveType("UserTermAcceptance"));
+        assertThrows(IllegalStateException.class, () -> rollback.resolveType(" "));
     }
 }
