@@ -387,6 +387,11 @@ public class AuditAspect {
     }
 
     private String getClientIp() {
-        return ClientIpResolver.resolve(request, trustForwardedFor);
+        try {
+            return ClientIpResolver.resolve(request, trustForwardedFor);
+        } catch (IllegalStateException e) {
+            // sem requisição HTTP (scheduler, @Async): o evento fica sem IP
+            return null;
+        }
     }
 }
