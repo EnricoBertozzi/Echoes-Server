@@ -41,6 +41,8 @@ public interface DeviceRepository extends JpaRepository<DeviceModel, UUID> {
     @EntityGraph(attributePaths = { "animal", "institution" })
     List<DeviceModel> findByClassroomIdOrderByNameAsc(UUID classroomId);
 
+    List<DeviceModel> findByInstitutionId(UUID institutionId);
+
     // ---- Dashboard ----
 
     /** Linhas {status, quantidade} de todos os dispositivos. */

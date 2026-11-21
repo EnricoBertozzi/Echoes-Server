@@ -74,6 +74,7 @@ class ClassroomServiceTests {
 
     @Mock private ClassroomMaterialRepository materialRepository;
     @Mock private ClassroomMaterialStorage materialStorage;
+    @Mock private com.n0hana.echoes_server.infra.javers.checkpoint.JaversCheckpointService checkpoints;
 
     @InjectMocks
     private ClassroomService service;
@@ -407,6 +408,26 @@ class ClassroomServiceTests {
         service.clearStudents(EMAIL, classroom.getId());
 
         verify(memberRepository).deleteAll(List.of(studentMember));
+    }
+
+    @Test
+    @DisplayName("Limpar mais alunos que o limite cria o checkpoint antes de apagar; abaixo do limite, não")
+    void clearStudentsCreatesCheckpointOnlyAboveThreshold() {
+        InstitutionModel institution = institution(true);
+        ClassroomModel classroom = classroom(institution, false);
+        ClassroomMember studentMember = member(classroom, student(institution));
+        mockManager(manager(institution), classroom);
+        when(memberRepository.findByClassroomId(classroom.getId())).thenReturn(List.of(studentMember));
+
+        service.clearStudents(EMAIL, classroom.getId());
+        verify(checkpoints, never()).create(any(), any(), any());
+
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "checkpointThreshold", 0);
+        service.clearStudents(EMAIL, classroom.getId());
+
+        var order = org.mockito.Mockito.inOrder(checkpoints, memberRepository);
+        order.verify(checkpoints).create(org.mockito.ArgumentMatchers.eq(ClassroomMember.class.getName()), any(), org.mockito.ArgumentMatchers.eq(EMAIL));
+        order.verify(memberRepository, org.mockito.Mockito.atLeastOnce()).deleteAll(List.of(studentMember));
     }
 
     @Test
