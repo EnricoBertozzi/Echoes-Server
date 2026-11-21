@@ -15,7 +15,9 @@ import com.n0hana.echoes_server.infra.notifier.message.InstitutionPendingVerific
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationCompletedEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.InstitutionVerificationRejectedEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.data.AccountRestoredData;
+import com.n0hana.echoes_server.infra.notifier.data.JaversStorageAlertData;
 import com.n0hana.echoes_server.infra.notifier.message.AccountRestoredEmailMessage;
+import com.n0hana.echoes_server.infra.notifier.message.JaversStorageAlertEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.MfaCodeEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.PasswordResetEmailMessage;
 import com.n0hana.echoes_server.infra.notifier.message.RegisterInviteMessage;
@@ -80,6 +82,21 @@ public class NotifierService {
     public void sendNewDeviceLogin(String to, String ip, String userAgent, java.time.Instant when) {
         NewDeviceLoginEmailMessage message = new NewDeviceLoginEmailMessage();
         message.setData(new com.n0hana.echoes_server.infra.notifier.data.NewDeviceLoginData(ip, userAgent, when));
+
+        emailNotifier.send(to, message);
+    }
+
+    /**
+     * Alerta o administrador de que o histórico do Javers passou do limite de armazenamento
+     * 
+     * @param to          e-mail do destinatário
+     * @param bytes       tamanho atual da tabela de snapshots
+     * @param thresholdMb limite configurado, em MB
+     */
+    @Async("taskExecutor")
+    public void sendJaversStorageAlert(String to, long bytes, long thresholdMb) {
+        JaversStorageAlertEmailMessage message = new JaversStorageAlertEmailMessage();
+        message.setData(new JaversStorageAlertData(bytes, thresholdMb));
 
         emailNotifier.send(to, message);
     }
