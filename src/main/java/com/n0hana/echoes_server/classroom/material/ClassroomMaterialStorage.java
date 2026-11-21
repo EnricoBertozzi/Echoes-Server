@@ -2,12 +2,14 @@ package com.n0hana.echoes_server.classroom.material;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
+import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,11 +27,17 @@ public class ClassroomMaterialStorage {
     private static final Logger log = LoggerFactory.getLogger(ClassroomMaterialStorage.class);
     public static final long MAX_BYTES = 18L * 1024 * 1024;
     private final Path root;
+    private final Set<String> allowedExtensions;
 
-    public ClassroomMaterialStorage(FileStorageProperties properties) {
+    public ClassroomMaterialStorage(
+            FileStorageProperties properties,
+            @Value("#{'${api.material.extensions-allowed:pdf,docx,jpg,jpeg,png}'.split(',')}") List<String> allowedExtensions) {
         if (properties.getUploadDir() == null || properties.getUploadDir().isBlank())
             throw new IllegalStateException("file.upload-dir não está configurado");
         root = Paths.get(properties.getUploadDir()).toAbsolutePath().normalize().resolve("classroom-materials");
+        this.allowedExtensions = allowedExtensions.stream()
+                .map(e -> e.trim().toLowerCase(java.util.Locale.ROOT))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     public record Stored(String name, String originalName, String contentType, long size) {}
@@ -39,6 +47,9 @@ public class ClassroomMaterialStorage {
         if (file.getSize() > MAX_BYTES) throw MaterialException.invalid("O limite é de 18 MB");
         String original = file.getOriginalFilename();
         MaterialFileType type = MaterialFileType.fromFilename(original);
+        // só os tipos configurados em MATERIAL_EXTENSIONS_ALLOWED são aceitos em upload
+        if (!allowedExtensions.contains(type.extension()))
+            throw MaterialException.invalid("Tipo de arquivo não permitido para material: ." + type.extension());
         String storedName = UUID.randomUUID() + "." + type.extension();
         Path target = pathFor(storedName);
         try {

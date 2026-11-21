@@ -15,7 +15,7 @@ class ClassroomMaterialStorageTests {
     private ClassroomMaterialStorage storage() {
         FileStorageProperties props = new FileStorageProperties();
         props.setUploadDir(dir.toString());
-        return new ClassroomMaterialStorage(props);
+        return new ClassroomMaterialStorage(props, java.util.List.of("pdf", "docx", "jpg", "jpeg", "png"));
     }
 
     @Test void storesPdfUnderIsolatedRandomName() throws Exception {
@@ -36,5 +36,12 @@ class ClassroomMaterialStorageTests {
                 new MockMultipartFile("file", "bad.pdf", "application/pdf", "MZpayload".getBytes())));
         assertThrows(MaterialException.class, () -> storage.store(
                 new MockMultipartFile("file", "../bad.pdf", "application/pdf", "%PDF-1.7".getBytes())));
+    }
+
+    @Test void rejectsTypeOutsideConfiguredMaterialExtensions() {
+        // gif é reconhecido pelo enum, mas não está em MATERIAL_EXTENSIONS_ALLOWED
+        var storage = storage();
+        var gif = new MockMultipartFile("file", "aula.gif", "image/gif", "GIF89a".getBytes());
+        assertThrows(MaterialException.class, () -> storage.store(gif));
     }
 }

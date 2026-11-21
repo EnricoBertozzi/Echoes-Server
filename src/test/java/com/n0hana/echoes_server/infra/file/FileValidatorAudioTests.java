@@ -42,4 +42,34 @@ class FileValidatorAudioTests {
         var file = new MockMultipartFile("file", "aula.pdf", "application/pdf", "%PDF-1.4".getBytes(StandardCharsets.UTF_8));
         assertThrows(FileValidateException.class, () -> validator.validateAudio(file));
     }
+
+    @Test
+    @DisplayName("Aceita WAV, OGG e M4A com assinatura correta")
+    void acceptsWavOggAndM4a() {
+        byte[] wav = "RIFF\u0000\u0000\u0000\u0000WAVEfmt ".getBytes(StandardCharsets.ISO_8859_1);
+        byte[] ogg = "OggS\u0000\u0002".getBytes(StandardCharsets.ISO_8859_1);
+        byte[] m4a = "\u0000\u0000\u0000\u0020ftypM4A \u0000\u0000".getBytes(StandardCharsets.ISO_8859_1);
+
+        assertDoesNotThrow(() -> validator.validateAudio(new MockMultipartFile("file", "a.wav", "audio/wav", wav)));
+        assertDoesNotThrow(() -> validator.validateAudio(new MockMultipartFile("file", "a.ogg", "audio/ogg", ogg)));
+        assertDoesNotThrow(() -> validator.validateAudio(new MockMultipartFile("file", "a.m4a", "audio/mp4", m4a)));
+    }
+
+    @Test
+    @DisplayName("Rejeita conteúdo de outro formato com a extensão declarada")
+    void rejectsContentFromAnotherFormat() {
+        byte[] ogg = "OggS\u0000\u0002".getBytes(StandardCharsets.ISO_8859_1);
+        assertThrows(FileValidateException.class, () ->
+                validator.validateAudio(new MockMultipartFile("file", "a.wav", "audio/wav", ogg)));
+        assertThrows(FileValidateException.class, () ->
+                validator.validateAudio(new MockMultipartFile("file", "a.mp3", "audio/mpeg", ogg)));
+    }
+
+    @Test
+    @DisplayName("Rejeita extensão fora da lista configurada")
+    void rejectsExtensionOutsideConfiguredList() {
+        byte[] flac = "fLaC\u0000\u0000".getBytes(StandardCharsets.ISO_8859_1);
+        assertThrows(FileValidateException.class, () ->
+                validator.validateAudio(new MockMultipartFile("file", "a.flac", "audio/flac", flac)));
+    }
 }
