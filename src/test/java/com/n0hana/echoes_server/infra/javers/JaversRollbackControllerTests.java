@@ -182,6 +182,39 @@ class JaversRollbackControllerTests {
     }
 
     @Test
+    @DisplayName("ADMIN cria o checkpoint (201); quem não é ADMIN recebe 403; entidade inexistente, 404")
+    void adminCreatesCheckpoint() throws Exception {
+        Admin principal = newAdmin();
+        UUID entityId = UUID.randomUUID();
+        org.mockito.Mockito.doReturn(User.class).when(rollback).resolveType("User");
+        var cp = new com.n0hana.echoes_server.infra.javers.checkpoint.JaversCheckpoint();
+        cp.setId(UUID.randomUUID());
+        cp.setCommitId("5.00");
+        cp.setEntityType(User.class.getName());
+        cp.setAffectedCount(1);
+        when(checkpoints.createForIds(eq(User.class), eq(List.of(entityId)), eq(principal.getId().toString()))).thenReturn(cp);
+        String body = "{\"entityType\":\"User\",\"entityIds\":[\"" + entityId + "\"]}";
+
+        mockMvc.perform(post(BASE + "/javers/checkpoint").with(adminEntity(principal)).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(cp.getId().toString()))
+                .andExpect(jsonPath("$.commitId").value("5.00"))
+                .andExpect(jsonPath("$.status").value("PENDING_APPROVAL"));
+
+        mockMvc.perform(post(BASE + "/javers/checkpoint").with(nonAdmin()).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+
+        when(checkpoints.createForIds(any(), any(), any())).thenThrow(new java.util.NoSuchElementException("Entidade não encontrada"));
+        mockMvc.perform(post(BASE + "/javers/checkpoint").with(adminEntity(principal)).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isNotFound());
+
+        mockMvc.perform(post(BASE + "/javers/checkpoint").with(adminEntity(principal)).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"entityType\":\"User\",\"entityIds\":[]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Aprovar com o mesmo solicitante (IllegalStateException do serviço) responde 400")
     void approveBySameRequesterIs400() throws Exception {
         UUID id = UUID.randomUUID();

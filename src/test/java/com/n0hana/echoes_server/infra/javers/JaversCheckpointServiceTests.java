@@ -85,4 +85,19 @@ class JaversCheckpointServiceTests {
         assertThrows(java.util.NoSuchElementException.class, () -> service.approve(UUID.randomUUID(), "x"));
         assertThrows(IllegalArgumentException.class, () -> service.create("T", List.of(), "x"));
     }
+
+    @Test
+    @DisplayName("createForIds carrega as entidades pelo id e falha se alguma não existir")
+    void createForIdsLoadsEntities() {
+        student = JaversTestSupport.studentWithSnapshots(users, 2);
+
+        JaversCheckpoint cp = service.createForIds(com.n0hana.echoes_server.user.model.User.class, List.of(student.getId()), "admin-1");
+
+        assertEquals(com.n0hana.echoes_server.user.model.User.class.getName(), cp.getEntityType());
+        assertEquals(student.getId().toString(), cp.getEntityIds());
+        assertThrows(java.util.NoSuchElementException.class,
+                () -> service.createForIds(com.n0hana.echoes_server.user.model.User.class, List.of(UUID.randomUUID()), "admin-1"));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.createForIds(com.n0hana.echoes_server.user.model.User.class, List.of(), "admin-1"));
+    }
 }

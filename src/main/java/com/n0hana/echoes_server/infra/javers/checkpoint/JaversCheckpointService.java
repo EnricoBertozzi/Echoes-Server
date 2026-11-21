@@ -11,7 +11,9 @@ import org.javers.core.Javers;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -21,6 +23,9 @@ public class JaversCheckpointService {
     private final JaversCheckpointRepository repository;
     private final Javers javers;
     private final EntityManagerFactory entityManagerFactory;
+
+    @PersistenceContext
+    private EntityManager em;
 
     /** Registra o estado atual das entidades no Javers e guarda o checkpoint aguardando aprovação. */
     @Transactional
@@ -44,6 +49,22 @@ public class JaversCheckpointService {
         checkpoint.setRequestedBy(requestedBy);
         checkpoint.setCreatedAt(Instant.now());
         return repository.save(checkpoint);
+    }
+
+    /** Cria o checkpoint a partir de ids: carrega as entidades do tipo informado e registra o estado atual. */
+    @Transactional
+    public JaversCheckpoint createForIds(Class<?> type, List<UUID> ids, String requestedBy) {
+        if (ids == null || ids.isEmpty())
+            throw new IllegalArgumentException("Checkpoint sem entidades");
+
+        List<Object> entities = new java.util.ArrayList<>();
+        for (UUID id : ids) {
+            Object entity = em.find(type, id);
+            if (entity == null)
+                throw new NoSuchElementException("Entidade não encontrada: " + type.getSimpleName() + " " + id);
+            entities.add(entity);
+        }
+        return create(type.getName(), entities, requestedBy);
     }
 
     /** Quem aprova precisa ser diferente de quem pediu. */
