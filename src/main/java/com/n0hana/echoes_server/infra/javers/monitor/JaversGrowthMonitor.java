@@ -8,7 +8,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -17,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class JaversGrowthMonitor {
 
     public static final String COUNT_SQL = "SELECT COUNT(*) FROM jv_snapshot";
@@ -43,6 +43,19 @@ public class JaversGrowthMonitor {
     private volatile long snapshotCount;
     private volatile long snapshotBytes;
     private volatile Instant lastAlert;
+
+    public JaversGrowthMonitor(JdbcTemplate jdbc, JaversStorageAlertService alerts, MeterRegistry meterRegistry) {
+        this.jdbc = jdbc;
+        this.alerts = alerts;
+
+        Gauge.builder("javers.snapshot.count", () -> snapshotCount)
+                .description("Número de snapshots no Javers")
+                .register(meterRegistry);
+        Gauge.builder("javers.snapshot.bytes", () -> snapshotBytes)
+                .description("Tamanho da tabela jv_snapshot em bytes")
+                .baseUnit("bytes")
+                .register(meterRegistry);
+    }
 
     @Scheduled(cron = "${javers.monitor.cron:0 0 * * * *}")
     public void check() {
@@ -75,7 +88,7 @@ public class JaversGrowthMonitor {
         return value == null ? 0 : value;
     }
 
-    /** valores da última medição, para um futuro binding de métricas */
+    /** valores da última medição (também expostos como gauges) */
     public long getSnapshotCount() {
         return snapshotCount;
     }
