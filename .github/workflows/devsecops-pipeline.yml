@@ -1,0 +1,83 @@
+name: Echoes Server - DevSecOps Pipeline
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # TRUFFLEHOG
+  secrets-scan:
+    name: TruffleHog - Secrets scanning
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: TruffleHog - Scan full Git history
+        run: |
+          docker run --rm \
+            --volume "$PWD:/repo:ro" \
+            trufflesecurity/trufflehog:latest \
+            git file:///repo \
+              --results=verified,unknown \
+              --fail \
+              --no-update
+
+  # TRIVY 
+  sca:
+    name: Trivy - Dependency vulnerabilities (SCA)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Trivy - Scan Maven dependencies
+        run: |
+          docker run --rm \
+            --volume "$PWD:/project:ro" \
+            ghcr.io/aquasecurity/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb \
+            fs \
+              --scanners vuln \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --exit-code 1 \
+              --no-progress \
+              /project
+
+  # SEMGREP
+  sast:
+    name: Semgrep - Static analysis (SAST)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Semgrep - Scan Java and Spring Boot
+        run: |
+          docker run --rm \
+            --volume "$PWD:/src:ro" \
+            semgrep/semgrep:latest \
+            semgrep scan \
+              --config p/java \
+              --config p/spring \
+              --severity ERROR \
+              --error \
+              --metrics off \
+              /src
