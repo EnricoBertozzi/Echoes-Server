@@ -35,7 +35,7 @@ jobs:
 
   # SEMGREP
   sast:
-    name: Semgrep - Static analysis (SAST)
+    name: Semgrep
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -44,15 +44,13 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
       - name: Semgrep - Scan Java and Spring Boot
         run: |
           docker run --rm \
             --volume "$PWD:/src:ro" \
             semgrep/semgrep:latest \
             semgrep scan \
-              --config p/java \
-              --config p/spring \
+              --config auto \
               --severity ERROR \
               --error \
               --metrics off \
