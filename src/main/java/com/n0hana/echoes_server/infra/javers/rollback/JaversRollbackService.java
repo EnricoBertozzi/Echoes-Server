@@ -64,7 +64,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class JaversRollbackService {
 
-    static final String DEVICE_ACTION = "POST /api/v1/admin/devices/{id}/revoke-tokens para cada id em affectedDevices";
+    static final String DEVICE_ACTION = "Verifique manualmente quais dispositivos de candidateDevices pertencem ao usuário restaurado e, "
+            + "se necessário, revogue cada um com POST /api/v1/admin/devices/{id}/revoke-tokens. Nenhum token foi revogado automaticamente.";
 
     private final Javers javers;
     private final JaversCheckpointService checkpoints;
@@ -242,7 +243,7 @@ public class JaversRollbackService {
     private RollbackResult applyBusinessEffects(Object entity, UUID entityId, Class<?> type, boolean userWasActive,
             boolean institutionWasActive, boolean classroomWasDeleted) {
         Instant now = Instant.now();
-        List<UUID> affectedDevices = List.of();
+        List<UUID> candidateDevices = List.of();
         String manualAction = null;
 
         if (entity instanceof User user) {
@@ -254,7 +255,7 @@ public class JaversRollbackService {
             if (!userWasActive && user.isActive())
                 notifyRestored(user, now);
 
-            affectedDevices = devicesOf(user);
+            candidateDevices = devicesOf(user);
             manualAction = DEVICE_ACTION;
             log.warn("Rollback de User: tokens de dispositivo não revogados automaticamente; use o endpoint manual.");
         } else if (entity instanceof InstitutionModel institution) {
@@ -278,7 +279,7 @@ public class JaversRollbackService {
             log.info("Rollback de Scenario {}: arquivo de áudio {} conferido", entityId, audio);
         }
 
-        return new RollbackResult(entityId, type.getName(), now, affectedDevices, manualAction);
+        return new RollbackResult(entityId, type.getName(), now, candidateDevices, manualAction);
     }
 
     private void notifyRestored(User user, Instant now) {

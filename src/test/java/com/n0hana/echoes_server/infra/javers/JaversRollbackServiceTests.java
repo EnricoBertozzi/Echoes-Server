@@ -178,8 +178,9 @@ class JaversRollbackServiceTests {
         assertTrue(restored.getPasswordChangedAt().isAfter(before));
         assertTrue(restored.getTokensRevokedAt().isAfter(before));
 
-        assertEquals(List.of(device.getId()), result.affectedDevices());
+        assertEquals(List.of(device.getId()), result.candidateDevices());
         assertTrue(result.manualActionRequired().contains("/api/v1/admin/devices/{id}/revoke-tokens"));
+        assertTrue(result.manualActionRequired().contains("manualmente"));
         assertTrue(events.received.stream().anyMatch(e -> e instanceof UserRestoredEvent r && r.userId().equals(student.getId())));
         verify(notifier).sendAccountRestored(restored.getEmail(), "Nome Original");
     }
@@ -215,7 +216,7 @@ class JaversRollbackServiceTests {
         assertEquals(DeviceStatus.ACTIVE, devices.findById(device.getId()).orElseThrow().getStatus());
         assertTrue(events.received.stream().anyMatch(e -> e instanceof DeviceStatusChanged d
                 && d.deviceId().equals(device.getId()) && d.status() == DeviceStatus.ACTIVE));
-        assertTrue(result.affectedDevices().isEmpty(), "só User preenche affectedDevices");
+        assertTrue(result.candidateDevices().isEmpty(), "só User preenche candidateDevices");
         assertEquals(null, result.manualActionRequired());
     }
 
