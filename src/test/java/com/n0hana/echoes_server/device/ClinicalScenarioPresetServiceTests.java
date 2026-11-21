@@ -154,4 +154,40 @@ class ClinicalScenarioPresetServiceTests {
         () -> service.activatePreset(user, device.getId(), UUID.randomUUID()));
     verify(selections, never()).saveAll(any());
   }
+
+  // RF54: professor/gestor só alcança dispositivos da própria instituição
+
+  private void otherInstitutionTeacher() {
+    when(devices.findById(device.getId())).thenReturn(Optional.of(device));
+    when(scopes.resolve(user)).thenReturn(new DeviceScope.InstitutionScope(UUID.randomUUID()));
+  }
+
+  @Test
+  void teacherOfAnotherInstitutionCannotCreatePreset() {
+    otherInstitutionTeacher();
+    var request = new CreateClinicalPresetRequest("Caso", "x",
+        List.of(new PresetPoint(cardiac.getId(), normal.getId())));
+
+    assertThrows(org.springframework.security.access.AccessDeniedException.class,
+        () -> service.createPreset(user, device.getId(), request));
+    verify(presets, never()).save(any());
+  }
+
+  @Test
+  void teacherOfAnotherInstitutionCannotListPresets() {
+    otherInstitutionTeacher();
+
+    assertThrows(org.springframework.security.access.AccessDeniedException.class,
+        () -> service.listPresets(user, device.getId()));
+    verify(presets, never()).findByAnimalIdOrderByNameAsc(any());
+  }
+
+  @Test
+  void teacherOfAnotherInstitutionCannotActivatePreset() {
+    otherInstitutionTeacher();
+
+    assertThrows(org.springframework.security.access.AccessDeniedException.class,
+        () -> service.activatePreset(user, device.getId(), UUID.randomUUID()));
+    verify(selections, never()).saveAll(any());
+  }
 }
