@@ -201,14 +201,16 @@ class PasswordServiceTests {
     }
 
     @Test
-    @DisplayName("Reset de senha é auditado com o e-mail do titular em details, sem senha nem token")
+    @DisplayName("Reset de senha é auditado com o e-mail MASCARADO em details (L11), sem senha nem token")
     void resetAuditDetailsIdentifyOwner() throws Exception {
         var auditable = PasswordService.class
                 .getMethod("reset", String.class, String.class, String.class)
                 .getAnnotation(com.n0hana.echoes_server.infra.logs.Auditable.class);
 
         org.junit.jupiter.api.Assertions.assertEquals("RESET_PASSWORD", auditable.action());
-        org.junit.jupiter.api.Assertions.assertTrue(auditable.details().contains("#email"));
+        org.junit.jupiter.api.Assertions.assertTrue(auditable.details().contains("maskEmail(#email)"));
+        // o e-mail só entra mascarado: nenhuma referência crua a #email
+        org.junit.jupiter.api.Assertions.assertFalse(auditable.details().replace("maskEmail(#email)", "").contains("#email"));
         org.junit.jupiter.api.Assertions.assertFalse(auditable.details().contains("#token"));
         org.junit.jupiter.api.Assertions.assertFalse(auditable.details().contains("#newPassword"));
     }

@@ -48,6 +48,8 @@ public class AuditAspect {
     @Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
+    private static final int MAX_DETAILS = 255;
+
     private final ExpressionParser parser =
             new SpelExpressionParser();
 
@@ -109,10 +111,13 @@ public class AuditAspect {
                     )
                 )
                 .details(
-                    this.evaluate(
-                        auditable.details(),
-                        jp,
-                        result
+                    PiiMasker.mask(
+                        this.evaluate(
+                            auditable.details(),
+                            jp,
+                            result
+                        ),
+                        MAX_DETAILS
                     )
                 )
                 .institutionId(
@@ -175,7 +180,10 @@ public class AuditAspect {
                 )
                 .status("FAILED")
                 .ip(this.getClientIp())
-                .details(ex.getMessage())
+                // sem e-mail/token da mensagem da exceção (L11); o tipo basta para diagnosticar
+                .details(PiiMasker.mask(
+                    ex.getClass().getSimpleName() + (ex.getMessage() == null ? "" : ": " + ex.getMessage()),
+                    MAX_DETAILS))
                 .build()
         );
     }

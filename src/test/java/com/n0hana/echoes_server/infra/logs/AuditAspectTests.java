@@ -2,6 +2,8 @@
 package com.n0hana.echoes_server.infra.logs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import static org.mockito.Mockito.mock;
@@ -266,6 +268,29 @@ class AuditAspectTests {
         assertEquals("Ana Gestora", recorded.getValue().getActorName());
         assertEquals("MANAGER", recorded.getValue().getActorRole());
         assertEquals("Escola Teste", recorded.getValue().getActorInstitutionName());
+    }
+
+    @Test
+    @DisplayName("L11: e-mail e token na mensagem da exceção não chegam ao details da auditoria")
+    void failureDetailsDoNotLeakPii() throws Exception {
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+        AuditLogService auditLogService = mock(AuditLogService.class);
+        AuditAspect aspect = new AuditAspect(publisher, mock(HttpServletRequest.class), auditLogService,
+                mock(InstitutionRepository.class));
+        Auditable auditable = Sample.class.getDeclaredMethod("login").getAnnotation(Auditable.class);
+
+        aspect.onFailure(mock(JoinPoint.class), auditable, new IllegalStateException(
+                "Usuário maria.silva@escola.edu.br falhou com Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.assinaturaabc"));
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogService).recordFailure(captor.capture());
+        String details = captor.getValue().getDetails();
+
+        assertTrue(details.startsWith("IllegalStateException"), details);
+        assertFalse(details.contains("maria.silva"), details);
+        assertFalse(details.contains("@"), details);
+        assertFalse(details.contains("eyJ"), details);
+        assertTrue(details.length() <= 255);
     }
 
     static class Sample {
