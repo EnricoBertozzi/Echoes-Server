@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.javers.core.Javers;
 import org.javers.repository.jql.QueryBuilder;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -58,6 +59,15 @@ public class JaversRollbackController {
     @Auditable(action = "JAVERS_CHECKPOINT_ROLLBACK", entity = "Javers", entityId = "#id")
     public ResponseEntity<List<RollbackResult>> rollbackCheckpoint(@PathVariable UUID id) {
         return ResponseEntity.ok(rollback.rollbackCheckpoint(id));
+    }
+
+    @PostMapping("/javers/checkpoint")
+    @Auditable(action = "JAVERS_CHECKPOINT_CREATED", entity = "Javers")
+    public ResponseEntity<JaversCheckpointDTO> createCheckpoint(@RequestBody @Valid JaversCheckpointRequestDTO dto,
+            @AuthenticationPrincipal User requester) {
+        var checkpoint = checkpoints.createForIds(
+                rollback.resolveType(dto.entityType()), dto.entityIds(), requester.getId().toString());
+        return ResponseEntity.status(HttpStatus.CREATED).body(JaversCheckpointDTO.from(checkpoint));
     }
 
     @PostMapping("/javers/checkpoint/{id}/approve")
