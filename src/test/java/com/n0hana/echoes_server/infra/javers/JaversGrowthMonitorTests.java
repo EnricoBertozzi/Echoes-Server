@@ -25,11 +25,12 @@ class JaversGrowthMonitorTests {
 
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     private final JaversStorageAlertService alerts = mock(JaversStorageAlertService.class);
+    private final io.micrometer.core.instrument.simple.SimpleMeterRegistry registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
     private JaversGrowthMonitor monitor;
 
     @BeforeEach
     void setUp() {
-        monitor = new JaversGrowthMonitor(jdbc, alerts);
+        monitor = new JaversGrowthMonitor(jdbc, alerts, registry);
         ReflectionTestUtils.setField(monitor, "alertTo", "admin@test.local");
         ReflectionTestUtils.setField(monitor, "thresholdMb", 8192L);
     }
@@ -102,5 +103,18 @@ class JaversGrowthMonitorTests {
         monitor.check();
 
         verify(alerts, never()).alert(anyString(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Registra os gauges javers.snapshot.count e javers.snapshot.bytes com os valores da última medição")
+    void exposesGauges() {
+        assertEquals(0.0, registry.get("javers.snapshot.count").gauge().value());
+
+        measure(1234, 5 * MB);
+        monitor.check();
+
+        assertEquals(1234.0, registry.get("javers.snapshot.count").gauge().value());
+        assertEquals(5.0 * MB, registry.get("javers.snapshot.bytes").gauge().value());
+        assertEquals("Tamanho da tabela jv_snapshot em bytes", registry.get("javers.snapshot.bytes").gauge().getId().getDescription());
     }
 }

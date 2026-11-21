@@ -59,6 +59,8 @@ public class SecurityConfig {
                         // termos são lidos antes do cadastro
                         .requestMatchers(HttpMethod.GET, "/terms/{type}", "/terms/{type}/json").permitAll()
                         .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        // health para sonda de liveness/readiness; as demais rotas do actuator (ex.: prometheus) exigem login
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
 
                         // o resto pede token
                         .anyRequest().authenticated())

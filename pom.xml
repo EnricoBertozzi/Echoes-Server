@@ -45,6 +45,15 @@
 			<artifactId>javers-spring-boot-starter-sql</artifactId>
 			<version>7.11.7</version>
 		</dependency>
+		<!-- Observabilidade: health em produção; métricas (Prometheus) só no perfil dev -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
 		<!-- JPA -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
