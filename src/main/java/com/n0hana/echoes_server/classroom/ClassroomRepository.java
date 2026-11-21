@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.classroom;
 
+import org.javers.spring.annotation.JaversSpringDataAuditable;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+@JaversSpringDataAuditable
 public interface ClassroomRepository extends JpaRepository<ClassroomModel, UUID> {
 
     // admin vê todas as turmas

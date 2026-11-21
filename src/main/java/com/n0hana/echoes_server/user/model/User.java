@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.user.model;
 
+import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -43,10 +44,13 @@ public abstract class User implements UserDetails {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @DiffIgnore
     private String password;
 
+    @DiffIgnore
     private int loginAttempts;
 
+    @DiffIgnore
     private LocalDateTime lockUntil;
 
     private boolean active = true;

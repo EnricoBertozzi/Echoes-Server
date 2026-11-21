@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.device;
 
+import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -92,6 +93,7 @@ public class DeviceModel {
   private LocalDateTime approvedAt;
 
   @Column(name = "last_seen_at")
+  @DiffIgnore
   private LocalDateTime lastSeenAt;
 
   @CreationTimestamp

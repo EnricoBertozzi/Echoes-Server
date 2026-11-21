@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.classroom;
 
+import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -68,5 +69,6 @@ public class ClassroomModel {
 
     @UpdateTimestamp
     @Column(name = "updated_at")
+    @DiffIgnore
     private LocalDateTime updatedAt;
 }
