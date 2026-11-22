@@ -3,6 +3,7 @@ package com.n0hana.echoes_server.device.log;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,21 +65,24 @@ public class DeviceLogIngestService {
     for (DeviceLogRequest.Event event : request.events())
       bySeq.putIfAbsent(event.seq(), event);
 
-    Set<Long> existing = Set.copyOf(repository.findExistingSeqs(device.getId(), request.bootId(), bySeq.keySet()));
+    long lastSeq = bySeq.keySet().stream().mapToLong(Long::longValue).max().orElse(0);
+    // seq negativo = aviso gerado pelo servidor; único por lote, então também é idempotente
+    long noticeSeq = -(lastSeq + 1);
+
+    Set<Long> lookup = new HashSet<>(bySeq.keySet());
+    lookup.add(noticeSeq);
+    Set<Long> existing = Set.copyOf(repository.findExistingSeqs(device.getId(), request.bootId(), lookup));
 
     List<DeviceLogModel> rows = new ArrayList<>();
-    long lastSeq = 0;
     for (DeviceLogRequest.Event event : bySeq.values()) {
-      lastSeq = Math.max(lastSeq, event.seq());
       if (existing.contains(event.seq()))
         continue;
       rows.add(toRow(device, institution, request, event, received));
     }
 
     int dropped = request.dropped() == null ? 0 : request.dropped();
-    if (dropped > 0 && !existing.contains(-lastSeq)) {
-      // seq negativo = aviso gerado pelo servidor; único por lote, então também é idempotente
-      DeviceLogModel notice = base(device, institution, request.bootId(), -lastSeq, received);
+    if (dropped > 0 && !existing.contains(noticeSeq)) {
+      DeviceLogModel notice = base(device, institution, request.bootId(), noticeSeq, received);
       notice.setOccurredAt(received);
       notice.setLevel(DeviceLogLevel.WARN);
       notice.setCategory(DeviceLogCategory.SYSTEM);
