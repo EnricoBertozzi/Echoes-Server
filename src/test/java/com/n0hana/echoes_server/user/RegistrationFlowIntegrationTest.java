@@ -1,6 +1,7 @@
 package com.n0hana.echoes_server.user;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -168,6 +169,8 @@ class RegistrationFlowIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Código inválido"));
 
         mockMvc.perform(post("/api/v1/users/2fa")
+                .with(req -> { req.setRemoteAddr("203.0.113.7"); return req; })
+                .header("User-Agent", "EchoesTest/1.0")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + STRONG_PASSWORD
                         + "\",\"code\":\"" + code + "\"," + TERMS_JSON + "}"))
@@ -180,6 +183,15 @@ class RegistrationFlowIntegrationTest {
         assertTrue(pendingRegistrationRepository.findByEmail(email).isEmpty(),
                 "convite deve ser consumido após a confirmação");
         assertTrue(userRepository.existsByEmail(email));
+
+        // prova do consentimento (LGPD art. 8º, §2º): cada aceite guarda IP e User-Agent
+        var acceptances = userTermAcceptanceRepository.findAllByUserId(
+                userRepository.findByEmail(email).orElseThrow().getId());
+        assertEquals(3, acceptances.size());
+        acceptances.forEach(a -> {
+            assertEquals("203.0.113.7", a.getIpAddress());
+            assertEquals("EchoesTest/1.0", a.getUserAgent());
+        });
 
         mockMvc.perform(get("/api/v1/users/student"))
                 .andExpect(status().isOk())

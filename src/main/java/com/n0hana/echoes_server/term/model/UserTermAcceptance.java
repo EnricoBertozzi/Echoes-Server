@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import com.n0hana.echoes_server.user.model.User;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -49,8 +50,28 @@ public class UserTermAcceptance {
      */
     private Instant revokedAt;
 
+    /**
+     * Origem do aceite, como prova do consentimento (LGPD art. 8º, §2º): IP do
+     * cliente e User-Agent do navegador no momento em que o titular aceitou.
+     * Ficam nulos quando o aceite não vem de uma requisição HTTP.
+     */
+    @Column(name = "ip_address", length = IP_MAX_LENGTH)
+    private String ipAddress;
+
+    @Column(name = "user_agent", length = USER_AGENT_MAX_LENGTH)
+    private String userAgent;
+
+    public static final int IP_MAX_LENGTH = 45;
+    public static final int USER_AGENT_MAX_LENGTH = 512;
+
     public UserTermAcceptance(User user, TermModel term) {
         this.user = user;
         this.term = term;
+    }
+
+    public UserTermAcceptance(User user, TermModel term, String ipAddress, String userAgent) {
+        this(user, term);
+        this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
     }
 }

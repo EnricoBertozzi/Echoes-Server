@@ -63,7 +63,9 @@ public class UserDataExportService {
                 acceptance.getTerm().getType(),
                 acceptance.getTerm().getVersion(),
                 acceptance.getAcceptedAt(),
-                acceptance.getRevokedAt());
+                acceptance.getRevokedAt(),
+                acceptance.getIpAddress(),
+                acceptance.getUserAgent());
     }
 
     private List<UserDataExportDTO.ClassroomItem> classroomItems(User user) {

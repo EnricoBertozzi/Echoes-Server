@@ -9,10 +9,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.web.ClientIpResolver;
 import com.n0hana.echoes_server.term.dto.CreateTermRequestDTO;
 import com.n0hana.echoes_server.term.exception.TermNotFoundException;
 import com.n0hana.echoes_server.term.exception.TermStatusException;
@@ -26,6 +30,7 @@ import com.n0hana.echoes_server.user.exception.RequiredTermsNotAcceptedException
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
 import com.n0hana.echoes_server.user.model.User;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,6 +55,10 @@ public class TermService {
     private final TermRepository termRepository;
     private final UserTermAcceptanceRepository userTermAcceptanceRepository;
     private final UserRepository userRepository;
+
+    /** mesmo critério da auditoria e do rate limit: X-Forwarded-For só atrás de proxy confiável (S13) */
+    @Value("${api.security.trust-forwarded-for:false}")
+    private boolean trustForwardedFor;
 
     // ------------------------------------------------------------------ consultas
 
@@ -131,12 +140,42 @@ public class TermService {
         return userTermAcceptanceRepository
             .findByUserIdAndTermsId(user.getId(), terms.getId())
             .orElseGet(() -> {
+                HttpServletRequest request = currentRequest();
                 UserTermAcceptance saved = userTermAcceptanceRepository
-                    .save(new UserTermAcceptance(user, terms));
+                    .save(new UserTermAcceptance(user, terms, clientIp(request), userAgent(request)));
                 log.debug("Aceite registrado: user={}, termId={}, version={}",
                     user.getId(), terms.getId(), terms.getVersion());
                 return saved;
             });
+    }
+
+    /** requisição HTTP em curso, ou null fora de uma (scheduler, @Async, testes unitários) */
+    private static HttpServletRequest currentRequest() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            return attributes.getRequest();
+        }
+        return null;
+    }
+
+    private String clientIp(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        return truncate(ClientIpResolver.resolve(request, trustForwardedFor), UserTermAcceptance.IP_MAX_LENGTH);
+    }
+
+    private static String userAgent(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        return truncate(request.getHeader("User-Agent"), UserTermAcceptance.USER_AGENT_MAX_LENGTH);
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.length() > maxLength ? value.substring(0, maxLength) : value;
     }
 
     public List<UserTermAcceptance> getUserAcceptances(UUID userId) {
@@ -252,7 +291,8 @@ public class TermService {
         return saved;
     }
 
-    private boolean isVersionGreater(String newVersion, String currentVersion) {
+    /** {@code true} se {@code newVersion} (major.minor.patch) é maior que {@code currentVersion} */
+    static boolean isVersionGreater(String newVersion, String currentVersion) {
         int[] newParts = parseVersion(newVersion);
         int[] currentParts = parseVersion(currentVersion);
         for (int i = 0; i < 3; i++) {
@@ -262,7 +302,7 @@ public class TermService {
         return false;
     }
 
-    private int[] parseVersion(String version) {
+    private static int[] parseVersion(String version) {
         try {
             int[] parts = Arrays.stream(version.split("\\."))
                 .mapToInt(Integer::parseInt)

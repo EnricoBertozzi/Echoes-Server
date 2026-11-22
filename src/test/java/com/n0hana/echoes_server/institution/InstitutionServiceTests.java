@@ -58,6 +58,9 @@ public class InstitutionServiceTests {
     @Mock
     private UserInfoService userInfoService;
 
+    @Mock
+    private com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryService recovery;
+
     @InjectMocks
     private InstitutionService service;
 

@@ -21,6 +21,7 @@ import com.n0hana.echoes_server.classroom.exception.ClassroomNotFoundException;
 import com.n0hana.echoes_server.classroom.exception.ClassroomStudentEnrolledException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.javers.checkpoint.JaversCheckpointService;
+import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryService;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -49,6 +50,7 @@ public class ClassroomService {
     private final ClassroomMaterialStorage materialStorage;
     private final AttemptService attempts;
     private final JaversCheckpointService checkpoints;
+    private final DeletionRecoveryService recovery;
 
     /** limpar mais alunos que isto cria antes um checkpoint de restauração (Javers) */
     @Value("${javers.checkpoint.threshold:10}")
@@ -164,7 +166,7 @@ public class ClassroomService {
     @Auditable(action = "DELETE", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel delete(String email, UUID id) {
         ClassroomModel classroom = findManagedClassroom(email, id);
-        memberRepository.deleteByClassroomId(id);
+        memberRepository.deleteAll(recovery.recordClassroomDeletion(classroom));
         // A exclusão da turma é lógica, mas os materiais e seus arquivos são removidos.
         var storedNames = materialRepository.findStoredNamesByClassroomId(id);
         materialRepository.deleteAllByClassroomId(id);
@@ -179,6 +181,7 @@ public class ClassroomService {
     @Auditable(action = "CLEAR_STUDENTS", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel clearStudents(String email, UUID id) {
         ClassroomModel classroom = findManagedClassroom(email, id);
+        recovery.lockActiveClassroom(id);
 
         // o usuário do membro pode ser um proxy, por isso olha o papel em vez de instanceof
         List<ClassroomMember> students = memberRepository.findByClassroomId(id).stream()
@@ -230,6 +233,7 @@ public class ClassroomService {
             attempts.register(AttemptScope.CLASSROOM_JOIN, user.getEmail());
             throw new ClassroomForbiddenException(INVALID_CODE);
         }
+        recovery.lockActiveClassroom(classroom.getId());
 
         // quem já é membro desta turma recebe a turma sem erro
         if (memberRepository.existsByClassroomIdAndUserId(classroom.getId(), user.getId()))
@@ -255,6 +259,7 @@ public class ClassroomService {
     public ClassroomModel leave(String email, UUID id) {
         User user = findUser(email);
         ClassroomModel classroom = findClassroom(id);
+        recovery.lockActiveClassroom(id);
 
         ClassroomMember member = memberRepository.findByClassroomIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new ClassroomForbiddenException("Você não é membro desta turma"));
@@ -268,6 +273,7 @@ public class ClassroomService {
     @Auditable(action = "REMOVE_MEMBER", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel removeMember(String email, UUID id, UUID userId) {
         ClassroomModel classroom = findManagedClassroom(email, id);
+        recovery.lockActiveClassroom(id);
 
         ClassroomMember member = memberRepository.findByClassroomIdAndUserId(id, userId)
                 .orElseThrow(() -> new ClassroomNotFoundException("Membro não encontrado na turma"));
@@ -281,6 +287,7 @@ public class ClassroomService {
     @Auditable(action = "ADD_MEMBER", entity = "Classroom", entityId = "#id", entityName = "#result.title", institutionId = "#result.institution.id")
     public ClassroomModel addMember(String email, UUID id, UUID userId) {
         ClassroomModel classroom = findManagedClassroom(email, id);
+        recovery.lockActiveClassroom(id);
 
         User teacher = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
         InstitutionModel institution = institutionOf(teacher);

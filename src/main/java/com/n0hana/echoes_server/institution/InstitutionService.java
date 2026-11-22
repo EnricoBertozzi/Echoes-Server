@@ -19,6 +19,7 @@ import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.CnpjValidator;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryService;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
@@ -47,6 +48,7 @@ public class InstitutionService {
     private final NotifierService notifier;
     private final ApplicationEventPublisher eventPublisher;
     private final UserInfoService userInfoService;
+    private final DeletionRecoveryService recovery;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -213,6 +215,7 @@ public class InstitutionService {
     @Auditable(action = "DELETE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
+        recovery.recordInstitutionDeletion(model);
         model.setDeleted(true);
         model.setDeleteToken(UUID.randomUUID().toString());
 

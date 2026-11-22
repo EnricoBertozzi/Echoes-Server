@@ -29,7 +29,9 @@ public record UserDataExportDTO(
             DocumentType type,
             String version,
             Instant acceptedAt,
-            Instant revokedAt) {
+            Instant revokedAt,
+            String ipAddress,
+            String userAgent) {
     }
 
     public record ClassroomItem(
