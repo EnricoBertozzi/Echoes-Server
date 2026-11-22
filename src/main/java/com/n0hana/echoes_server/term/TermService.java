@@ -291,7 +291,8 @@ public class TermService {
         return saved;
     }
 
-    private boolean isVersionGreater(String newVersion, String currentVersion) {
+    /** {@code true} se {@code newVersion} (major.minor.patch) é maior que {@code currentVersion} */
+    static boolean isVersionGreater(String newVersion, String currentVersion) {
         int[] newParts = parseVersion(newVersion);
         int[] currentParts = parseVersion(currentVersion);
         for (int i = 0; i < 3; i++) {
@@ -301,7 +302,7 @@ public class TermService {
         return false;
     }
 
-    private int[] parseVersion(String version) {
+    private static int[] parseVersion(String version) {
         try {
             int[] parts = Arrays.stream(version.split("\\."))
                 .mapToInt(Integer::parseInt)
