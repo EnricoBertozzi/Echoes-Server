@@ -1,12 +1,15 @@
 package com.n0hana.echoes_server.infra.redis;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import java.util.List;
 
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -17,6 +20,8 @@ public class RedisRepository<T> {
     private static final RedisScript<Long> CONSUME_IF_MATCHES = new DefaultRedisScript<>(
             "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
             Long.class);
+
+    private static final long SCAN_BATCH = 200;
 
     private final StringRedisTemplate template;
     private final RedisNamespace namespace;
@@ -83,6 +88,46 @@ public class RedisRepository<T> {
     public Optional<Duration> remainingTtl(String id) {
         Long millis = template.getExpire(key(id), TimeUnit.MILLISECONDS);
         return (millis == null || millis < 0) ? Optional.empty() : Optional.of(Duration.ofMillis(millis));
+    }
+
+    /**
+     * Ids (sem o prefixo do namespace) que começam com {@code idPrefix}.
+     * Usa SCAN, que percorre o keyspace em lotes sem bloquear o Redis (ao contrário de KEYS).
+     */
+    public List<String> findIdsByPrefix(String idPrefix) {
+        String base = namespace.getPrefix();
+        ScanOptions options = ScanOptions.scanOptions()
+                .match(escapeGlob(base + Objects.requireNonNull(idPrefix, "idPrefix")) + "*")
+                .count(SCAN_BATCH)
+                .build();
+
+        List<String> ids = new ArrayList<>();
+        try (Cursor<String> cursor = template.scan(options)) {
+            cursor.forEachRemaining(key -> ids.add(key.substring(base.length())));
+        }
+        return ids;
+    }
+
+    /** Remove todas as chaves cujo id começa com {@code idPrefix}; devolve quantas foram removidas. */
+    public long deleteByPrefix(String idPrefix) {
+        List<String> keys = findIdsByPrefix(idPrefix).stream().map(this::key).toList();
+        if (keys.isEmpty()) {
+            return 0L;
+        }
+        Long removed = template.delete(keys);
+        return removed == null ? 0L : removed;
+    }
+
+    /** escapa os curingas do padrão MATCH do Redis para que o prefixo seja literal */
+    static String escapeGlob(String value) {
+        StringBuilder escaped = new StringBuilder(value.length());
+        for (char c : value.toCharArray()) {
+            if (c == '*' || c == '?' || c == '[' || c == ']' || c == '\\') {
+                escaped.append('\\');
+            }
+            escaped.append(c);
+        }
+        return escaped.toString();
     }
 
     public RedisNamespace namespace() {

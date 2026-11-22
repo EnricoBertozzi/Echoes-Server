@@ -61,6 +61,11 @@ class UserDataExportIsolationIntegrationTest {
     @Autowired private TermRepository terms;
     @Autowired private UserTermAcceptanceRepository acceptances;
     @Autowired private AuditLogRepository auditLogs;
+    @Autowired private com.n0hana.echoes_server.auth.device.KnownDeviceService knownDevices;
+
+    private static final String UA_A = "Mozilla/5.0 Chrome/120 (titular A)";
+    private static final String UA_B1 = "Mozilla/5.0 Firefox/130 (titular B)";
+    private static final String UA_B2 = "Mozilla/5.0 Safari/17 (titular B)";
 
     private InstitutionModel institution;
     private User userA;
@@ -95,10 +100,16 @@ class UserDataExportIsolationIntegrationTest {
         auditLogs.save(log(userA, "SEED_ACAO_A", "10.0.0.1"));
         auditLogs.save(log(userB, "SEED_ACAO_B", "10.0.0.2"));
         auditLogs.save(log(userB, "SEED_ACAO_B2", "10.0.0.2"));
+
+        knownDevices.registerAndCheckNew(userA.getId(), UA_A);
+        knownDevices.registerAndCheckNew(userB.getId(), UA_B1);
+        knownDevices.registerAndCheckNew(userB.getId(), UA_B2);
     }
 
     @AfterEach
     void cleanup() {
+        knownDevices.forget(userA.getId());
+        knownDevices.forget(userB.getId());
         materials.deleteAll(materials.findByAuthorId(userA.getId()));
         materials.deleteAll(materials.findByAuthorId(userB.getId()));
         members.deleteAll(members.findByUserId(userA.getId()));
@@ -125,11 +136,16 @@ class UserDataExportIsolationIntegrationTest {
                 .andExpect(jsonPath("$.termAcceptances.length()").value(1))
                 .andExpect(jsonPath("$.termAcceptances[0].type").value("TERMS_OF_USE"))
                 .andExpect(jsonPath("$.activityLog[?(@.action=='SEED_ACAO_A')]").exists())
+                .andExpect(jsonPath("$.knownDevices.length()").value(1))
+                .andExpect(jsonPath("$.knownDevices[0].userAgentSha256").value(sha256(UA_A)))
+                .andExpect(jsonPath("$.knownDevices[0].firstSeenAt").exists())
+                .andExpect(jsonPath("$.knownDevices[0].expiresAt").exists())
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
         for (String leak : List.of(userB.getEmail(), userB.getId().toString(), "Turma-B-exclusiva",
-                "Material-B-exclusivo", "SEED_ACAO_B", "10.0.0.2", "PRIVACY_POLICY", "COOKIES_POLICY")) {
+                "Material-B-exclusivo", "SEED_ACAO_B", "10.0.0.2", "PRIVACY_POLICY", "COOKIES_POLICY",
+                sha256(UA_B1), sha256(UA_B2), "Chrome/120")) {
             assertFalse(body.contains(leak), "export de A vazou dado de B: " + leak);
         }
     }
@@ -143,13 +159,19 @@ class UserDataExportIsolationIntegrationTest {
                 .andExpect(jsonPath("$.classrooms.length()").value(1))
                 .andExpect(jsonPath("$.materials.length()").value(1))
                 .andExpect(jsonPath("$.termAcceptances.length()").value(2))
+                .andExpect(jsonPath("$.knownDevices.length()").value(2))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
         for (String leak : List.of(userA.getEmail(), userA.getId().toString(), "Turma-A-exclusiva",
-                "Material-A-exclusivo", "SEED_ACAO_A", "10.0.0.1", "TERMS_OF_USE")) {
+                "Material-A-exclusivo", "SEED_ACAO_A", "10.0.0.1", "TERMS_OF_USE", sha256(UA_A))) {
             assertFalse(body.contains(leak), "export de B vazou dado de A: " + leak);
         }
+    }
+
+    private static String sha256(String value) throws Exception {
+        return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
 
     private User newUser(String tag) {

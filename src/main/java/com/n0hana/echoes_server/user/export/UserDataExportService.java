@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.n0hana.echoes_server.auth.device.KnownDeviceService;
 import com.n0hana.echoes_server.classroom.ClassroomMember;
 import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
 import com.n0hana.echoes_server.classroom.material.ClassroomMaterial;
@@ -35,6 +36,7 @@ public class UserDataExportService {
     private final ClassroomMemberRepository memberRepository;
     private final ClassroomMaterialRepository materialRepository;
     private final AuditLogRepository auditLogRepository;
+    private final KnownDeviceService knownDeviceService;
 
     @Transactional(readOnly = true)
     @Auditable(action = "EXPORT_DATA", entity = "User")
@@ -49,7 +51,8 @@ public class UserDataExportService {
                 termItems(user),
                 classroomItems(user),
                 materialItems(user),
-                activityItems(userId));
+                activityItems(userId),
+                knownDeviceItems(user));
     }
 
     private List<UserDataExportDTO.TermAcceptanceItem> termItems(User user) {
@@ -101,6 +104,15 @@ public class UserDataExportService {
     private List<UserDataExportDTO.ActivityItem> activityItems(String userId) {
         return auditLogRepository.findByUserIdOrderByTimestampDesc(userId).stream()
                 .map(this::toActivityItem)
+                .toList();
+    }
+
+    private List<UserDataExportDTO.KnownDeviceItem> knownDeviceItems(User user) {
+        return knownDeviceService.list(user.getId()).stream()
+                .map(device -> new UserDataExportDTO.KnownDeviceItem(
+                        device.fingerprint(),
+                        device.firstSeenAt(),
+                        device.expiresAt()))
                 .toList();
     }
 

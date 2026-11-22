@@ -14,7 +14,8 @@ import com.n0hana.echoes_server.user.dto.UserDTO;
  * <p>
  * Contém apenas dados vinculados ao próprio usuário: perfil, histórico de aceites
  * de termos, turmas em que participa, materiais que enviou e seus registros de
- * auditoria. Não inclui dados de outros usuários.
+ * auditoria e os navegadores reconhecidos para o alerta de novo login (RF11).
+ * Não inclui dados de outros usuários.
  * </p>
  */
 public record UserDataExportDTO(
@@ -23,7 +24,8 @@ public record UserDataExportDTO(
         List<TermAcceptanceItem> termAcceptances,
         List<ClassroomItem> classrooms,
         List<MaterialItem> materials,
-        List<ActivityItem> activityLog) {
+        List<ActivityItem> activityLog,
+        List<KnownDeviceItem> knownDevices) {
 
     public record TermAcceptanceItem(
             DocumentType type,
@@ -56,5 +58,16 @@ public record UserDataExportDTO(
             String status,
             String ip,
             Instant timestamp) {
+    }
+
+    /**
+     * Navegador reconhecido para o alerta de login em dispositivo novo (RF11). Só o
+     * hash SHA-256 do User-Agent é guardado; {@code firstSeenAt} é nulo em registros
+     * anteriores a 22/11/2026.
+     */
+    public record KnownDeviceItem(
+            String userAgentSha256,
+            Instant firstSeenAt,
+            Instant expiresAt) {
     }
 }
