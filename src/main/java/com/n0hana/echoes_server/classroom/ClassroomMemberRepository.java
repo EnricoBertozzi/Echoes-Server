@@ -9,6 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+
+import jakarta.persistence.LockModeType;
 
 @JaversSpringDataAuditable
 public interface ClassroomMemberRepository extends JpaRepository<ClassroomMember, UUID> {
@@ -23,6 +27,10 @@ public interface ClassroomMemberRepository extends JpaRepository<ClassroomMember
     Page<ClassroomMember> findByClassroomId(UUID classroomId, Pageable pageable);
 
     List<ClassroomMember> findByClassroomId(UUID classroomId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from ClassroomMember m where m.classroom.id = :classroomId")
+    List<ClassroomMember> findRosterForDeletion(UUID classroomId);
 
     @EntityGraph(attributePaths = {"classroom"})
     List<ClassroomMember> findByUserId(UUID userId);

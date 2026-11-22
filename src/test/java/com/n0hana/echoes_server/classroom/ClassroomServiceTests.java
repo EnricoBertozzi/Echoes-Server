@@ -75,6 +75,7 @@ class ClassroomServiceTests {
     @Mock private ClassroomMaterialRepository materialRepository;
     @Mock private ClassroomMaterialStorage materialStorage;
     @Mock private com.n0hana.echoes_server.infra.javers.checkpoint.JaversCheckpointService checkpoints;
+    @Mock private com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryService recovery;
 
     @InjectMocks
     private ClassroomService service;
@@ -376,7 +377,8 @@ class ClassroomServiceTests {
 
         service.delete(EMAIL, classroom.getId());
 
-        verify(memberRepository).deleteByClassroomId(classroom.getId());
+        verify(recovery).recordClassroomDeletion(classroom);
+        verify(memberRepository).deleteAll(any());
         // exclusão lógica: a turma é marcada e salva, nunca apagada do banco
         assertTrue(classroom.isDeleted());
         verify(classroomRepository).save(classroom);
