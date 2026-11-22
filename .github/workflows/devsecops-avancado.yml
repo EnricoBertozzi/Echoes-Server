@@ -99,6 +99,8 @@ jobs:
           TWO_FACTOR_PROVIDER=logger
           MQTT_ENABLED=false
           JWT_SECRET=$(openssl rand -hex 32)
+          AUDIT_HMAC_KEY=$(openssl rand -hex 32)
+          DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)
           ADMIN_EMAIL=admin@example.invalid
           ADMIN_NAME=CI
           ADMIN_PASSWORD=$(openssl rand -hex 24)

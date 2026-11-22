@@ -5,7 +5,10 @@ import java.util.UUID;
 
 import org.hibernate.annotations.Immutable;
 
+import com.n0hana.echoes_server.infra.crypto.AuditLogIpConverter;
+
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -38,6 +41,10 @@ public class AuditLog {
     private String entity;
     private String status;
     private String details;
+
+    /** cifrado em repouso com AES-256-GCM (RNF11); registros anteriores podem estar em claro */
+    @Convert(converter = AuditLogIpConverter.class)
+    @Column(length = 255)
     private String ip;
 
     /** Id do registro afetado (ex.: o dispositivo alterado). Pode ser nulo. */
