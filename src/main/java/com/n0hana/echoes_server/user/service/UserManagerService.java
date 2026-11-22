@@ -10,6 +10,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.auth.device.KnownDeviceService;
 import com.n0hana.echoes_server.infra.javers.anonymization.JaversAnonymizationService;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.institution.InstitutionService;
@@ -34,12 +35,14 @@ import com.n0hana.echoes_server.user.model.User;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Serviço para gerenciar alterações nos usuários do sistema.
  *
  * @author Enrico Bertozzi
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserManagerService {
@@ -48,6 +51,7 @@ public class UserManagerService {
     private final InstitutionService institutionService;
     private final ClassroomMemberRepository classroomMemberRepository;
     private final JaversAnonymizationService javersAnonymization;
+    private final KnownDeviceService knownDevices;
 
     /**
      * Atualiza um administrador.
@@ -342,20 +346,34 @@ public class UserManagerService {
             user.getId()
         );
 
-        anonymizeHistoryAfterCommit(user.getId());
+        UUID userId = user.getId();
+        afterCommit(() -> {
+            javersAnonymization.anonymizeAfterSoftDelete(userId);
+            // navegadores conhecidos (RF11) ficam no Redis, fora da transação do banco;
+            // se o Redis falhar, as chaves ainda expiram sozinhas em 180 dias
+            try {
+                knownDevices.forget(userId);
+            } catch (RuntimeException e) {
+                log.warn("Não foi possível apagar os navegadores conhecidos do usuário {}: {}",
+                        userId, e.getClass().getSimpleName());
+            }
+        });
     }
 
-    /** o histórico do Javers só é anonimizado depois que a exclusão foi confirmada */
-    private void anonymizeHistoryAfterCommit(UUID userId) {
+    /**
+     * Executa a limpeza fora do banco (histórico do Javers, Redis) só depois que a
+     * exclusão foi confirmada: num rollback, a conta continua intacta.
+     */
+    private static void afterCommit(Runnable cleanup) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    javersAnonymization.anonymizeAfterSoftDelete(userId);
+                    cleanup.run();
                 }
             });
         } else {
-            javersAnonymization.anonymizeAfterSoftDelete(userId);
+            cleanup.run();
         }
     }
 

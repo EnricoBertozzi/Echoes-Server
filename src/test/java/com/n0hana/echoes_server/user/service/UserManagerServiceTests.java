@@ -56,6 +56,9 @@ public class UserManagerServiceTests {
     @Mock
     private com.n0hana.echoes_server.infra.javers.anonymization.JaversAnonymizationService javersAnonymization;
 
+    @Mock
+    private com.n0hana.echoes_server.auth.device.KnownDeviceService knownDevices;
+
     @InjectMocks
     private UserInfoService userInfoService;
 
@@ -223,6 +226,21 @@ public class UserManagerServiceTests {
         assertNull(deletedUser.getInstitution());
         verify(classroomMemberRepository).deleteByUserId(manager.getId());
         verify(javersAnonymization).anonymizeAfterSoftDelete(manager.getId());
+        verify(knownDevices).forget(manager.getId());
+    }
+
+    @Test
+    @DisplayName("Falha no Redis ao apagar navegadores não impede a anonimização do histórico")
+    void redisFailureDoesNotBlockHistoryAnonymization() {
+        Manager manager = newManager("Gestor", "gestor@example.com", UUID.randomUUID());
+        when(userRepository.findByEmail("gestor@example.com")).thenReturn(Optional.of(manager));
+        when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(2L);
+        when(knownDevices.forget(manager.getId())).thenThrow(new IllegalStateException("redis fora do ar"));
+
+        userService.deleteCurrentUser("gestor@example.com");
+
+        verify(javersAnonymization).anonymizeAfterSoftDelete(manager.getId());
+        verify(userRepository).save(any());
     }
 
     @Test
@@ -236,11 +254,12 @@ public class UserManagerServiceTests {
         try {
             userService.deleteCurrentUser("gestor@example.com");
 
-            org.mockito.Mockito.verifyNoInteractions(javersAnonymization);
+            org.mockito.Mockito.verifyNoInteractions(javersAnonymization, knownDevices);
 
             for (var sync : org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations())
                 sync.afterCommit();
             verify(javersAnonymization).anonymizeAfterSoftDelete(manager.getId());
+            verify(knownDevices).forget(manager.getId());
         } finally {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
         }

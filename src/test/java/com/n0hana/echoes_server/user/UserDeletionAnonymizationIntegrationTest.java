@@ -62,6 +62,7 @@ class UserDeletionAnonymizationIntegrationTest {
     @Autowired private ClassroomMaterialRepository materials;
     @Autowired private TermRepository terms;
     @Autowired private UserTermAcceptanceRepository acceptances;
+    @Autowired private com.n0hana.echoes_server.auth.device.KnownDeviceService knownDevices;
 
     private InstitutionModel institution;
     private Teacher teacher;
@@ -121,6 +122,7 @@ class UserDeletionAnonymizationIntegrationTest {
         acceptances.deleteAll(acceptances.findAll().stream()
                 .filter(a -> a.getUser().getId().equals(teacher.getId())).toList());
         classrooms.delete(classroom);
+        knownDevices.forget(teacher.getId());
         users.deleteById(teacher.getId());
         institutions.delete(institution);
     }
@@ -129,6 +131,11 @@ class UserDeletionAnonymizationIntegrationTest {
     @DisplayName("Excluir a conta anonimiza o titular e preserva aceites e materiais ligados ao mesmo id")
     void deletionAnonymizesButKeepsReferences() throws Exception {
         String token = "Bearer " + jwt.generate(teacher);
+        UUID otherUser = UUID.randomUUID();
+        knownDevices.registerAndCheckNew(teacher.getId(), "Mozilla/5.0 Chrome/120");
+        knownDevices.registerAndCheckNew(teacher.getId(), "Mozilla/5.0 Firefox/130");
+        knownDevices.registerAndCheckNew(otherUser, "Mozilla/5.0 Safari/17");
+        assertEquals(2, knownDevices.list(teacher.getId()).size());
 
         mockMvc.perform(delete("/api/v1/users/me").header("Authorization", token))
                 .andExpect(status().isNoContent());
@@ -141,6 +148,11 @@ class UserDeletionAnonymizationIntegrationTest {
         assertTrue(after.getEmail().startsWith("deleted_user_"));
         assertFalse(after.getEmail().contains(originalEmail));
         assertNull(((Teacher) after).getInstitution());
+
+        // navegadores conhecidos (Redis) apagados; os de outro usuário continuam
+        assertTrue(knownDevices.list(teacher.getId()).isEmpty());
+        assertEquals(1, knownDevices.list(otherUser).size());
+        knownDevices.forget(otherUser);
 
         // vínculos com turma foram liberados
         assertTrue(members.findByUserId(teacher.getId()).isEmpty());

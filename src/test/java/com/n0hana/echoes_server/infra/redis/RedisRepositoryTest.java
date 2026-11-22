@@ -4,11 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -18,6 +21,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -117,5 +123,59 @@ class RedisRepositoryTest {
 
         verify(ops).set("pending:login:a@b.com", "1", Duration.ofMinutes(5));
         verify(ops).set("password:code:a@b.com", "2", Duration.ofMinutes(5));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Cursor<String> cursorOf(String... keys) {
+        Cursor<String> cursor = org.mockito.Mockito.mock(Cursor.class);
+        java.util.Iterator<String> it = List.of(keys).iterator();
+        org.mockito.Mockito.doAnswer(inv -> {
+            java.util.function.Consumer<String> consumer = inv.getArgument(0);
+            it.forEachRemaining(consumer);
+            return null;
+        }).when(cursor).forEachRemaining(any());
+        return cursor;
+    }
+
+    @Test
+    @DisplayName("findIdsByPrefix usa SCAN com o prefixo do namespace e devolve ids sem ele")
+    void findIdsByPrefixScansNamespace() {
+        RedisRepository<String> known = new RedisRepository<>(template, CodeType.KNOWN_DEVICE, ValueCodec.string());
+        Cursor<String> cursor = cursorOf("known-device:u1:aaa", "known-device:u1:bbb");
+        when(template.scan(any(ScanOptions.class))).thenReturn(cursor);
+
+        assertEquals(List.of("u1:aaa", "u1:bbb"), known.findIdsByPrefix("u1:"));
+
+        ArgumentCaptor<ScanOptions> options = ArgumentCaptor.forClass(ScanOptions.class);
+        verify(template).scan(options.capture());
+        assertEquals("known-device:u1:*", options.getValue().getPattern());
+        verify(cursor).close();
+    }
+
+    @Test
+    @DisplayName("findIdsByPrefix escapa curingas: o prefixo é literal")
+    void prefixWildcardsAreEscaped() {
+        assertEquals("a\\*b\\?c\\[d\\]e\\\\f", RedisRepository.escapeGlob("a*b?c[d]e\\f"));
+    }
+
+    @Test
+    @DisplayName("deleteByPrefix apaga só as chaves encontradas")
+    void deleteByPrefixDeletesFoundKeys() {
+        RedisRepository<String> known = new RedisRepository<>(template, CodeType.KNOWN_DEVICE, ValueCodec.string());
+        Cursor<String> cursor = cursorOf("known-device:u1:aaa", "known-device:u1:bbb");
+        when(template.scan(any(ScanOptions.class))).thenReturn(cursor);
+        when(template.delete(List.of("known-device:u1:aaa", "known-device:u1:bbb"))).thenReturn(2L);
+
+        assertEquals(2L, known.deleteByPrefix("u1:"));
+    }
+
+    @Test
+    @DisplayName("deleteByPrefix sem chaves não chama DEL")
+    void deleteByPrefixWithoutKeysDoesNothing() {
+        Cursor<String> cursor = cursorOf();
+        when(template.scan(any(ScanOptions.class))).thenReturn(cursor);
+
+        assertEquals(0L, repo.deleteByPrefix("nada:"));
+        verify(template, never()).delete(any(java.util.Collection.class));
     }
 }
