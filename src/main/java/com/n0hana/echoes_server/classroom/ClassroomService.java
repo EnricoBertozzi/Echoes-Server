@@ -122,7 +122,6 @@ public class ClassroomService {
         if (!canView(user, classroom))
             throw new ClassroomForbiddenException("Sem acesso a esta turma");
 
-        // aluno vê nome e papel dos colegas, mas não o e-mail (L6)
         boolean hideEmails = user instanceof Student;
 
         return memberRepository.findByClassroomId(id, pageable)

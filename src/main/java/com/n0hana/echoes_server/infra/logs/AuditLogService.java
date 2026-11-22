@@ -74,9 +74,6 @@ public class AuditLogService {
         saveLog(logEvent);
     }
 
-    /**
-     * Grava uma falha em transação própria (B4), sem segurar a conexão da transação externa.
-     */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordFailure(AuditLog logEvent) {
@@ -261,10 +258,6 @@ public class AuditLogService {
         return value.trim();
     }
 
-    /**
-     * Ids dos registros cuja assinatura não confere (S15). Registros gravados antes
-     * da assinatura existir aparecem aqui como não verificados.
-     */
     @Transactional(readOnly = true)
     public java.util.List<UUID> findTamperedIds() {
         return repository.findAll().stream()

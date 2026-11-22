@@ -61,7 +61,6 @@ public class AuthController {
     @PostMapping("/mfa")
     public ResponseEntity<Void> verifyTwoFactor(@RequestBody @Valid MfaRequest dto) {
         String token = service.verifyMfaCode(dto.email(), dto.code());
-        // o token vai só no cookie HttpOnly; não é devolvido no corpo (S10)
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, sessionCookie.issue(token).toString())
                 .build();

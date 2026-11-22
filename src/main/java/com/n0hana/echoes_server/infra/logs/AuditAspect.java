@@ -44,7 +44,6 @@ public class AuditAspect {
     private final AuditLogService auditLogService;
     private final InstitutionRepository institutionRepository;
 
-    /** só confia em X-Forwarded-For atrás de proxy conhecido (S13) */
     @Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
@@ -147,8 +146,6 @@ public class AuditAspect {
     ) {
         Actor actor = this.resolveActor();
 
-        // Falha gravada de forma síncrona em transação própria (REQUIRES_NEW), como
-        // ocorre com dontRollbackOn no login (B4).
         auditLogService.recordFailure(
             AuditLog.builder()
                 .userId(this.getUserId())
@@ -180,7 +177,6 @@ public class AuditAspect {
                 )
                 .status("FAILED")
                 .ip(this.getClientIp())
-                // sem e-mail/token da mensagem da exceção (L11); o tipo basta para diagnosticar
                 .details(PiiMasker.mask(
                     ex.getClass().getSimpleName() + (ex.getMessage() == null ? "" : ": " + ex.getMessage()),
                     MAX_DETAILS))

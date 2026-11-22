@@ -42,7 +42,6 @@ public class AuditLog {
     private String status;
     private String details;
 
-    /** cifrado em repouso com AES-256-GCM (RNF11); registros anteriores podem estar em claro */
     @Convert(converter = AuditLogIpConverter.class)
     @Column(length = 255)
     private String ip;
@@ -75,7 +74,6 @@ public class AuditLog {
     /** definido pelo serviço antes de gravar, para fazer parte da assinatura */
     private Instant timestamp;
 
-    /** HMAC-SHA256 do conteúdo, com chave fora do banco (S15) */
     private String signature;
 
     @PreRemove

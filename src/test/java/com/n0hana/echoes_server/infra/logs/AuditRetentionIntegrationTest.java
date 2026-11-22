@@ -20,7 +20,6 @@ import com.n0hana.echoes_server.device.event.DeviceEventModel;
 import com.n0hana.echoes_server.device.event.DeviceEventRepository;
 import com.n0hana.echoes_server.device.event.DeviceEventType;
 
-/** L8: o expurgo remove só o que passou do prazo, no banco real do contexto (H2 em MODE=MySQL). */
 @SpringBootTest
 @ActiveProfiles("test")
 @EnabledIf("com.n0hana.echoes_server.support.RedisAvailability#redisReachable")

@@ -16,14 +16,14 @@ services:
       DATABASE_URL: jdbc:mysql://mysql:3306/${DATABASE_NAME}?useSSL=true&allowPublicKeyRetrieval=true&serverTimezone=UTC
       REDIS_HOST: redis
     volumes:
-      # keystore TLS fica em ./certs/keystore.p12 (S3)
+      # keystore TLS fica em ./certs/keystore.p12
       - ./certs:/app/certs
 
   mysql:
     image: mysql:8.0
     command: --log-bin-trust-function-creators=1
     ports:
-      # somente loopback do host: o banco não fica exposto nas demais interfaces (S7)
+      # somente loopback do host: o banco não fica exposto nas demais interfaces
       - "127.0.0.1:${DATABASE_PORT}:3306"
     volumes:
       - mysql-volume:/var/lib/mysql
@@ -47,7 +47,7 @@ services:
     image: redis:7.2
     restart: always
     ports:
-      # somente loopback do host (S7)
+      # somente loopback do host
       - "127.0.0.1:${REDIS_PORT}:6379"
     environment:
       REDIS_PASSWORD: "${REDIS_PASSWORD}"

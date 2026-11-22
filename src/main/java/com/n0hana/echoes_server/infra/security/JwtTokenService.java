@@ -36,7 +36,6 @@ public class JwtTokenService {
 
     private final JwtBlackListRepository blackListRepository;
 
-    /** tamanho mínimo do segredo HMAC256 (S16): abaixo disso forjar tokens é viável */
     private static final int MIN_SECRET_BYTES = 32;
 
     /**

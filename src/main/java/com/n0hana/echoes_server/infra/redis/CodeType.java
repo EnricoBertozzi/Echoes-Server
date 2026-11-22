@@ -7,7 +7,6 @@ import lombok.Getter;
 @Getter
 public enum CodeType implements RedisNamespace {
 
-    // códigos e tokens de uso único: 5 min (RNF01), alinhado ao texto dos e-mails
     MFA(Duration.ofMinutes(5), "pending:login:"),
     PASSWORD_RESET(Duration.ofMinutes(5), "password:code:"),
     PASSWORD_TOKEN(Duration.ofMinutes(5), "password:token:"),
@@ -24,7 +23,6 @@ public enum CodeType implements RedisNamespace {
     PASSWORD_FORGOT_ATTEMPTS(Duration.ofMinutes(15), "attempts:password-forgot:"),
     CLASSROOM_JOIN_ATTEMPTS(Duration.ofMinutes(15), "attempts:classroom-join:"),
 
-    // dispositivos (navegadores) já usados pelo titular; 180 dias (RF11)
     KNOWN_DEVICE(Duration.ofDays(180), "known-device:"),
     KNOWN_DEVICE_USER(Duration.ofDays(180), "known-device-user:"),
 

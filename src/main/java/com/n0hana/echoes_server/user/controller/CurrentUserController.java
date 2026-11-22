@@ -52,9 +52,6 @@ public class CurrentUserController {
         return ResponseEntity.ok(responseDto);
     }
 
-    /**
-     * Exporta todos os dados vinculados ao usuário autenticado (RF18 / LGPD art. 18).
-     */
     @GetMapping("/me/export")
     public ResponseEntity<UserDataExportDTO> exportMe(Principal principal) {
         UserDataExportDTO data = userDataExportService.export(principal.getName());

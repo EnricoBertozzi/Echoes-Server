@@ -5,7 +5,6 @@ import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-/** dados do alerta de login em dispositivo novo (RF11) */
 @Getter
 @AllArgsConstructor
 public class NewDeviceLoginData implements MessageData {

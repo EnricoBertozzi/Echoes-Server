@@ -16,7 +16,7 @@ FROM eclipse-temurin:21-alpine
 
 COPY --from=builder app/target/echoes-server.jar app.jar
 
-# não executa como root (S7)
+# não executa como root
 RUN addgroup -S echoes && adduser -S -G echoes echoes
 USER echoes
 

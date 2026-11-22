@@ -26,10 +26,6 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.User;
 
-/**
- * RF54: o catálogo de cenários é global e só o ADMIN o altera. Um professor
- * recebe 403 em qualquer mutação (cadeia real de segurança, com JWT).
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

@@ -219,8 +219,6 @@ public class ScenarioService {
     ScenarioModel model = this.findScenarioById(id);
     String audioUrl = model.getAudioUrl();
 
-    // Se o cenário ainda estiver vinculado a um dispositivo ou preset, o banco
-    // recusa a exclusão no commit e o arquivo continua no disco (B6).
     scenarioRepository.delete(model);
     deleteFileAfterCommit(audioUrl);
   }
@@ -255,7 +253,6 @@ public class ScenarioService {
     ScenarioModel model = this.findScenarioById(id);
     String oldAudioUrl = model.getAudioUrl();
 
-    // grava o novo primeiro, troca a referência e só então remove o antigo (B7)
     String newAudioUrl = fileService.storeAudio(file, model.getName());
     model.setAudioUrl(newAudioUrl);
     scenarioRepository.save(model);

@@ -36,7 +36,6 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
 
   public static final String DEVICE_ISSUER = "echoes-device";
   public static final String HARDWARE_ID_CLAIM = "hardware_id";
-  /** vida máxima aceita para o token do dispositivo (S12) */
   static final long MAX_TOKEN_LIFETIME_MS = 5L * 60L * 1000L;
   /** tolerância para relógio do dispositivo adiantado */
   static final long CLOCK_SKEW_MS = 60L * 1000L;
@@ -78,7 +77,6 @@ public class DeviceJwtService implements DeviceCredentialVerifier {
     if (!JWSAlgorithm.ES256.equals(signedJWT.getHeader().getAlgorithm()))
       throw new SecurityException("Invalid algorithm");
 
-    // a claim legada "mac" não é mais aceita (S12)
     String hardwareId = claims.getStringClaim(HARDWARE_ID_CLAIM);
     if (hardwareId == null || hardwareId.isBlank())
       throw new SecurityException("Missing hardware_id claim");

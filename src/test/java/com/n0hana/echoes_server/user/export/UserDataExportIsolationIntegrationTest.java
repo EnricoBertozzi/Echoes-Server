@@ -41,10 +41,6 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.User;
 
-/**
- * L1: a exportação do titular traz somente os dados dele. Dois usuários com turmas,
- * materiais, aceites e logs; o export de A não pode conter nada de B (HTTP + JWT reais).
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

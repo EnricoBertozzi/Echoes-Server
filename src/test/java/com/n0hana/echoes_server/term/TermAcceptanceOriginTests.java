@@ -30,10 +30,6 @@ import com.n0hana.echoes_server.term.model.UserTermAcceptance;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.User;
 
-/**
- * O aceite de termos guarda IP e User-Agent como prova do consentimento
- * (LGPD art. 8º, §2º).
- */
 @ExtendWith(MockitoExtension.class)
 class TermAcceptanceOriginTests {
 

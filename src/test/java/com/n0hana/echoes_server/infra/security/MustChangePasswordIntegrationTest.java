@@ -27,7 +27,6 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.User;
 
-/** RF07: com a flag ligada só a troca de senha funciona; depois dela o acesso volta (cadeia real de filtros). */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

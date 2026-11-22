@@ -1,8 +1,5 @@
 package com.n0hana.echoes_server.infra.web;
 
-/**
- * Limites de paginação vindos do cliente (S19): evita consultas gigantes (DoS).
- */
 public final class PageLimits {
 
     public static final int MAX_PAGE_SIZE = 100;

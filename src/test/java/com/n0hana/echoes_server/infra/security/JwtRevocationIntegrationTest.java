@@ -27,7 +27,6 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.User;
 
-/** S2: JwtFilter rejeita tokens emitidos antes de troca de senha, revogação e logout (Redis real). */
 @SpringBootTest
 @ActiveProfiles("test")
 @EnabledIf("com.n0hana.echoes_server.support.RedisAvailability#redisReachable")

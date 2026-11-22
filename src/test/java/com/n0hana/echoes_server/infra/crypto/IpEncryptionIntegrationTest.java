@@ -31,10 +31,6 @@ import com.n0hana.echoes_server.user.model.User;
 
 import jakarta.persistence.EntityManager;
 
-/**
- * Evidência de PSI 3.4 / RNF11: o IP é gravado cifrado no banco e lido em claro
- * pela aplicação, inclusive na migração dos registros antigos.
- */
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional

@@ -56,7 +56,6 @@ public class TermService {
     private final UserTermAcceptanceRepository userTermAcceptanceRepository;
     private final UserRepository userRepository;
 
-    /** mesmo critério da auditoria e do rate limit: X-Forwarded-For só atrás de proxy confiável (S13) */
     @Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
@@ -318,16 +317,6 @@ public class TermService {
         }
     }
 
-    /**
-     * Revoga o consentimento do titular (RF17 / PSI 4.6).
-     *
-     * <p>
-     * Os aceites são marcados com {@code revokedAt} (o histórico é preservado como
-     * prova do consentimento dado) e todas as sessões são derrubadas. A conta
-     * continua ativa: o {@code TermsAcceptanceFilter} passa a bloquear o uso até
-     * que o titular aceite novamente os termos obrigatórios.
-     * </p>
-     */
     @Transactional
     @Auditable(action = "REVOKE_TERMS", entity = "User", entityId = "#user.id")
     public void revoke(User user) {

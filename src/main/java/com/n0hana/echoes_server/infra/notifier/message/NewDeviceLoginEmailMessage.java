@@ -12,7 +12,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** alerta de login em dispositivo novo (RF11). Valores vindos do cliente são escapados. */
 @Getter
 @Setter
 @AllArgsConstructor

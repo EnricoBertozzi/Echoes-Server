@@ -9,10 +9,6 @@ import org.springframework.stereotype.Component;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
-/**
- * Cookie da sessão do usuário (S10). O JWT fica num cookie {@code HttpOnly}, então
- * JavaScript na página (inclusive por XSS) não consegue lê-lo.
- */
 @Component
 public class SessionCookie {
 

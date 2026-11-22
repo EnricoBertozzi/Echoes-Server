@@ -37,11 +37,6 @@ public class MqttProperties {
    */
   private String ackTopic = "register/ack/{hardware_id}";
 
-  /**
-   * Tópico em que o servidor avisa a mudança de status de um dispositivo (RF44).
-   * A mensagem é retida: o dispositivo recebe o último estado ao se inscrever.
-   * Use {@code {hardware_id}} para um tópico por dispositivo.
-   */
   private String deviceStatusTopic = "device/status/{hardware_id}";
 
   /** QoS usado na inscrição e nas respostas. */

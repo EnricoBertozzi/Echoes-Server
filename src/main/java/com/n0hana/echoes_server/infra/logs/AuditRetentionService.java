@@ -15,23 +15,6 @@ import com.n0hana.echoes_server.device.event.DeviceEventRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * L8: expurgo por prazo de {@code audit_log} e de {@code device_event_tb}.
- *
- * <p>
- * O prazo padrão de ambas é de 1825 dias (5 anos), a mesma janela legal que a
- * política de retenção do Javers adota (CDC art. 27). O {@code audit_log} tem
- * um piso: nunca é expurgado antes disso, nem por configuração (o valor é
- * elevado ao piso) nem por SQL direto (o gatilho {@code audit_log_no_delete}
- * recusa linhas mais novas que o piso). O {@code device_event_tb} é telemetria
- * de uso e não tem piso legal.
- * </p>
- *
- * <p>
- * Os prazos são configuráveis em {@code audit.retention.*}; a política jurídica
- * ainda precisa confirmar o valor de cada tabela.
- * </p>
- */
 @Slf4j
 @Service
 public class AuditRetentionService {

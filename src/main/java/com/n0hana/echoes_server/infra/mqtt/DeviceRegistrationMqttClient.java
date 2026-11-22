@@ -175,12 +175,6 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
     }
   }
 
-  /**
-   * Publica uma mensagem avulsa (usada pelo aviso de status, RF44).
-   *
-   * @return {@code true} se o broker aceitou a publicação; {@code false} se o
-   *         cliente está desligado ou desconectado, ou se a publicação falhou
-   */
   public boolean publish(String topic, byte[] payload, boolean retained) {
     MqttClient current = client;
 

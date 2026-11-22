@@ -19,13 +19,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.ObjectMapper;
 
-/**
- * RF07: enquanto {@code mustChangePassword} for verdadeiro (admin padrão no
- * primeiro acesso), só ficam liberados o que o usuário precisa para trocar a
- * senha: {@code /api/v1/auth/*} (troca de senha e logout), a leitura do próprio
- * perfil ({@code GET /api/v1/users/me}, onde o front lê a flag) e a
- * recuperação de senha. O resto responde 403 com {@code code=PASSWORD_CHANGE_REQUIRED}.
- */
 @RequiredArgsConstructor
 public class PasswordChangeRequiredFilter extends OncePerRequestFilter {
 

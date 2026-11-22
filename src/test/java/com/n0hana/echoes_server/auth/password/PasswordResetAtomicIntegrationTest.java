@@ -34,7 +34,6 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.User;
 
-/** S1: uso único atômico do token de reset, contra um Redis real. */
 @SpringBootTest
 @ActiveProfiles("test")
 @EnabledIf("com.n0hana.echoes_server.support.RedisAvailability#redisReachable")

@@ -54,7 +54,6 @@ public class AuthService {
     private final AttemptService mfaAttempts;
     private final KnownDeviceService knownDevices;
 
-    /** só confia em X-Forwarded-For atrás de proxy conhecido (S13) */
     @org.springframework.beans.factory.annotation.Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
@@ -78,14 +77,12 @@ public class AuthService {
     @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
     public void login(String email, String password) {
         email = UserUtils.normalizeEmail(email);
-        // Conta inexistente: mesma resposta e mesmo custo de BCrypt de uma senha errada (S8)
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             passwordEncoder.matches(password, dummyHash());
             throw new AuthFailedException();
         }
 
-        // Conta bloqueada: resposta genérica, sem revelar o bloqueio (S8)
         if (!user.isAccountNonLocked() || !user.isEnabled()) {
             passwordEncoder.matches(password, user.getPassword());
             throw new AuthFailedException();
@@ -143,7 +140,6 @@ public class AuthService {
         return jwtTokenService.generate(user);
     }
 
-    /** RF11: avisa por e-mail quando o login vem de um navegador desconhecido */
     private void alertIfNewDevice(User user) {
         if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes))
             return;
@@ -170,7 +166,6 @@ public class AuthService {
         return dummyHash;
     }
 
-    /** comparação em tempo constante (S17) */
     private boolean sameCode(String saved, String received) {
         return received != null && MessageDigest.isEqual(
                 saved.getBytes(StandardCharsets.UTF_8),

@@ -51,7 +51,6 @@ class SuperUserInitializerTests {
         assertEquals(Admin.class, saved.getValue().getClass());
         assertEquals("hash", saved.getValue().getPassword());
         assertEquals("admin@echoes.local", saved.getValue().getEmail());
-        // RF07: o admin do seed precisa trocar a senha no primeiro acesso
         org.junit.jupiter.api.Assertions.assertTrue(saved.getValue().isMustChangePassword());
     }
 

@@ -34,7 +34,6 @@ public class NotifierService {
 
     private final EmailNotifier emailNotifier;
 
-    /** URL pública do front: o link de convite não pode ser fixo em localhost (B9) */
     @org.springframework.beans.factory.annotation.Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl = "http://localhost:5173";
 

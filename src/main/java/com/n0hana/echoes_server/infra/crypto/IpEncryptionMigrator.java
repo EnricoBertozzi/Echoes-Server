@@ -16,24 +16,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Migra para o formato cifrado os IPs gravados antes da criptografia (RNF11).
- *
- * <p>
- * Roda na inicialização, depois de o Hibernate atualizar o schema e antes de o
- * servidor aceitar requisições. É idempotente: só toca em linhas sem o prefixo
- * {@code enc:}. Usa SQL direto para não passar pela auditoria nem pelo Javers.
- * </p>
- *
- * <ul>
- * <li>{@code user_terms_acceptance.ip_address}: no MySQL, a coluna é ampliada para
- * caber o valor cifrado ({@code ddl-auto=update} não altera colunas existentes) e
- * as linhas antigas são cifradas.</li>
- * <li>{@code audit_log.ip}: as linhas antigas <b>não</b> são alteradas. Os gatilhos
- * impedem {@code UPDATE} (imutabilidade da auditoria) e elas saem pelo expurgo de
- * retenção. Apenas a contagem é registrada no log.</li>
- * </ul>
- */
 @Slf4j
 @Component
 @DependsOn("entityManagerFactory")

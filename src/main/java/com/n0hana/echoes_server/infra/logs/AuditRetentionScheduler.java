@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** L8: dispara o expurgo diário de {@code audit_log} e {@code device_event_tb}. */
 @Slf4j
 @Component
 @RequiredArgsConstructor

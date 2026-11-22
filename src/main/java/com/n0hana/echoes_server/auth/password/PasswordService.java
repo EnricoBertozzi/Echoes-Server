@@ -112,7 +112,6 @@ public class PasswordService {
     @Auditable(action = "RESET_PASSWORD", entity = "User", details = "'Senha redefinida para ' + T(com.n0hana.echoes_server.user.UserUtils).maskEmail(#email)")
     public void reset(String email, String token, String newPassword) {
         email = UserUtils.normalizeEmail(email);
-        // uso único (S1/PSI 2.4): comparação e remoção atômicas no Redis; token errado não apaga o válido
         if (!tokenRepository.consumeIfMatches(email, token))
             throw new AuthFailedException();
 

@@ -46,19 +46,8 @@ public class UserTermAcceptance {
     @CreationTimestamp
     private Instant acceptedAt;
 
-    /**
-     * Preenchido quando o titular revoga o consentimento (RF17). O registro é
-     * mantido como prova do consentimento dado; só aceites ativos (revokedAt nulo)
-     * contam para liberar o uso do sistema.
-     */
     private Instant revokedAt;
 
-    /**
-     * Origem do aceite, como prova do consentimento (LGPD art. 8º, §2º): IP do
-     * cliente e User-Agent do navegador no momento em que o titular aceitou.
-     * Ficam nulos quando o aceite não vem de uma requisição HTTP.
-     */
-    /** cifrado em repouso com AES-256-GCM (RNF11); a coluna guarda o formato enc:v1:... */
     @Convert(converter = AcceptanceIpConverter.class)
     @Column(name = "ip_address", length = ENCRYPTED_IP_COLUMN_LENGTH)
     private String ipAddress;

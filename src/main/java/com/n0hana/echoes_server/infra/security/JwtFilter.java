@@ -21,16 +21,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
-/**
- * Autentica a requisição pelo JWT do header {@code Authorization} ou pelo cookie de
- * sessão (S10).
- *
- * <p>
- * Autenticação só pelo cookie em método que altera estado exige o header
- * {@code X-Echoes-Client}. Um site de outra origem não consegue enviá-lo sem
- * preflight CORS, que só é liberado para origens configuradas (CSRF).
- * </p>
- */
 @Component
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
@@ -88,11 +78,6 @@ public class JwtFilter extends OncePerRequestFilter {
                 || "OPTIONS".equalsIgnoreCase(method));
     }
 
-    /**
-     * Um token emitido até o segundo do último evento de revogação (troca/reset de
-     * senha ou revogação de consentimento) é considerado revogado (S2). Tokens sem
-     * iat só são aceitos se o usuário nunca passou por esses eventos.
-     */
     private boolean issuedBeforeRevocation(String token, User user) {
         Instant cutoff = latest(user.getPasswordChangedAt(), user.getTokensRevokedAt());
         if (cutoff == null) {

@@ -40,11 +40,6 @@ import com.n0hana.echoes_server.term.model.UserTermAcceptance;
 import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.User;
 
-/**
- * RF06: a exclusão anonimiza o titular sem apagar a linha. Os aceites de termos
- * (prova do consentimento) e os materiais continuam apontando para o mesmo id,
- * agora anonimizado: a integridade referencial se mantém e nada identifica a pessoa.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

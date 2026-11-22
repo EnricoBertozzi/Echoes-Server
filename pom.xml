@@ -230,7 +230,7 @@
 			</plugin>
 		</plugins>
 	</build>
-	<!-- Cobertura de testes (RNF27): ./mvnw -P coverage verify  -> target/site/jacoco/index.html -->
+	<!-- Cobertura de testes: ./mvnw -P coverage verify  -> target/site/jacoco/index.html -->
 	<profiles>
 		<profile>
 			<id>coverage</id>

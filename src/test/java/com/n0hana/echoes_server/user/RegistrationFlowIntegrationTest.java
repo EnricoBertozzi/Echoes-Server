@@ -184,7 +184,6 @@ class RegistrationFlowIntegrationTest {
                 "convite deve ser consumido após a confirmação");
         assertTrue(userRepository.existsByEmail(email));
 
-        // prova do consentimento (LGPD art. 8º, §2º): cada aceite guarda IP e User-Agent
         var acceptances = userTermAcceptanceRepository.findAllByUserId(
                 userRepository.findByEmail(email).orElseThrow().getId());
         assertEquals(3, acceptances.size());

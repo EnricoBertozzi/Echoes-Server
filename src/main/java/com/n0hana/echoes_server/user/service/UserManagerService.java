@@ -263,7 +263,6 @@ public class UserManagerService {
 
         UUID id = user.getId();
         softDelete(user);
-        // a auditoria grava o id, nunca o e-mail (L4)
         return id;
     }
 
@@ -349,8 +348,6 @@ public class UserManagerService {
         UUID userId = user.getId();
         afterCommit(() -> {
             javersAnonymization.anonymizeAfterSoftDelete(userId);
-            // navegadores conhecidos (RF11) ficam no Redis, fora da transação do banco;
-            // se o Redis falhar, as chaves ainda expiram sozinhas em 180 dias
             try {
                 knownDevices.forget(userId);
             } catch (RuntimeException e) {
@@ -396,7 +393,6 @@ public class UserManagerService {
     /**
      * Impede que a instituição fique sem gestor.
      */
-    /** o último admin ativo não pode ser excluído (B14) */
     private void assertNotLastAdmin(Admin admin) {
         if (admin.isActive() && userRepository.countActiveAdmins() <= 1)
             throw new LastAdminException();

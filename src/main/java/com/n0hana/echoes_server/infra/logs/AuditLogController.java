@@ -60,9 +60,6 @@ public class AuditLogController {
      * - action
      * - status
      */
-    /**
-     * GET /api/v1/audit-logs/integrity — ids de registros com assinatura inválida (S15)
-     */
     @GetMapping("/integrity")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<java.util.Map<String, Object>> integrity() {

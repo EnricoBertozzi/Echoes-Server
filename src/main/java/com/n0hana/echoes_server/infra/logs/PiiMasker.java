@@ -2,16 +2,6 @@ package com.n0hana.echoes_server.infra.logs;
 
 import java.util.regex.Pattern;
 
-/**
- * L11 / RNF10: tira dados pessoais e credenciais de texto livre que vai para o
- * {@code audit_log.details} ou para os logs (mensagens de exceção incluídas).
- *
- * <p>
- * Cobre e-mail, JWT, {@code Bearer <token>}, pares {@code senha/password/token/secret=valor}
- * e CPF formatado. O nome de pessoa não tem formato reconhecível: quem monta a
- * mensagem não deve incluí-lo (o {@code audit_log} guarda o id do autor).
- * </p>
- */
 public final class PiiMasker {
 
     public static final String EMAIL = "[e-mail oculto]";

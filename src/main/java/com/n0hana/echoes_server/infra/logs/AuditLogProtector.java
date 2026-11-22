@@ -64,7 +64,6 @@ public class AuditLogProtector {
                             + "SIGNAL SQLSTATE '45000' "
                             + "SET MESSAGE_TEXT = 'Registros de auditoria nao podem ser modificados'");
 
-            // L8: só o expurgo por prazo passa; linhas dentro do piso legal continuam intocáveis
             ensureTrigger(schema, TRIGGER_DELETE, DELETE_TRIGGER_MARKER,
                     "BEFORE DELETE ON " + TABLE + " FOR EACH ROW "
                             + "BEGIN "

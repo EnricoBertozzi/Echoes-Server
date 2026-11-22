@@ -19,15 +19,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-/**
- * Limita requisições por IP nas rotas sensíveis a força bruta (S9): login, MFA,
- * recuperação de senha e entrada em turma por código.
- *
- * <p>
- * Os baldes ficam em memória. Com uma instância só isso basta; com várias
- * instâncias atrás de balanceador, o limite passa a valer por instância.
- * </p>
- */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 

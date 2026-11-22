@@ -12,7 +12,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Política de retenção do histórico do Javers por tipo de entidade (LGPD). */
 @Entity
 @Table(name = "javers_retention_policy")
 @Getter

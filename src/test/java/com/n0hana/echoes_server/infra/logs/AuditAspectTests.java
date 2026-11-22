@@ -96,7 +96,6 @@ class AuditAspectTests {
                     AuditLog.class
                 );
 
-        // falhas vão pelo caminho síncrono de auditoria (B4)
         verify(auditLogService).recordFailure(
             captor.capture()
         );
@@ -160,7 +159,6 @@ class AuditAspectTests {
                     AuditLog.class
                 );
 
-        // falhas vão pelo caminho síncrono de auditoria (B4)
         verify(auditLogService).recordFailure(
             captor.capture()
         );

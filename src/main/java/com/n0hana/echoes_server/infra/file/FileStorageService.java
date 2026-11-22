@@ -68,15 +68,6 @@ public class FileStorageService {
         return saveToRoot(file, newName);
     }
 
-    /**
-     * Salva um áudio de cenário na raiz de uploads, validando extensão mp3 e
-     * assinatura do arquivo (B3). Mantém o mesmo local usado por {@link #store}.
-     *
-     * @param file    Áudio recebido pela API
-     * @param newName Nome base do arquivo
-     *
-     * @return {@link String} com o nome gerado para o arquivo
-     */
     public String storeAudio(MultipartFile file, String newName) {
         fileValidator.validateAudio(file);
         return saveToRoot(file, newName);
@@ -227,7 +218,6 @@ public class FileStorageService {
             throw new StorageFileNotFoundException();
 
         try {
-            // sem REPLACE_EXISTING: nunca sobrescreve outro arquivo (B8)
             Files.move(oldFilePath, fileStorageLocation.resolve(targetName));
         } catch (IOException ex) {
             throw new StorageSaveFileException();

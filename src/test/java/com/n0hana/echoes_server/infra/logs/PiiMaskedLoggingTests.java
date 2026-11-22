@@ -15,10 +15,6 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.context.ActiveProfiles;
 import org.junit.jupiter.api.condition.EnabledIf;
 
-/**
- * L11 / RNF10: o logback-spring.xml real (carregado pelo Spring) mascara PII no console,
- * tanto na mensagem quanto na exceção.
- */
 @SpringBootTest
 @ActiveProfiles("test")
 @ExtendWith(OutputCaptureExtension.class)

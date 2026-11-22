@@ -70,7 +70,6 @@ public class TermController {
     @GetMapping("/{type}")
     public ResponseEntity<String> getLatestTerms(@PathVariable DocumentType type) {
         TermModel terms = termsService.getActiveTerms(type);
-        // conteúdo é markdown escrito pela administração: nunca servir como HTML (S14)
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType("text/markdown;charset=UTF-8"))
             .header("X-Content-Type-Options", "nosniff")
@@ -105,10 +104,6 @@ public class TermController {
         return ResponseEntity.ok(toDTO(acceptance.getTerm()));
     }
 
-    /**
-     * Revoga o consentimento do usuário autenticado (RF17). Derruba a sessão;
-     * no próximo login o usuário precisa aceitar novamente os termos obrigatórios.
-     */
     @PostMapping("/revoke")
     public ResponseEntity<Void> revokeConsent(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername())

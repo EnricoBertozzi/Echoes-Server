@@ -17,18 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
-/**
- * RF44: avisa o dispositivo, por MQTT, quando o status dele muda.
- *
- * <p>
- * Escuta {@link DeviceStatusChanged} só depois do commit (o aviso não pode
- * anunciar um estado que sofreu rollback) e publica de forma retida em
- * {@code device/status/{hardware_id}}. Retida porque o firmware só mantém a
- * conexão aberta no autocadastro: ao se inscrever de novo, recebe o último
- * estado. Falha de broker nunca afeta a operação do admin; o dispositivo
- * continua podendo consultar o status por HTTP.
- * </p>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor

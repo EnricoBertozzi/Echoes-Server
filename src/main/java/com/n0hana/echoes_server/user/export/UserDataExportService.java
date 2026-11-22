@@ -23,9 +23,6 @@ import com.n0hana.echoes_server.user.service.UserInfoService;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * Monta a exportação dos dados do próprio titular (RF18).
- */
 @Service
 @RequiredArgsConstructor
 public class UserDataExportService {

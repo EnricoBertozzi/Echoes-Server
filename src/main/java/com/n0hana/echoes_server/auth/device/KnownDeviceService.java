@@ -15,20 +15,6 @@ import com.n0hana.echoes_server.infra.redis.CodeType;
 import com.n0hana.echoes_server.infra.redis.RedisRepository;
 import com.n0hana.echoes_server.infra.redis.RedisRepositoryFactory;
 
-/**
- * Guarda a impressão de cada navegador que o titular já usou (RF11).
- *
- * <p>
- * A impressão é o hash do User-Agent. Não usamos o IP: ele muda com frequência
- * (rede móvel, Wi-Fi), o que geraria alertas falsos.
- * </p>
- *
- * <p>
- * Chaves: {@code known-device:<userId>:<impressão>} (valor = instante do primeiro
- * uso) e {@code known-device-user:<userId>} (marca que o usuário já tem navegadores
- * conhecidos). Ambas expiram em 180 dias e são apagadas na exclusão da conta.
- * </p>
- */
 @Service
 public class KnownDeviceService {
 
@@ -43,7 +29,6 @@ public class KnownDeviceService {
         this.users = factory.string(CodeType.KNOWN_DEVICE_USER);
     }
 
-    /** navegador conhecido do titular, como aparece na exportação dos dados (RF18) */
     public record KnownDevice(String fingerprint, Instant firstSeenAt, Instant expiresAt) {
     }
 
@@ -83,11 +68,6 @@ public class KnownDeviceService {
                 .toList();
     }
 
-    /**
-     * Apaga todos os navegadores conhecidos do titular (exclusão da conta, LGPD art. 18, VI).
-     *
-     * @return quantas impressões de navegador foram removidas
-     */
     public long forget(UUID userId) {
         long removed = devices.deleteByPrefix(userPrefix(userId));
         users.delete(userId.toString());

@@ -182,7 +182,6 @@ public class UserRegisterService {
             throw new ExpiredTwoFactorCodeException();
         }
 
-        // comparação em tempo constante (S17)
         if (!java.security.MessageDigest.isEqual(
                 pending.code().getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 dto.code().getBytes(java.nio.charset.StandardCharsets.UTF_8))) {

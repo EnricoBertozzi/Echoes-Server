@@ -155,8 +155,6 @@ class ClinicalScenarioPresetServiceTests {
     verify(selections, never()).saveAll(any());
   }
 
-  // RF54: professor/gestor só alcança dispositivos da própria instituição
-
   private void otherInstitutionTeacher() {
     when(devices.findById(device.getId())).thenReturn(Optional.of(device));
     when(scopes.resolve(user)).thenReturn(new DeviceScope.InstitutionScope(UUID.randomUUID()));

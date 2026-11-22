@@ -247,7 +247,6 @@ public class JaversRollbackService {
         String manualAction = null;
 
         if (entity instanceof User user) {
-            // restaurar um usuário nunca restaura a senha e sempre derruba as sessões (S2)
             user.setPasswordChangedAt(now);
             user.setTokensRevokedAt(now);
             log.info("Rollback de User {}: passwordChangedAt e tokensRevokedAt atualizados; senha preservada", entityId);

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Mesmo formato padrão do Spring Boot, com duas trocas (L11 / RNF10):
+  Mesmo formato padrão do Spring Boot, com duas trocas:
   %m e %wEx passam pelo PiiMasker, então e-mail, JWT, Bearer, senha= e CPF
   nunca chegam ao console, nem pela mensagem nem pela mensagem das exceções.
 -->

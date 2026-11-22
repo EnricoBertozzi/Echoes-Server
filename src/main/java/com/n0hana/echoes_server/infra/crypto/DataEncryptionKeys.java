@@ -15,22 +15,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/**
- * Chaves AES-256 da criptografia de dados em repouso (RNF11, PSI 3.4 a 3.6).
- *
- * <p>
- * A chave ativa vem de {@code DATA_ENCRYPTION_KEY} (Base64 de 32 bytes) e nunca
- * fica no banco nem no repositório. Cada valor cifrado leva o id da chave
- * ({@code DATA_ENCRYPTION_KEY_ID}, padrão {@code v1}); para rotacionar, a chave
- * anterior passa para {@code DATA_ENCRYPTION_OLD_KEYS} ({@code id:base64,...}) e
- * continua decifrando os valores antigos.
- * </p>
- *
- * <p>
- * Falha no boot (como {@code AuditSigner} e {@code JwtTokenService}) se a chave
- * faltar, tiver tamanho errado ou for igual a outro segredo da aplicação.
- * </p>
- */
 @Component
 public class DataEncryptionKeys {
 

@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 @Configuration
 public class CorsConfig {
 
-  /** origens do front (S22): configuráveis por CORS_ALLOWED_ORIGINS */
   @Value("${api.cors.allowed-origins:http://localhost:*}")
   private String[] allowedOrigins;
 

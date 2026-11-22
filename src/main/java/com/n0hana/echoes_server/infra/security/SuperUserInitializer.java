@@ -40,7 +40,6 @@ public class SuperUserInitializer {
     ApplicationRunner initializeSuperUser() {
         return (args) -> {
             if (!repository.existsByEmail(adminEmail)) {
-                // o seed só usa a senha ao criar o admin; senha fraca aborta a subida (S1/RNF07)
                 if (!PasswordPolicy.isValid(adminPassword)) {
                     throw new IllegalStateException(
                             "ADMIN_PASSWORD não atende à política de senha: " + PasswordPolicy.MESSAGE);
@@ -53,7 +52,6 @@ public class SuperUserInitializer {
                 user.setLoginAttempts(0);
                 user.setLockUntil(null);
                 user.setActive(true);
-                // RF07: a senha do seed vem do ambiente; o primeiro acesso exige trocá-la
                 user.setMustChangePassword(true);
 
                 repository.save(user);

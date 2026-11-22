@@ -14,15 +14,6 @@ import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
 
-/**
- * Assina cada registro de auditoria com HMAC-SHA256 (S15).
- *
- * <p>
- * A chave vem de {@code AUDIT_HMAC_KEY} e não fica no banco. Quem altera uma linha
- * diretamente no MySQL não consegue regerar a assinatura sem a chave, e
- * {@code GET /api/v1/audit-logs/integrity} aponta os registros adulterados.
- * </p>
- */
 @Component
 public class AuditSigner {
 

@@ -26,7 +26,6 @@ public interface UserTermAcceptanceRepository extends JpaRepository<UserTermAcce
     @Query("SELECT uta FROM UserTermAcceptance uta WHERE uta.user.id = :userId ORDER BY uta.acceptedAt DESC")
     List<UserTermAcceptance> findAllByUserId(@Param("userId") UUID userId);
 
-    /** marca todos os aceites ativos como revogados, sem apagar o histórico (RF17) */
     @Modifying
     @Query("UPDATE UserTermAcceptance uta SET uta.revokedAt = :now WHERE uta.user.id = :userId AND uta.revokedAt IS NULL")
     int revokeAllByUserId(@Param("userId") UUID userId, @Param("now") Instant now);

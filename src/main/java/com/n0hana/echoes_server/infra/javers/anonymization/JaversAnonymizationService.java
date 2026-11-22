@@ -19,10 +19,6 @@ import com.n0hana.echoes_server.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Remove dados pessoais do histórico do Javers depois da exclusão lógica de um usuário (LGPD).
- * Os snapshots antigos guardam o e-mail e o nome originais; eles são reescritos no lugar.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

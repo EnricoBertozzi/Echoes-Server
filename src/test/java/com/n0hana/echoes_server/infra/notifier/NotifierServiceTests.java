@@ -96,7 +96,6 @@ public class NotifierServiceTests {
         assertEquals(email, data.getEmail());
 
         assertTrue(message.getContent().contains(code));
-        // e-mail vai no link codificado (B9)
         assertTrue(message.getContent().contains(java.net.URLEncoder.encode(email, java.nio.charset.StandardCharsets.UTF_8)));
     }
 
