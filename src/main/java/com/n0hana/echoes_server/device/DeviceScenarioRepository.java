@@ -13,4 +13,10 @@ public interface DeviceScenarioRepository extends JpaRepository<DeviceScenarioMo
   Optional<DeviceScenarioModel> findByDeviceIdAndPointId(UUID deviceId, UUID pointId);
 
   List<DeviceScenarioModel> findByDeviceId(UUID deviceId);
+
+  boolean existsByPointId(UUID pointId);
+
+  boolean existsByPointAnimalId(UUID animalId);
+
+  boolean existsByScenarioId(UUID scenarioId);
 }

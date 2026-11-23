@@ -108,8 +108,15 @@ public class DeviceLifecycleService {
       device.setInstitution(newInstitution);
     }
 
-    if (hasAnimal)
-      device.setAnimal(findAnimal(request.animalId()));
+    if (hasAnimal) {
+      AnimalModel animal = findAnimal(request.animalId());
+      boolean sameAnimal = device.getAnimal() != null && device.getAnimal().getId().equals(animal.getId());
+
+      if (!sameAnimal && !animal.isActive())
+        throw new InvalidDeviceUpdateException("Animal desativado não pode ser associado a dispositivos");
+
+      device.setAnimal(animal);
+    }
 
     return deviceRepository.save(device);
   }

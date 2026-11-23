@@ -78,13 +78,15 @@ public class ScenarioDTO {
    * @param description Descrição do cenário
    * @param audioPath   Caminho/Nome do arquivo de áudio salvo no sistema
    * @param pointId     Identificador do ponto de ausculta associado
+   * @param active      Indica se o cenário pode ser usado em novas configurações
    */
   public record ScenarioInfo(
       UUID id,
       String name,
       String description,
       String audioPath,
-      UUID pointId) {
+      UUID pointId,
+      boolean active) {
 
     /**
      * Mapeia um objeto do domínio da aplicalçao {@link ScenarioModel} para um
@@ -102,7 +104,8 @@ public class ScenarioDTO {
           model.getName(),
           model.getDescription(),
           model.getAudioUrl(),
-          pointId);
+          pointId,
+          model.isActive());
     }
   }
 }

@@ -96,8 +96,24 @@ public class DeviceScenarioDTO {
         UUID pointId,
         String position,
         Integer sensorIndex,
-        ScenarioRef scenario
+        ScenarioRef scenario,
+        boolean active
     ) {
+
+        public PointConfig(
+            UUID pointId,
+            String position,
+            Integer sensorIndex,
+            ScenarioRef scenario
+        ) {
+            this(
+                pointId,
+                position,
+                sensorIndex,
+                scenario,
+                true
+            );
+        }
 
         // Compatibilidade com o construtor antigo.
         public PointConfig(
@@ -109,7 +125,8 @@ public class DeviceScenarioDTO {
                 pointId,
                 position,
                 null,
-                scenario
+                scenario,
+                true
             );
         }
     }

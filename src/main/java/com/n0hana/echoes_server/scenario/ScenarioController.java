@@ -191,7 +191,33 @@ public class ScenarioController {
   }
 
   /**
-   * Deleta um cenário cadastrado no sistema.
+   * Desativa um cenário: ele deixa de poder ser escolhido em novas
+   * configurações de dispositivo.
+   *
+   * @param id Identificador do cenário
+   * @return {@link ResponseEntity} com o cenário atualizado e código HTTP 200 (OK)
+   */
+  @PatchMapping("/{id}/deactivate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ScenarioInfo> deactivateScenario(@PathVariable("id") UUID id) {
+    return ResponseEntity.ok(ScenarioInfo.from(scenarioService.deactivateScenario(id)));
+  }
+
+  /**
+   * Reativa um cenário desativado.
+   *
+   * @param id Identificador do cenário
+   * @return {@link ResponseEntity} com o cenário atualizado e código HTTP 200 (OK)
+   */
+  @PatchMapping("/{id}/activate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ScenarioInfo> activateScenario(@PathVariable("id") UUID id) {
+    return ResponseEntity.ok(ScenarioInfo.from(scenarioService.activateScenario(id)));
+  }
+
+  /**
+   * Deleta um cenário cadastrado no sistema. Cenário configurado em algum
+   * dispositivo responde 409 e só pode ser desativado.
    * 
    * @param id Identificador do cenário
    * @return {@link ResponseEntity} com código HTTP 204  (NO CONTENT)

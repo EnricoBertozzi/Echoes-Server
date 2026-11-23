@@ -300,4 +300,46 @@ class DeviceScenarioServiceTests {
     when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
     when(scopeResolver.resolve(teacher)).thenReturn(new DeviceScope.InstitutionScope(institution.getId()));
   }
+
+  @Test
+  @DisplayName("Ponto desativado não aceita nova escolha de cenário")
+  void rejectsInactivePoint() {
+    point.setActive(false);
+    mockAccess();
+    when(pointRepository.findById(point.getId())).thenReturn(Optional.of(point));
+
+    assertThrows(InvalidDeviceUpdateException.class,
+        () -> service.select(teacher, device.getId(), point.getId(), scenario.getId()));
+
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("Cenário desativado não pode ser escolhido")
+  void rejectsInactiveScenario() {
+    scenario.setActive(false);
+    mockAccess();
+    when(pointRepository.findById(point.getId())).thenReturn(Optional.of(point));
+    when(scenarioRepository.findById(scenario.getId())).thenReturn(Optional.of(scenario));
+
+    assertThrows(InvalidDeviceUpdateException.class,
+        () -> service.select(teacher, device.getId(), point.getId(), scenario.getId()));
+
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("A configuração informa quais pontos estão desativados")
+  void configFlagsInactivePoints() {
+    AuscultationPointModel inactive = AuscultationPointModel.builder().id(UUID.randomUUID()).position("Pulmão")
+        .animal(animal).build();
+    inactive.setActive(false);
+    when(repository.findByDeviceId(device.getId())).thenReturn(List.of());
+    when(pointRepository.findByAnimalIdOrderByPositionAsc(animal.getId())).thenReturn(List.of(point, inactive));
+
+    DeviceConfig result = service.findConfig(device);
+
+    assertEquals(true, result.points().get(0).active());
+    assertEquals(false, result.points().get(1).active());
+  }
 }

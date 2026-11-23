@@ -76,7 +76,8 @@ public class DeviceScenarioService {
               point.getId(),
               point.getPosition(),
               index < 2 ? index + 1 : null,
-              selected == null ? null : ScenarioRef.from(selected));
+              selected == null ? null : ScenarioRef.from(selected),
+              point.isActive());
         })
         .toList();
 
@@ -109,11 +110,15 @@ public class DeviceScenarioService {
         .orElseThrow(AuscultationPointNotFound::new);
     if (point.getAnimal() == null || !point.getAnimal().getId().equals(device.getAnimal().getId()))
       throw new InvalidDeviceUpdateException("O ponto não pertence ao animal do dispositivo");
+    if (!point.isActive())
+      throw new InvalidDeviceUpdateException("O ponto de ausculta está desativado");
 
     ScenarioModel scenario = scenarioRepository.findById(scenarioId)
         .orElseThrow(ScenarioNotFoundException::new);
     if (scenario.getAuscultationPoint() == null || !scenario.getAuscultationPoint().getId().equals(pointId))
       throw new InvalidDeviceUpdateException("O cenário não pertence a este ponto");
+    if (!scenario.isActive())
+      throw new InvalidDeviceUpdateException("O cenário está desativado");
 
     DeviceScenarioModel selection = repository.findByDeviceIdAndPointId(deviceId, pointId)
         .orElseGet(() -> DeviceScenarioModel.builder().device(device).point(point).build());
@@ -208,14 +213,26 @@ public class DeviceScenarioService {
   private record ResolvedSelection(AuscultationPointModel point, ScenarioModel scenario) {}
 
   private List<ResolvedSelection> resolveSelections(DeviceModel device, Map<UUID, UUID> selections) {
-    List<AuscultationPointModel> points = pointRepository
+    List<AuscultationPointModel> animalPoints = pointRepository
         .findByAnimalIdOrderByPositionAsc(device.getAnimal().getId());
 
-    // Preset completo: cada ponto do animal deve ter exatamente um audio.
+    // Pontos desativados ficam fora do caso: não são exigidos e, se vierem, são ignorados.
+    List<AuscultationPointModel> points = animalPoints.stream()
+        .filter(AuscultationPointModel::isActive)
+        .toList();
+    Set<UUID> inactivePointIds = animalPoints.stream()
+        .filter(point -> !point.isActive())
+        .map(AuscultationPointModel::getId)
+        .collect(Collectors.toSet());
+    Set<UUID> selectedPointIds = selections.keySet().stream()
+        .filter(id -> !inactivePointIds.contains(id))
+        .collect(Collectors.toSet());
+
+    // Preset completo: cada ponto ativo do animal deve ter exatamente um audio.
     Set<UUID> allPointIds = points.stream().map(AuscultationPointModel::getId)
         .collect(Collectors.toSet());
-    if (points.isEmpty() || !allPointIds.equals(selections.keySet())) {
-      throw new InvalidDeviceUpdateException("O caso clinico deve contemplar todos os pontos do animal");
+    if (points.isEmpty() || !allPointIds.equals(selectedPointIds)) {
+      throw new InvalidDeviceUpdateException("O caso clinico deve contemplar todos os pontos ativos do animal");
     }
 
     Map<UUID, ScenarioModel> scenarios = new HashMap<>();
@@ -231,6 +248,9 @@ public class DeviceScenarioService {
       if (scenario.getAuscultationPoint() == null
           || !point.getId().equals(scenario.getAuscultationPoint().getId())) {
         throw new InvalidDeviceUpdateException("O cenario nao pertence ao ponto " + point.getPosition());
+      }
+      if (!scenario.isActive()) {
+        throw new InvalidDeviceUpdateException("O cenario " + scenario.getName() + " esta desativado");
       }
       return new ResolvedSelection(point, scenario);
     }).toList();

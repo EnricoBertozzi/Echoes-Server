@@ -14,4 +14,9 @@ public class AuscultationExceptionHandler {
     public ResponseEntity<Map<String, String>> handleNotFound(AuscultationPointNotFound ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(AuscultationPointInUseException.class)
+    public ResponseEntity<Map<String, String>> handleInUse(AuscultationPointInUseException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
 }

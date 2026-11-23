@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.scenario;
 
+import com.n0hana.echoes_server.device.DeviceScenarioRepository;
+import com.n0hana.echoes_server.scenario.exception.ScenarioInUseException;
 import com.n0hana.echoes_server.infra.web.PageLimits;
 
 import java.nio.file.Files;
@@ -47,6 +49,8 @@ public class ScenarioService {
   private final FileStorageService fileService;
 
   private final AuscultationPointService auscultationPointService;
+
+  private final DeviceScenarioRepository deviceScenarioRepository;
 
   /**
    * Salva um novo cenário no sistema
@@ -219,8 +223,38 @@ public class ScenarioService {
     ScenarioModel model = this.findScenarioById(id);
     String audioUrl = model.getAudioUrl();
 
+    if (isInUse(id))
+      throw new ScenarioInUseException();
+
     scenarioRepository.delete(model);
     deleteFileAfterCommit(audioUrl);
+  }
+
+  @Transactional
+  @Auditable(action = "DEACTIVATE", entity = "Scenario", entityId = "#id", entityName = "#result.name")
+  public ScenarioModel deactivateScenario(UUID id) {
+    return changeActive(id, false);
+  }
+
+  @Transactional
+  @Auditable(action = "ACTIVATE", entity = "Scenario", entityId = "#id", entityName = "#result.name")
+  public ScenarioModel activateScenario(UUID id) {
+    return changeActive(id, true);
+  }
+
+  /** Indica se o cenário está configurado em algum dispositivo. */
+  public boolean isInUse(UUID id) {
+    return deviceScenarioRepository.existsByScenarioId(id);
+  }
+
+  private ScenarioModel changeActive(UUID id, boolean active) {
+    ScenarioModel scenario = this.findScenarioById(id);
+
+    if (scenario.isActive() == active)
+      return scenario;
+
+    scenario.setActive(active);
+    return scenarioRepository.save(scenario);
   }
 
   /**

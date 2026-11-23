@@ -188,4 +188,39 @@ class ClinicalScenarioPresetServiceTests {
         () -> service.activatePreset(user, device.getId(), UUID.randomUUID()));
     verify(selections, never()).saveAll(any());
   }
+
+  @Test
+  void activationSkipsInactivePoints() {
+    allow();
+    pulmonary.setActive(false);
+    when(points.findByAnimalIdOrderByPositionAsc(device.getAnimal().getId()))
+        .thenReturn(List.of(cardiac, pulmonary));
+    when(scenarios.findAllById(any())).thenReturn(List.of(normal, crepitation));
+    ClinicalScenarioPresetModel preset = new ClinicalScenarioPresetModel();
+    preset.setSelections(assignments());
+    when(presets.findByIdAndAnimalId(any(), any())).thenReturn(Optional.of(preset));
+    when(selections.findByDeviceId(device.getId())).thenReturn(List.of());
+
+    service.activatePreset(user, device.getId(), UUID.randomUUID());
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DeviceScenarioModel>> saved = ArgumentCaptor.forClass(List.class);
+    verify(selections).saveAll(saved.capture());
+    assertEquals(1, saved.getValue().size());
+    assertEquals(cardiac.getId(), saved.getValue().get(0).getPoint().getId());
+  }
+
+  @Test
+  void rejectsPresetWithInactiveScenario() {
+    allow();
+    mockCompleteAnimal();
+    crepitation.setActive(false);
+    ClinicalScenarioPresetModel preset = new ClinicalScenarioPresetModel();
+    preset.setSelections(assignments());
+    when(presets.findByIdAndAnimalId(any(), any())).thenReturn(Optional.of(preset));
+
+    assertThrows(InvalidDeviceUpdateException.class,
+        () -> service.activatePreset(user, device.getId(), UUID.randomUUID()));
+    verify(selections, never()).saveAll(any());
+  }
 }

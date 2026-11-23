@@ -83,6 +83,20 @@ public class AuscultationPointController {
     return ResponseEntity.ok().build();
   }
 
+  @PatchMapping("/{id}/deactivate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<AuscultationPointDTO.PointInfo> deactivatePoint(@PathVariable UUID id) {
+    return ResponseEntity.ok(
+        AuscultationPointDTO.PointInfo.from(pointService.deactivateAuscultationPoint(id)));
+  }
+
+  @PatchMapping("/{id}/activate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<AuscultationPointDTO.PointInfo> activatePoint(@PathVariable UUID id) {
+    return ResponseEntity.ok(
+        AuscultationPointDTO.PointInfo.from(pointService.activateAuscultationPoint(id)));
+  }
+
   @DeleteMapping("/{id}")
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> deletePoint(@PathVariable UUID id,

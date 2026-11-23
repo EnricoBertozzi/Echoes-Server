@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -36,6 +37,9 @@ public class ScenarioModel {
   private String description;
 
   private String audioUrl;
+
+  @Column(name = "active", nullable = false, columnDefinition = "boolean default true")
+  private boolean active = true;
 
   @ShallowReference
   @ManyToOne

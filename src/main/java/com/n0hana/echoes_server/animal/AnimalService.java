@@ -1,5 +1,8 @@
 package com.n0hana.echoes_server.animal;
 
+import com.n0hana.echoes_server.animal.exception.AnimalInUseException;
+import com.n0hana.echoes_server.device.DeviceRepository;
+import com.n0hana.echoes_server.device.DeviceScenarioRepository;
 import com.n0hana.echoes_server.infra.web.PageLimits;
 
 import java.util.List;
@@ -22,6 +25,10 @@ import lombok.RequiredArgsConstructor;
 public class AnimalService {
 
   private final AnimalRepository animalRepository;
+
+  private final DeviceRepository deviceRepository;
+
+  private final DeviceScenarioRepository deviceScenarioRepository;
 
   public List<AnimalModel> findAllAnimals(int page, int size) {
     return animalRepository
@@ -77,7 +84,41 @@ public class AnimalService {
   public void deleteAnimal(UUID id) {
     this.animalExists(id);
 
+    if (isInUse(id))
+      throw new AnimalInUseException();
+
     animalRepository.deleteById(id);
+  }
+
+  @Transactional
+  @Auditable(action = "DEACTIVATE", entity = "Animal", entityId = "#id")
+  public AnimalModel deactivateAnimal(UUID id) {
+    return changeActive(id, false);
+  }
+
+  @Transactional
+  @Auditable(action = "ACTIVATE", entity = "Animal", entityId = "#id")
+  public AnimalModel activateAnimal(UUID id) {
+    return changeActive(id, true);
+  }
+
+  /**
+   * Indica se o animal está associado a algum dispositivo, diretamente ou por
+   * um cenário configurado em um dos seus pontos.
+   */
+  public boolean isInUse(UUID id) {
+    return deviceRepository.existsByAnimalId(id)
+        || deviceScenarioRepository.existsByPointAnimalId(id);
+  }
+
+  private AnimalModel changeActive(UUID id, boolean active) {
+    AnimalModel animal = this.findAnimalById(id);
+
+    if (animal.isActive() == active)
+      return animal;
+
+    animal.setActive(active);
+    return animalRepository.save(animal);
   }
 
   // Métodos auxiliares

@@ -1,5 +1,8 @@
 package com.n0hana.echoes_server.auscultation;
 
+import com.n0hana.echoes_server.auscultation.exception.AuscultationPointInUseException;
+import com.n0hana.echoes_server.device.DeviceRepository;
+import com.n0hana.echoes_server.device.DeviceScenarioRepository;
 import com.n0hana.echoes_server.infra.web.PageLimits;
 
 import java.util.List;
@@ -27,6 +30,10 @@ public class AuscultationPointService {
     private final AuscultationPointRepository pointRepository;
 
     private final AnimalService animalService;
+
+    private final DeviceRepository deviceRepository;
+
+    private final DeviceScenarioRepository deviceScenarioRepository;
 
     public List<AuscultationPointModel> findAllPointsByAnimal(int page, int size, UUID animalId) {
         return pointRepository
@@ -104,7 +111,43 @@ public class AuscultationPointService {
     public void deleteAuscultationPoint(UUID id, DeviceModel device) {
         AuscultationPointModel point = this.findPointById(id, device);
 
+        if (isInUse(point))
+            throw new AuscultationPointInUseException();
+
         pointRepository.delete(point);
+    }
+
+    @Transactional
+    @Auditable(action = "DEACTIVATE", entity = "Point", entityId = "#id")
+    public AuscultationPointModel deactivateAuscultationPoint(UUID id) {
+        return changeActive(id, false);
+    }
+
+    @Transactional
+    @Auditable(action = "ACTIVATE", entity = "Point", entityId = "#id")
+    public AuscultationPointModel activateAuscultationPoint(UUID id) {
+        return changeActive(id, true);
+    }
+
+    /**
+     * Indica se o ponto está associado a algum dispositivo: o dispositivo usa o
+     * animal do ponto ou tem um cenário configurado nele.
+     */
+    public boolean isInUse(AuscultationPointModel point) {
+        boolean animalInDevice = point.getAnimal() != null
+                && deviceRepository.existsByAnimalId(point.getAnimal().getId());
+
+        return animalInDevice || deviceScenarioRepository.existsByPointId(point.getId());
+    }
+
+    private AuscultationPointModel changeActive(UUID id, boolean active) {
+        AuscultationPointModel point = this.findPointById(id);
+
+        if (point.isActive() == active)
+            return point;
+
+        point.setActive(active);
+        return pointRepository.save(point);
     }
 
     // Métodos auxiliares

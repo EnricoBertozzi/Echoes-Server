@@ -43,6 +43,8 @@ public interface DeviceRepository extends JpaRepository<DeviceModel, UUID> {
 
     List<DeviceModel> findByInstitutionId(UUID institutionId);
 
+    boolean existsByAnimalId(UUID animalId);
+
     // ---- Dashboard ----
 
     /** Linhas {status, quantidade} de todos os dispositivos. */

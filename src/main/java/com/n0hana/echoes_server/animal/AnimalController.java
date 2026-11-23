@@ -104,7 +104,26 @@ public class AnimalController {
   }
 
   /**
-   * Remove um animal do banco de dados
+   * Desativa um animal: ele deixa de poder ser associado a novos dispositivos.
+   */
+  @PatchMapping("/{id}/deactivate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<AnimalInfo> deactivateAnimal(@PathVariable("id") UUID id) {
+    return ResponseEntity.ok(AnimalInfo.from(animalService.deactivateAnimal(id)));
+  }
+
+  /**
+   * Reativa um animal desativado.
+   */
+  @PatchMapping("/{id}/activate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<AnimalInfo> activateAnimal(@PathVariable("id") UUID id) {
+    return ResponseEntity.ok(AnimalInfo.from(animalService.activateAnimal(id)));
+  }
+
+  /**
+   * Remove um animal do banco de dados. Animal associado a dispositivos
+   * responde 409 e só pode ser desativado.
    */
   @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{id}")

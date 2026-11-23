@@ -10,6 +10,7 @@ import com.n0hana.echoes_server.animal.AnimalModel;
 import com.n0hana.echoes_server.scenario.ScenarioModel;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -32,6 +33,9 @@ public class AuscultationPointModel {
   private UUID id;
 
   private String position;
+
+  @Column(name = "active", nullable = false, columnDefinition = "boolean default true")
+  private boolean active = true;
 
   @ShallowReference
   @ManyToOne

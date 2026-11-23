@@ -33,12 +33,14 @@ public class AuscultationPointDTO {
   public record PointInfo(
       UUID id,
       String position,
-      UUID animalId) {
+      UUID animalId,
+      boolean active) {
     public static PointInfo from(AuscultationPointModel point) {
       return new PointInfo(
           point.getId(),
           point.getPosition(),
-          point.getAnimal().getId());
+          point.getAnimal().getId(),
+          point.isActive());
     }
   }
 }
