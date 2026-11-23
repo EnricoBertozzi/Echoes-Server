@@ -25,8 +25,6 @@ public class FileValidatorService {
   @Value("#{'${api.security.files-extensions-allowed}'.split(',')}")
   private List<String> ALLOWED_EXTENSIONS;
 
-  private static final Long MAX_FILE_SIZE = 50L * 1024L * 1024L;
-
   /**
    * Realiza validações de segurança sobre um arquivo
    * 
@@ -54,10 +52,10 @@ public class FileValidatorService {
 
     String extension = getExtension(file.getOriginalFilename());
     AudioFileType type = AudioFileType.fromExtension(extension)
-            .orElseThrow(FileValidateException::new);
+            .orElseThrow(() -> new FileValidateException("Formato de áudio não permitido"));
 
     if (!matchesSignature(file, type))
-      throw new FileValidateException();
+      throw new FileValidateException("O conteúdo do áudio não corresponde ao formato ." + type.extension());
   }
 
   private boolean matchesSignature(MultipartFile file, AudioFileType type) {
@@ -65,7 +63,7 @@ public class FileValidatorService {
     try (InputStream in = file.getInputStream()) {
       head = in.readNBytes(16);
     } catch (IOException e) {
-      throw new FileValidateException();
+      throw new FileValidateException("Não foi possível ler o arquivo de áudio");
     }
     return type.matches(head);
   }
@@ -81,21 +79,22 @@ public class FileValidatorService {
 
     // Verifica se o arquivo existe
     if (file == null || file.isEmpty())
-      throw new FileValidateException();
+      throw new FileValidateException("Selecione um arquivo que não esteja vazio");
 
     // Verifica o tamanho do arquivo
-    if (file.getSize() > MAX_FILE_SIZE)
-      throw new FileValidateException();
+    if (file.getSize() > UploadFileCopy.MAX_BYTES)
+      throw new FileValidateException(UploadFileCopy.SIZE_LIMIT_MESSAGE);
 
     // Verifica o nome do arquivo
-    String originalName = StringUtils.cleanPath(file.getOriginalFilename());
-    if (originalName.contains("..") || originalName.contains("/") || originalName.contains("\\"))
-      throw new FileValidateException();
+    String originalName = file.getOriginalFilename();
+    if (!StringUtils.hasText(originalName) || originalName.contains("..")
+        || originalName.contains("/") || originalName.contains("\\"))
+      throw new FileValidateException("Nome de arquivo inválido");
 
     // Verifica a extensão do arquivo
-    String extension = this.getExtension(originalName).toLowerCase();
+    String extension = this.getExtension(originalName).toLowerCase(Locale.ROOT);
     if (!allowedExtensions.contains(extension))
-      throw new FileValidateException();
+      throw new FileValidateException("Extensão de arquivo não permitida");
 
   }
 

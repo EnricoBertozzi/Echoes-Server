@@ -3,6 +3,7 @@ package com.n0hana.echoes_server.scenario;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -23,6 +25,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.n0hana.echoes_server.infra.file.FileStorageService;
+import com.n0hana.echoes_server.infra.file.exception.FileValidateException;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -97,5 +100,32 @@ class ScenarioServiceTests {
         assertEquals("original", saved.getName());
         assertEquals(oldFile, saved.getAudioUrl());
         assertTrue(Files.exists(files.load(oldFile)), "arquivo antigo preservado");
+    }
+
+    @Test
+    void rejectedAudioReplacementKeepsTheExistingFile() {
+        var invalid = new MockMultipartFile("file", "novo.mp3", "audio/mpeg", new byte[] {1, 2, 3});
+
+        assertThrows(FileValidateException.class, () -> service.reuploadFile(scenarioId, invalid));
+
+        assertEquals(oldFile, repository.findById(scenarioId).orElseThrow().getAudioUrl());
+        assertTrue(Files.exists(files.load(oldFile)));
+    }
+
+    @Test
+    void audioReplacementRollbackRemovesTheNewFile() {
+        var audio = new MockMultipartFile("file", "novo.mp3", "audio/mpeg", new byte[] {'I', 'D', '3'});
+        String replacement = tx.execute(status -> {
+            service.reuploadFile(scenarioId, audio);
+            String name = repository.findById(scenarioId).orElseThrow().getAudioUrl();
+            assertNotEquals(oldFile, name);
+            assertTrue(Files.exists(files.load(name)));
+            status.setRollbackOnly();
+            return name;
+        });
+
+        assertEquals(oldFile, repository.findById(scenarioId).orElseThrow().getAudioUrl());
+        assertTrue(Files.exists(files.load(oldFile)));
+        assertFalse(Files.exists(files.load(replacement)));
     }
 }

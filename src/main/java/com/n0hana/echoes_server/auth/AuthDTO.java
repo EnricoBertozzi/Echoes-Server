@@ -1,6 +1,9 @@
 package com.n0hana.echoes_server.auth;
 
+import com.n0hana.echoes_server.auth.password.PasswordByteLength;
 import com.n0hana.echoes_server.auth.password.PasswordPolicy;
+import com.n0hana.echoes_server.mfa.TwoFactorService;
+import com.n0hana.echoes_server.user.UserUtils;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -24,16 +27,16 @@ public class AuthDTO {
      * @param password Senha do usuário
      */
     public record LoginRequest(
-            @NotBlank @Email String email,
-            @NotBlank String password) {
+            @NotBlank @Email @Size(max = UserUtils.EMAIL_MAX_LENGTH) String email,
+            @NotBlank @PasswordByteLength String password) {
     }
 
     /**
      * DTO para verificação de código multifator
      */
     public record MfaRequest(
-        @NotBlank @Email String email,
-        @NotBlank @Size(min = 6, max = 6) String code
+        @NotBlank @Email @Size(max = UserUtils.EMAIL_MAX_LENGTH) String email,
+        @NotBlank @Pattern(regexp = TwoFactorService.CODE_PATTERN, message = TwoFactorService.CODE_FORMAT_MESSAGE) String code
     ) {
     }
 
@@ -54,8 +57,9 @@ public class AuthDTO {
      * @param newPassword     Nova senha do usuário
      */
     public record ChangePasswordRequest(
-        @NotBlank String currentPassword,
-        @NotBlank @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE) String newPassword
+        @NotBlank @Size(max = PasswordPolicy.MAX_EXISTING_PASSWORD_LENGTH) String currentPassword,
+        @NotBlank @PasswordByteLength
+        @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE) String newPassword
     ) {
     }
 }

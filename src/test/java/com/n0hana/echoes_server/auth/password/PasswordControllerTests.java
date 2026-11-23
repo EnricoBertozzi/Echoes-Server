@@ -67,6 +67,9 @@ class PasswordControllerTests {
     @DisplayName("POST /validate com código de tamanho errado responde 400")
     void validateBadCode() throws Exception {
         json("/api/v1/password/validate", "{\"email\":\"a@b.com\",\"code\":\"12\"}", 400);
+        json("/api/v1/password/validate", "{\"email\":\"a@b.com\",\"code\":\"1234567\"}", 400);
+        json("/api/v1/password/validate", "{\"email\":\"a@b.com\",\"code\":\"12345a\"}", 400);
+        verify(service, never()).validate(anyString(), anyString());
     }
 
     @Test
@@ -76,5 +79,16 @@ class PasswordControllerTests {
         verify(service).reset("a@b.com", "t", "Nova@Senha1");
 
         json("/api/v1/password/reset", "{\"email\":\"a@b.com\",\"token\":\"t\",\"newPassword\":\"fraca\"}", 400);
+    }
+
+    @Test
+    void resetValidatesBcryptLimitInUtf8BeforeConsumingToken() throws Exception {
+        String atLimit = "Senha@1a" + "é".repeat(32);
+        String overLimit = atLimit + "a";
+        String body = "{\"email\":\"a@b.com\",\"token\":\"t\",\"newPassword\":\"%s\"}";
+        json("/api/v1/password/reset", body.formatted(overLimit), 400);
+        verify(service, never()).reset("a@b.com", "t", overLimit);
+        json("/api/v1/password/reset", body.formatted(atLimit), 204);
+        verify(service).reset("a@b.com", "t", atLimit);
     }
 }
