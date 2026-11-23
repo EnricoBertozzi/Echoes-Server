@@ -40,7 +40,7 @@ class RedisCodeStoreTest {
     void saveDefaultTtl() {
         store.save("a@b.com", "123456", CodeType.MFA);
 
-        verify(ops).set("pending:login:a@b.com", "123456", Duration.ofMinutes(15));
+        verify(ops).set("pending:login:a@b.com", "123456", Duration.ofMinutes(5));
     }
 
     @Test

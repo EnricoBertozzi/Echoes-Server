@@ -1,13 +1,35 @@
+
 package com.n0hana.echoes_server.infra.logs;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.access.AccessDeniedException;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import org.springframework.web.server.ResponseStatusException;
+
+import com.n0hana.echoes_server.device.port.DeviceScopeResolver;
+import com.n0hana.echoes_server.user.model.User;
+import com.n0hana.echoes_server.user.model.UserRole;
+
+import jakarta.persistence.criteria.Predicate;
+
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Propagation;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -16,46 +38,63 @@ import lombok.extern.slf4j.Slf4j;
 public class AuditLogService {
 
     private final AuditLogRepository repository;
+    private final DeviceScopeResolver scopeResolver;
+    private final AuditSigner auditSigner;
 
     /**
-     * Executa numa thread separada (@Async) para não bloquear a requisição
-     * principal.
-     * Só é acionado se a transação do método principal for efetivada na base de
-     * dados (AFTER_COMMIT).
+     * Persiste eventos confirmados pela transação.
      */
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    @TransactionalEventListener(
+            phase = TransactionPhase.AFTER_COMMIT,
+            fallbackExecution = true
+    )
     public void onCommit(AuditLog logEvent) {
-        // Regista o log apenas se a operação principal tiver decorrido sem erros no
-        // código
         if ("SUCCESS".equals(logEvent.getStatus())) {
             saveLog(logEvent);
         }
     }
 
     /**
-     * Executa se a transação principal falhar e a base de dados realizar um
-     * rollback (AFTER_ROLLBACK).
+     * Registra operações que sofreram rollback.
      */
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_ROLLBACK, fallbackExecution = true)
+    @TransactionalEventListener(
+            phase = TransactionPhase.AFTER_ROLLBACK,
+            fallbackExecution = false
+    )
     public void onRollback(AuditLog logEvent) {
-        // Corrige o status caso o método Java não tenha lançado exceção,
-        // mas a transação tenha sido rejeitada pela base de dados no momento do commit.
         if ("SUCCESS".equals(logEvent.getStatus())) {
             logEvent.setStatus("FAILED");
-            logEvent.setDetails("Transação sofreu rollback no banco de dados após a execução do método.");
+            logEvent.setDetails(
+                "Transação sofreu rollback no banco de dados após a execução do método."
+            );
         }
+
         saveLog(logEvent);
     }
 
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordFailure(AuditLog logEvent) {
+        saveLog(logEvent);
+    }
+
+    /**
+     * Grava o resultado de um envio de e-mail, em transação própria: não depende
+     * do método que pediu o envio (que pode já ter terminado ou sido revertido).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordEmailOutcome(AuditLog logEvent) {
+        saveLog(logEvent);
+    }
+
+    /**
+     * Persiste uma instância nova para evitar problemas
+     * com entidades detached.
+     */
     private void saveLog(AuditLog logEvent) {
         try {
-            // Cria uma nova instância limpa ("fresh") em vez de persistir o objeto
-            // recebido.
-            // Como a transação original já foi encerrada (commit ou rollback),
-            // utilizar a entidade original causaria problemas de contexto JPA (detached
-            // entity).
             AuditLog fresh = AuditLog.builder()
                     .userId(logEvent.getUserId())
                     .action(logEvent.getAction())
@@ -64,17 +103,166 @@ public class AuditLogService {
                     .details(logEvent.getDetails())
                     .ip(logEvent.getIp())
                     .entityId(logEvent.getEntityId())
+                    .entityName(logEvent.getEntityName())
+                    .actorName(logEvent.getActorName())
+                    .actorRole(logEvent.getActorRole())
+                    .actorInstitutionName(logEvent.getActorInstitutionName())
                     .institutionId(logEvent.getInstitutionId())
                     .build();
 
+            fresh.setTimestamp(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+            fresh.setSignature(auditSigner.sign(fresh));
+
             repository.save(fresh);
+
         } catch (Exception e) {
-            log.error("FALHA CRÍTICA ao gravar log de auditoria. Ação: {}, Entidade: {}",
-                    logEvent.getAction(), logEvent.getEntity(), e);
+            log.error(
+                "FALHA CRÍTICA ao gravar log de auditoria. Ação: {}, Entidade: {}",
+                logEvent.getAction(),
+                logEvent.getEntity(),
+                e
+            );
         }
     }
 
-    public Page<AuditLog> getLogs(Pageable pageable) {
-        return repository.findAll(pageable);
+    /**
+     * Consulta paginada com aplicação obrigatória de RBAC.
+     *
+     * ADMIN:
+     * - Acessa todos os registros.
+     * - Sem institutionId inclui eventos globais.
+     * - Pode filtrar qualquer instituição.
+     *
+     * MANAGER:
+     * - Acessa somente sua própria instituição.
+     * - institutionId ausente mantém o escopo próprio.
+     * - institutionId diferente resulta em 403.
+     *
+     * TEACHER/STUDENT:
+     * - Acesso negado.
+     */
+    @Transactional(readOnly = true)
+    public Page<AuditLog> getLogs(
+            User user,
+            UUID requestedInstitutionId,
+            String entity,
+            String action,
+            String status,
+            Pageable pageable
+    ) {
+        if (
+            user == null ||
+            (
+                user.getUserRole() != UserRole.ADMIN &&
+                user.getUserRole() != UserRole.MANAGER
+            )
+        ) {
+            throw new AccessDeniedException(
+                "Sem acesso aos registros de auditoria"
+            );
+        }
+
+        /*
+         * Reutiliza a política de escopo já implementada
+         * para dispositivos e Dashboard.
+         *
+         * O servidor calcula a instituição efetiva
+         * a partir do usuário autenticado.
+         */
+        UUID institutionId = scopeResolver
+                .resolve(user)
+                .effectiveInstitution(requestedInstitutionId);
+
+        String selectedEntity = nonBlank(entity);
+        String selectedAction = nonBlank(action);
+        String selectedStatus = nonBlank(status);
+
+        if (
+            selectedStatus != null &&
+            !"SUCCESS".equals(selectedStatus) &&
+            !"FAILED".equals(selectedStatus)
+        ) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Status de auditoria inválido"
+            );
+        }
+
+        Specification<AuditLog> specification =
+                (root, query, builder) -> {
+
+                    List<Predicate> predicates =
+                            new ArrayList<>();
+
+                    /*
+                     * O institutionId em AuditLog é String.
+                     *
+                     * Para MANAGER, a condição institucional
+                     * nunca pode ser omitida.
+                     *
+                     * Para ADMIN, null significa consulta
+                     * global, sem restrição institucional.
+                     */
+                    if (institutionId != null) {
+                        predicates.add(
+                            builder.equal(
+                                root.get("institutionId"),
+                                institutionId.toString()
+                            )
+                        );
+                    }
+
+                    if (selectedEntity != null) {
+                        predicates.add(
+                            builder.equal(
+                                root.get("entity"),
+                                selectedEntity
+                            )
+                        );
+                    }
+
+                    if (selectedAction != null) {
+                        predicates.add(
+                            builder.equal(
+                                root.get("action"),
+                                selectedAction
+                            )
+                        );
+                    }
+
+                    if (selectedStatus != null) {
+                        predicates.add(
+                            builder.equal(
+                                root.get("status"),
+                                selectedStatus
+                            )
+                        );
+                    }
+
+                    return builder.and(
+                        predicates.toArray(new Predicate[0])
+                    );
+                };
+
+        return repository.findAll(
+            specification,
+            pageable
+        );
+    }
+
+    private static String nonBlank(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<UUID> findTamperedIds() {
+        return repository.findAll().stream()
+                .filter(log -> !auditSigner.verify(log))
+                .map(AuditLog::getId)
+                .toList();
     }
 }

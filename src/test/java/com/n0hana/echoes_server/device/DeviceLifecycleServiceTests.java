@@ -302,4 +302,33 @@ class DeviceLifecycleServiceTests {
 
     verify(deviceRepository).delete(device);
   }
+
+  @Test
+  @DisplayName("Animal desativado não pode ser associado a um dispositivo")
+  void shouldNotLinkInactiveAnimal() {
+    AnimalModel animal = AnimalModel.builder().id(ANIMAL_ID).name("Égua").build();
+    animal.setActive(false);
+    stubFind(device(DeviceStatus.ACTIVE, institution));
+    when(animalRepository.findById(ANIMAL_ID)).thenReturn(Optional.of(animal));
+
+    assertThrows(InvalidDeviceUpdateException.class,
+        () -> service.update(DEVICE_ID, new UpdateDeviceRequest(null, null, ANIMAL_ID)));
+    verify(deviceRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("Dispositivo que já usa o animal desativado continua com ele")
+  void shouldKeepCurrentInactiveAnimal() {
+    AnimalModel animal = AnimalModel.builder().id(ANIMAL_ID).name("Égua").build();
+    animal.setActive(false);
+    DeviceModel device = device(DeviceStatus.ACTIVE, institution);
+    device.setAnimal(animal);
+    stubFind(device);
+    stubSave();
+    when(animalRepository.findById(ANIMAL_ID)).thenReturn(Optional.of(animal));
+
+    DeviceModel result = service.update(DEVICE_ID, new UpdateDeviceRequest("Sensor Norte", null, ANIMAL_ID));
+
+    assertEquals(animal, result.getAnimal());
+  }
 }

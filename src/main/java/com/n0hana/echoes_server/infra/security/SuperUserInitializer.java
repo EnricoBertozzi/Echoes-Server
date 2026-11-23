@@ -8,14 +8,17 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.n0hana.echoes_server.user.UserRepository;
+import com.n0hana.echoes_server.auth.password.PasswordPolicy;
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.User;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Classe de configuração para inicialização do super usuário
  */
+@Slf4j
 @Configuration
 @Profile("!test")
 @RequiredArgsConstructor
@@ -37,6 +40,11 @@ public class SuperUserInitializer {
     ApplicationRunner initializeSuperUser() {
         return (args) -> {
             if (!repository.existsByEmail(adminEmail)) {
+                if (!PasswordPolicy.isValid(adminPassword)) {
+                    throw new IllegalStateException(
+                            "ADMIN_PASSWORD não atende à política de senha: " + PasswordPolicy.MESSAGE);
+                }
+
                 User user = new Admin();
                 user.setName(adminUsername);
                 user.setEmail(adminEmail);
@@ -44,8 +52,10 @@ public class SuperUserInitializer {
                 user.setLoginAttempts(0);
                 user.setLockUntil(null);
                 user.setActive(true);
+                user.setMustChangePassword(true);
 
                 repository.save(user);
+                log.info("SuperUser inicializado");
             }
         };
     }

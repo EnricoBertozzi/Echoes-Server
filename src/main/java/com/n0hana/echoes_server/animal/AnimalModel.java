@@ -1,5 +1,6 @@
 package com.n0hana.echoes_server.animal;
 
+import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -7,6 +8,7 @@ import java.util.UUID;
 import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,6 +33,10 @@ public class AnimalModel {
 
   private String model;
 
+  @Column(name = "active", nullable = false, columnDefinition = "boolean default true")
+  private boolean active = true;
+
+  @DiffIgnore
   @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<AuscultationPointModel> points = new ArrayList<>();
 

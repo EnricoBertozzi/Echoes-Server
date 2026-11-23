@@ -5,7 +5,11 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import java.io.IOException;
+import java.io.InputStream;
+
 import org.springframework.web.multipart.MultipartFile;
+import java.util.Locale;
 
 import com.n0hana.echoes_server.infra.file.exception.FileValidateException;
 
@@ -29,6 +33,51 @@ public class FileValidatorService {
    * @param file Arquivo para ser avaliado
    */
   public void validate(MultipartFile file) {
+    validate(file, ALLOWED_EXTENSIONS);
+  }
+
+  /**
+   * Extensões de áudio de cenário aceitas em upload. Vem de
+   * {@code SCENARIO_AUDIO_EXTENSIONS}; o padrão do código vale só sem Spring (testes).
+   */
+  @Value("#{'${api.scenario.audio-extensions:mp3,wav,ogg,m4a}'.split(',')}")
+  private List<String> audioExtensions = List.of("mp3", "wav", "ogg", "m4a");
+
+  /**
+   * Valida um áudio de cenário: extensão permitida pela configuração, formato
+   * reconhecido e conteúdo compatível com a extensão.
+   *
+   * @param file Arquivo enviado
+   */
+  public void validateAudio(MultipartFile file) {
+    validate(file, audioExtensions);
+
+    String extension = getExtension(file.getOriginalFilename());
+    AudioFileType type = AudioFileType.fromExtension(extension)
+            .orElseThrow(FileValidateException::new);
+
+    if (!matchesSignature(file, type))
+      throw new FileValidateException();
+  }
+
+  private boolean matchesSignature(MultipartFile file, AudioFileType type) {
+    byte[] head;
+    try (InputStream in = file.getInputStream()) {
+      head = in.readNBytes(16);
+    } catch (IOException e) {
+      throw new FileValidateException();
+    }
+    return type.matches(head);
+  }
+
+  /**
+   * Realiza validações de segurança sobre um arquivo usando uma lista própria de
+   * extensões permitidas (ex.: material de aula)
+   * 
+   * @param file              Arquivo para ser avaliado
+   * @param allowedExtensions Extensões aceitas, sem ponto
+   */
+  public void validate(MultipartFile file, List<String> allowedExtensions) {
 
     // Verifica se o arquivo existe
     if (file == null || file.isEmpty())
@@ -45,7 +94,7 @@ public class FileValidatorService {
 
     // Verifica a extensão do arquivo
     String extension = this.getExtension(originalName).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.contains(extension))
+    if (!allowedExtensions.contains(extension))
       throw new FileValidateException();
 
   }

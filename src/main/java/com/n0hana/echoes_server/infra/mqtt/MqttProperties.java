@@ -37,6 +37,8 @@ public class MqttProperties {
    */
   private String ackTopic = "register/ack/{hardware_id}";
 
+  private String deviceStatusTopic = "device/status/{hardware_id}";
+
   /** QoS usado na inscrição e nas respostas. */
   private int qos = 1;
 

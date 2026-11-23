@@ -56,8 +56,13 @@ public class AccessGuard {
         // manager sem instituição, nega
         return instituicaoUser != null
                 && userRepository.findById(targetId)
-                        .map(alvo -> instituicaoUser.equals(instituicaoDe(alvo)))
+                        .map(alvo -> mesmaInstituicao(instituicaoUser, instituicaoDe(alvo)))
                         .orElse(false);
+    }
+
+    // compara pelo id: a mesma instituição chega como instâncias diferentes (sessões/proxies distintos)
+    private boolean mesmaInstituicao(InstitutionModel a, InstitutionModel b) {
+        return a != null && b != null && a.getId() != null && a.getId().equals(b.getId());
     }
 
     /** é a instituição de quem está logado? admin passa */
@@ -70,9 +75,14 @@ public class AccessGuard {
             return false;
         }
 
-        InstitutionModel institution = institutionRepository.findById(institutionId).orElseThrow(InstitutionNotFoundException::new);
+        // instituição inexistente ou usuário sem instituição: nega (sem 404/NPE dentro do @PreAuthorize)
         InstitutionModel studentInstitution = instituicaoDe((User) auth.getPrincipal());
-        return institution.getId().equals(studentInstitution.getId());
+        if (studentInstitution == null)
+            return false;
+
+        return institutionRepository.findById(institutionId)
+                .map(institution -> institution.getId().equals(studentInstitution.getId()))
+                .orElse(false);
     }
 
     private boolean isAdmin(Authentication auth) {

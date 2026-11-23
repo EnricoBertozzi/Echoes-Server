@@ -1,0 +1,34 @@
+name: Devsecops - Histórico de Commits e SAST no repositório
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # TRUFFLEHOG
+  secrets-scan:
+    name: TruffleHog - Secrets scanning
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: TruffleHog - Scan full Git history
+        run: |
+          docker run --rm \
+            --volume "$PWD:/repo:ro" \
+            trufflesecurity/trufflehog:latest \
+            git file:///repo \
+              --results=verified \
+              --fail \
+              --fail-on-scan-errors \
+              --no-update

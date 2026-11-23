@@ -1,7 +1,9 @@
 package com.n0hana.echoes_server.auth.password;
 
+import com.n0hana.echoes_server.user.UserUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.n0hana.echoes_server.auth.attempt.AttemptScope;
 import com.n0hana.echoes_server.auth.attempt.AttemptService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.mfa.TwoFactorService;
 import com.n0hana.echoes_server.user.UserRepository;
@@ -48,7 +51,9 @@ public class PasswordService {
      * 
      * @param email Email do usuário
      */
+    @Auditable(action = "PASSWORD_FORGOT_REQUEST", entity = "User")
     public void request(String email) {
+        email = UserUtils.normalizeEmail(email);
         // conta antes de olhar o banco: e-mail que existe e que não existe se comportam igual
         attempts.assertNotBlocked(AttemptScope.PASSWORD_FORGOT, email);
         attempts.register(AttemptScope.PASSWORD_FORGOT, email);
@@ -67,7 +72,9 @@ public class PasswordService {
      * 
      * @param code Código para verificação
      */
+    @Auditable(action = "PASSWORD_CODE_VALIDATE", entity = "User")
     public String validate(String email, String code) {
+        email = UserUtils.normalizeEmail(email);
         attempts.assertNotBlocked(AttemptScope.PASSWORD_VALIDATE, email);
 
         String savedCode = codeRepository.findByEmail(email).orElse(null);
@@ -102,17 +109,15 @@ public class PasswordService {
      * @param newPassword Nova senha do usuário
      */
     @Transactional
+    @Auditable(action = "RESET_PASSWORD", entity = "User", details = "'Senha redefinida para ' + T(com.n0hana.echoes_server.user.UserUtils).maskEmail(#email)")
     public void reset(String email, String token, String newPassword) {
-        // TODO alterar exceção
-
-        String savedToken = tokenRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthFailedException());
-
-        if (!savedToken.equals(token))
+        email = UserUtils.normalizeEmail(email);
+        if (!tokenRepository.consumeIfMatches(email, token))
             throw new AuthFailedException();
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException());
+        User user = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChangedAt(Instant.now());
         userRepository.save(user);
     }
 }

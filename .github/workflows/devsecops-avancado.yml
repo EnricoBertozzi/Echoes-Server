@@ -1,0 +1,303 @@
+name: Devsecops - Avançado
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  security:
+    name: Build e validação de segurança
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: mysql-root-ci
+          MYSQL_DATABASE: echoes_security
+          MYSQL_USER: echoes_ci
+          MYSQL_PASSWORD: mysql-echoes-ci
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+      redis:
+        image: redis:7.0
+        ports:
+          - 6379/tcp
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=12
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Bearer - Segurança e segredos
+      - name: Bearer - Segurança e segredos
+        id: bearer_security
+        continue-on-error: true
+        uses: bearer/bearer-action@v2
+        with:
+          scanner: sast,secrets
+          severity: critical,high,medium,low,warning
+          format: json
+          output: bearer-security.json
+
+      # Bearer - Privacidade
+      - name: Bearer - Privacidade
+        id: bearer_privacy
+        continue-on-error: true
+        uses: bearer/bearer-action@v2
+        with:
+          config-file: .github/bearer/bearer-privacy.yml
+
+      # Docker - Build
+      - name: Compilar imagem Docker
+        id: build
+        continue-on-error: true
+        run: docker build --tag echoes-server:security-ci .
+
+      # Docker - Inicialização
+      - name: Iniciar Echoes Server com configuração temporária
+        id: start_app
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          DATABASE_URL: jdbc:mysql://127.0.0.1:${{ job.services.mysql.ports['3306'] }}/echoes_security?serverTimezone=UTC&allowPublicKeyRetrieval=true&sslMode=DISABLED
+          REDIS_PORT: ${{ job.services.redis.ports['6379'] }}
+        run: |
+          umask 077
+
+          cat > "$RUNNER_TEMP/echoes-ci.env" <<EOF
+          SERVER_ADDRESS=127.0.0.1
+          SERVER_PORT=8080
+          USE_SSL=false
+          DATABASE_URL=$DATABASE_URL
+          DATABASE_USER=echoes_ci
+          DATABASE_USER_PASSWORD=mysql-echoes-ci
+          REDIS_HOST=127.0.0.1
+          REDIS_PORT=$REDIS_PORT
+          REDIS_PASSWORD=
+          EMAIL_HOST=127.0.0.1
+          EMAIL_PORT=2525
+          EMAIL_USERNAME=ci@example.invalid
+          EMAIL_PASSWORD=mail-ci
+          TWO_FACTOR_PROVIDER=logger
+          MQTT_ENABLED=false
+          JWT_SECRET=$(openssl rand -hex 32)
+          AUDIT_HMAC_KEY=$(openssl rand -hex 32)
+          DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)
+          ADMIN_EMAIL=admin@example.invalid
+          ADMIN_NAME=CI
+          ADMIN_PASSWORD=$(openssl rand -hex 24)
+          EXTENSIONS_ALLOWED=pdf,png
+          UPLOAD_DIR=/tmp/echoes-uploads
+          EOF
+
+          docker run --detach \
+            --name echoes-server \
+            --network host \
+            --env-file "$RUNNER_TEMP/echoes-ci.env" \
+            echoes-server:security-ci
+
+      # Verificação de prontidão
+      - name: Aguardar resposta da aplicação
+        id: readiness
+        if: ${{ !cancelled() && steps.start_app.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          if ! curl --fail --silent --show-error \
+            --retry 60 \
+            --retry-all-errors \
+            --retry-delay 2 \
+            --retry-max-time 120 \
+            --max-time 3 \
+            --output /dev/null \
+            http://127.0.0.1:8080/terms/PRIVACY_POLICY; then
+
+            docker logs echoes-server
+            exit 1
+          fi
+
+      # OWASP ZAP - Preparação
+      - name: Preparar diretório dos relatórios ZAP
+        if: ${{ !cancelled() && steps.readiness.outcome == 'success' }}
+        run: |
+          mkdir -p zap-reports
+          chmod 777 zap-reports
+
+      # OWASP ZAP - DAST
+      - name: OWASP ZAP Full Scan
+        id: zap_scan
+        if: ${{ !cancelled() && steps.readiness.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$PWD/zap-reports:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-full-scan.py \
+              -t http://127.0.0.1:8080 \
+              -m 5 \
+              -T 5 \
+              -I \
+              -J zap-report.json \
+              -r zap-report.html
+
+      # OWASP ZAP - Avaliação dos resultados
+      - name: Avaliar achados altos/críticos do ZAP
+        id: zap_gate
+        if: ${{ !cancelled() && steps.zap_scan.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          path = Path('zap-reports/zap-report.json')
+
+          if not path.is_file():
+              sys.exit('Relatório JSON do ZAP não encontrado.')
+
+          try:
+              with path.open(encoding='utf-8') as file:
+                  report = json.load(file)
+          except (OSError, ValueError) as error:
+              sys.exit(f'Relatório JSON do ZAP inválido: {error}')
+
+          sites = report.get('site')
+
+          if not isinstance(sites, list) or not sites:
+              sys.exit('O ZAP não reportou sites analisados.')
+
+          findings = []
+
+          for site in sites:
+              alerts = site.get('alerts')
+
+              if not isinstance(alerts, list):
+                  sys.exit('Estrutura de alertas do ZAP inválida.')
+
+              for alert in alerts:
+                  if str(alert.get('riskcode')) in ('3', '4'):
+                      findings.append((
+                          site.get('@name', 'URL desconhecida'),
+                          alert
+                      ))
+
+          for url, alert in findings:
+              print(
+                  f"::error::ZAP {alert.get('riskdesc', 'Alto/crítico')}: "
+                  f"{alert.get('name', 'Alerta sem nome')} ({url})"
+              )
+
+          if findings:
+              sys.exit(
+                  f'{len(findings)} alerta(s) de risco '
+                  'alto/crítico encontrado(s).'
+              )
+
+          print(
+              'Nenhum alerta alto/crítico encontrado '
+              'nos sites reportados pelo ZAP.'
+          )
+          PY
+
+      # Trivy - Exportação da imagem
+      - name: Exportar imagem Docker para o Trivy
+        id: image_export
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          docker save \
+            --output "$RUNNER_TEMP/echoes-server.tar" \
+            echoes-server:security-ci
+
+      # Trivy - SBOM CycloneDX
+      - name: Trivy - Gerar SBOM CycloneDX
+        id: sbom
+        if: ${{ !cancelled() && steps.image_export.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            --volume "$RUNNER_TEMP/echoes-server.tar:/scan/image.tar:ro" \
+            ghcr.io/aquasecurity/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb \
+            image \
+              --input /scan/image.tar \
+              --format cyclonedx \
+              --no-progress \
+              --timeout 20m \
+            > "$RUNNER_TEMP/echoes-server.cdx.json"
+
+          jq --exit-status '
+            .bomFormat == "CycloneDX" and
+            ((.components // []) |
+              any(.[]; (.purl // "") | startswith("pkg:maven/")))
+          ' "$RUNNER_TEMP/echoes-server.cdx.json" > /dev/null
+
+      # Trivy - Análise de vulnerabilidades
+      - name: Trivy - Vulnerabilidades da imagem
+        id: trivy_vuln
+        if: ${{ !cancelled() && steps.image_export.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            --volume "$RUNNER_TEMP/echoes-server.tar:/scan/image.tar:ro" \
+            ghcr.io/aquasecurity/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb \
+            image \
+              --input /scan/image.tar \
+              --scanners vuln \
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              --no-progress \
+              --timeout 20m
+
+      # Publicação dos relatórios
+      - name: Publicar relatórios de segurança
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: echoes-server-security-reports
+          path: |
+            bearer-security.json
+            bearer-privacy.json
+            zap-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+      # Publicação da SBOM
+      - name: Publicar SBOM CycloneDX
+        if: ${{ !cancelled() && steps.sbom.outcome == 'success' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: echoes-server-sbom-cyclonedx
+          path: ${{ runner.temp }}/echoes-server.cdx.json
+          if-no-files-found: error
+          retention-days: 14
+
+      # Limpeza do ambiente temporário
+      - name: Limpar ambiente temporário
+        if: ${{ always() }}
+        run: |
+          rm -f \
+            "$RUNNER_TEMP/echoes-ci.env" \
+            "$RUNNER_TEMP/echoes-server.tar"
+
+          if docker container inspect echoes-server >/dev/null 2>&1; then
+            docker rm --force echoes-server
+          fi

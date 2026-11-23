@@ -45,7 +45,7 @@ public class DeviceLifecycleService {
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
-  @Auditable(action = "APPROVE", entity = "Device", entityId = "#deviceId", institutionId = "#institutionId")
+  @Auditable(action = "APPROVE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#institutionId")
   public DeviceModel approve(UUID deviceId, UUID institutionId, UUID approverId) {
     DeviceModel device = findDevice(deviceId);
 
@@ -61,7 +61,7 @@ public class DeviceLifecycleService {
   }
 
   @Transactional
-  @Auditable(action = "CHANGE_INSTITUTION", entity = "Device", entityId = "#deviceId", institutionId = "#institutionId")
+  @Auditable(action = "CHANGE_INSTITUTION", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#institutionId")
   public DeviceModel changeInstitution(UUID deviceId, UUID institutionId) {
     return update(deviceId, new UpdateDeviceRequest(null, institutionId, null));
   }
@@ -79,7 +79,7 @@ public class DeviceLifecycleService {
    * </p>
    */
   @Transactional
-  @Auditable(action = "UPDATE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "UPDATE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel update(UUID deviceId, UpdateDeviceRequest request) {
     boolean hasName = request != null && request.name() != null;
     boolean hasInstitution = request != null && request.institutionId() != null;
@@ -99,17 +99,30 @@ public class DeviceLifecycleService {
       if (device.getStatus() == DeviceStatus.PENDING)
         throw new InvalidDeviceStateException("Dispositivo pendente deve ser aprovado, não movido");
 
-      device.setInstitution(findInstitution(request.institutionId()));
+      InstitutionModel newInstitution = findInstitution(request.institutionId());
+
+      // a turma é da instituição antiga: ao mudar de instituição o dispositivo sai dela
+      if (device.getInstitution() == null || !device.getInstitution().getId().equals(newInstitution.getId()))
+        device.setClassroom(null);
+
+      device.setInstitution(newInstitution);
     }
 
-    if (hasAnimal)
-      device.setAnimal(findAnimal(request.animalId()));
+    if (hasAnimal) {
+      AnimalModel animal = findAnimal(request.animalId());
+      boolean sameAnimal = device.getAnimal() != null && device.getAnimal().getId().equals(animal.getId());
+
+      if (!sameAnimal && !animal.isActive())
+        throw new InvalidDeviceUpdateException("Animal desativado não pode ser associado a dispositivos");
+
+      device.setAnimal(animal);
+    }
 
     return deviceRepository.save(device);
   }
 
   @Transactional
-  @Auditable(action = "ACTIVATE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "ACTIVATE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel activate(UUID deviceId) {
     DeviceModel device = findDevice(deviceId);
 
@@ -122,7 +135,7 @@ public class DeviceLifecycleService {
   }
 
   @Transactional
-  @Auditable(action = "DEACTIVATE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "DEACTIVATE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel deactivate(UUID deviceId) {
     DeviceModel device = findDevice(deviceId);
 
@@ -135,7 +148,7 @@ public class DeviceLifecycleService {
   }
 
   @Transactional
-  @Auditable(action = "DELETE", entity = "Device", entityId = "#deviceId", institutionId = "#result.institution?.id")
+  @Auditable(action = "DELETE", entity = "Device", entityId = "#deviceId", entityName = "#result.name", institutionId = "#result.institution?.id")
   public DeviceModel delete(UUID deviceId) {
     DeviceModel device = findDevice(deviceId);
 

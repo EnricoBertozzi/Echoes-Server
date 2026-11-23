@@ -24,4 +24,14 @@ public class AuthExceptionHandler {
     public  ResponseEntity<Map<String, String>> handleInvalidMfaCodeException(InvalidMfaCodeException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(UserBlockedException.class)
+    public ResponseEntity<Map<String, String>> handleUserBlockedException(UserBlockedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PasswordUnchangedException.class)
+    public ResponseEntity<Map<String, String>> handlePasswordUnchanged(PasswordUnchangedException ex) {
+        return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+    }
 }

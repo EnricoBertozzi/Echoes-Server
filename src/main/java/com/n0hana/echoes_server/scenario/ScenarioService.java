@@ -1,5 +1,11 @@
 package com.n0hana.echoes_server.scenario;
 
+import com.n0hana.echoes_server.device.DeviceScenarioRepository;
+import com.n0hana.echoes_server.scenario.exception.ScenarioInUseException;
+import com.n0hana.echoes_server.infra.web.PageLimits;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,10 +20,17 @@ import com.n0hana.echoes_server.auscultation.AuscultationPointModel;
 import com.n0hana.echoes_server.auscultation.AuscultationPointService;
 import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.file.FileStorageService;
+import com.n0hana.echoes_server.infra.file.exception.StorageFileNotFoundException;
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.scenario.exception.ScenarioNotFoundException;
 
 import jakarta.transaction.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service para gerenciamento dde cenários clínicos
@@ -26,6 +39,7 @@ import lombok.RequiredArgsConstructor;
  * @since 0.1.0
  * @see {@link ScenarioModel}
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScenarioService {
@@ -36,6 +50,8 @@ public class ScenarioService {
 
   private final AuscultationPointService auscultationPointService;
 
+  private final DeviceScenarioRepository deviceScenarioRepository;
+
   /**
    * Salva um novo cenário no sistema
    * 
@@ -43,8 +59,9 @@ public class ScenarioService {
    * @param file  Arquivo de áudio enviado.
    */
   @Transactional
+  @Auditable(action = "CREATE", entity = "Scenario", entityId = "#result.id", entityName = "#result.name")
   public ScenarioModel create(ScenarioModel model, MultipartFile file) {
-    String audioPath = fileService.store(file, model.getName());
+    String audioPath = fileService.storeAudio(file, model.getName());
 
     model.setAudioUrl(audioPath);
 
@@ -66,7 +83,7 @@ public class ScenarioService {
     return scenarioRepository
         .findAllScenariosByAuscultationPointId(
             id,
-            PageRequest.of(page, size, Sort.by("name")))
+            PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size), Sort.by("name")))
         .toList();
   }
 
@@ -90,7 +107,7 @@ public class ScenarioService {
     return scenarioRepository
         .findAllScenariosByAuscultationPointAnimalId(
             device.getAnimal().getId(),
-            PageRequest.of(page, size, Sort.by("name")))
+            PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size), Sort.by("name")))
         .toList();
   }
 
@@ -107,7 +124,7 @@ public class ScenarioService {
     return scenarioRepository
         .findAllScenariosByNameContaining(
             name,
-            PageRequest.of(page, size, Sort.by("name")))
+            PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size), Sort.by("name")))
         .toList();
   }
 
@@ -122,7 +139,7 @@ public class ScenarioService {
         .findAllScenariosByNameContainingAndAuscultationPointAnimalId(
             name,
             device.getAnimal().getId(),
-            PageRequest.of(page, size, Sort.by("name")))
+            PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size), Sort.by("name")))
         .toList();
   }
 
@@ -155,21 +172,41 @@ public class ScenarioService {
   }
 
   /**
+   * Localiza o arquivo de áudio do cenário para o dispositivo baixar, garantindo
+   * que o cenário pertence ao animal do dispositivo autenticado.
+   *
+   * @param id     Identificador do cenário
+   * @param device Dispositivo autenticado
+   * @return {@link Path} do arquivo de áudio
+   */
+  public Path findAudioPath(UUID id, DeviceModel device) {
+    ScenarioModel scenario = findScenarioById(id, device);
+    Path path = fileService.load(scenario.getAudioUrl());
+    if (!Files.exists(path))
+      throw new StorageFileNotFoundException();
+    return path;
+  }
+
+  /**
    * Atualiza os dados de um cenário
    * 
    * @param id       Identificador do cenário.
    * @param scenario Objeto com dados a serem atualizados
    */
   @Transactional
+  @Auditable(action = "UPDATE", entity = "Scenario", entityId = "#result.id", entityName = "#result.name")
   public ScenarioModel updateScenario(UUID id, ScenarioModel scenario) {
     ScenarioModel savedScenario = this.findScenarioById(id);
 
-    if (!savedScenario.getName().equals(scenario.getName())) {
-      fileService.rename(savedScenario.getAudioUrl(), scenario.getName());
+    if (!Objects.equals(savedScenario.getName(), scenario.getName())) {
+      String oldAudioUrl = savedScenario.getAudioUrl();
+      String newAudioUrl = fileService.targetNameFor(oldAudioUrl, scenario.getName());
+      savedScenario.setAudioUrl(newAudioUrl);
       savedScenario.setName(scenario.getName());
+      moveFileAfterCommit(oldAudioUrl, newAudioUrl);
     }
 
-    if (!savedScenario.getDescription().equals(scenario.getDescription()))
+    if (!Objects.equals(savedScenario.getDescription(), scenario.getDescription()))
       savedScenario.setDescription(scenario.getDescription());
 
     return scenarioRepository.save(savedScenario);
@@ -181,11 +218,43 @@ public class ScenarioService {
    * @param id Identificador do cenário a ser excluído.
    */
   @Transactional
+  @Auditable(action = "DELETE", entity = "Scenario", entityId = "#id")
   public void deleteScenario(UUID id) {
     ScenarioModel model = this.findScenarioById(id);
+    String audioUrl = model.getAudioUrl();
 
-    fileService.delete(model.getAudioUrl());
-    scenarioRepository.deleteById(model.getId());
+    if (isInUse(id))
+      throw new ScenarioInUseException();
+
+    scenarioRepository.delete(model);
+    deleteFileAfterCommit(audioUrl);
+  }
+
+  @Transactional
+  @Auditable(action = "DEACTIVATE", entity = "Scenario", entityId = "#id", entityName = "#result.name")
+  public ScenarioModel deactivateScenario(UUID id) {
+    return changeActive(id, false);
+  }
+
+  @Transactional
+  @Auditable(action = "ACTIVATE", entity = "Scenario", entityId = "#id", entityName = "#result.name")
+  public ScenarioModel activateScenario(UUID id) {
+    return changeActive(id, true);
+  }
+
+  /** Indica se o cenário está configurado em algum dispositivo. */
+  public boolean isInUse(UUID id) {
+    return deviceScenarioRepository.existsByScenarioId(id);
+  }
+
+  private ScenarioModel changeActive(UUID id, boolean active) {
+    ScenarioModel scenario = this.findScenarioById(id);
+
+    if (scenario.isActive() == active)
+      return scenario;
+
+    scenario.setActive(active);
+    return scenarioRepository.save(scenario);
   }
 
   /**
@@ -212,13 +281,66 @@ public class ScenarioService {
    * @param id   Identificador do cenário
    * @param file Arquivo de áudio enviado.
    */
+  @Transactional
+  @Auditable(action = "REPLACE_FILE", entity = "Scenario", entityId = "#id")
   public void reuploadFile(UUID id, MultipartFile file) {
     ScenarioModel model = this.findScenarioById(id);
-    fileService.delete(model.getAudioUrl());
+    String oldAudioUrl = model.getAudioUrl();
 
-    String audioUrl = fileService.store(file, model.getName());
-    model.setAudioUrl(audioUrl);
-
+    String newAudioUrl = fileService.storeAudio(file, model.getName());
+    model.setAudioUrl(newAudioUrl);
     scenarioRepository.save(model);
+
+    deleteFileAfterCommit(oldAudioUrl);
+    deleteFileIfRollback(newAudioUrl);
+  }
+
+  /** renomeia o arquivo só depois que a transação comitou; em rollback ele fica como estava */
+  private void moveFileAfterCommit(String oldAudioUrl, String newAudioUrl) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        @Override
+        public void afterCommit() {
+          try {
+            fileService.move(oldAudioUrl, newAudioUrl);
+          } catch (RuntimeException ex) {
+            log.error("Falha ao renomear o áudio de {} para {} após o commit", oldAudioUrl, newAudioUrl, ex);
+          }
+        }
+      });
+    } else {
+      fileService.move(oldAudioUrl, newAudioUrl);
+    }
+  }
+
+  /** remove o arquivo só depois que a transação comitou (ou já, sem transação) */
+  private void deleteFileAfterCommit(String audioUrl) {
+    if (audioUrl == null || audioUrl.isBlank())
+      return;
+
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        @Override
+        public void afterCommit() {
+          fileService.delete(audioUrl);
+        }
+      });
+    } else {
+      fileService.delete(audioUrl);
+    }
+  }
+
+  /** arquivo recém-gravado some se a transação for desfeita */
+  private void deleteFileIfRollback(String audioUrl) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive())
+      return;
+
+    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+      @Override
+      public void afterCompletion(int status) {
+        if (status == STATUS_ROLLED_BACK)
+          fileService.delete(audioUrl);
+      }
+    });
   }
 }

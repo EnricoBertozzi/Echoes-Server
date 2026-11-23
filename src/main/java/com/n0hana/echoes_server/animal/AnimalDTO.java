@@ -42,13 +42,15 @@ public class AnimalDTO {
       UUID id,
       String name,
       String description,
-      String model) {
+      String model,
+      boolean active) {
     public static AnimalInfo from(AnimalModel animal) {
       return new AnimalInfo(
           animal.getId(),
           animal.getName(),
           animal.getDescription(),
-          animal.getModel());
+          animal.getModel(),
+          animal.isActive());
     }
   }
 }

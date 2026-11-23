@@ -1,10 +1,12 @@
 package com.n0hana.echoes_server.infra.security;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
 import com.auth0.jwt.JWT;
@@ -34,6 +36,19 @@ public class JwtTokenService {
 
     private final JwtBlackListRepository blackListRepository;
 
+    private static final int MIN_SECRET_BYTES = 32;
+
+    /**
+     * Recusa subir com segredo fraco ou ausente.
+     */
+    @PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                "JWT_SECRET precisa ter pelo menos " + MIN_SECRET_BYTES + " bytes");
+        }
+    }
+
     /**
      * Gera o token JWT para autenticação de usuários no sistema
      * 
@@ -49,6 +64,7 @@ public class JwtTokenService {
                     .withIssuer(ISSUER)
                     .withSubject(user.getId().toString())
                     .withJWTId(jti.toString())
+                    .withIssuedAt(Instant.now())
                     .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
             return token;
@@ -74,6 +90,26 @@ public class JwtTokenService {
                     .verify(token)
                     .getSubject();
 
+        } catch (JWTVerificationException e) {
+            throw new AuthFailedException();
+        }
+    }
+
+    /**
+     * Retorna o momento de emissão (claim {@code iat}) de um token já validado.
+     *
+     * @param token Token JWT a ser analisado
+     * @return {@link Instant} de emissão, ou {@code null} se o token não tiver iat
+     *         (tokens emitidos antes desta claim existir)
+     */
+    public Instant issuedAt(String token) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            return JWT.require(algorithm)
+                    .withIssuer(ISSUER)
+                    .build()
+                    .verify(token)
+                    .getIssuedAtAsInstant();
         } catch (JWTVerificationException e) {
             throw new AuthFailedException();
         }

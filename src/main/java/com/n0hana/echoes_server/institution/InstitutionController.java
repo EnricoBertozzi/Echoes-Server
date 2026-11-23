@@ -25,6 +25,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+
 /**
  * Controlador REST responsável pelo gerenciamento de instituições.
  * 
@@ -40,6 +41,7 @@ import java.util.List;
 public class InstitutionController {
 
     private final InstitutionService service;
+    private final InstitutionRegistrationService registrationService;
 
     private final InstitutionHistoryService historyService;
 
@@ -52,11 +54,12 @@ public class InstitutionController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InstitutionDTO> create(@RequestBody @Valid InstitutionDTO dto) {
-
+    public ResponseEntity<InstitutionDTO> create(@RequestBody @Valid InstitutionDTO.CreateRequest dto) {
+        InstitutionModel saved = registrationService.create(
+                dto.institution().toModel(), dto.manager().name(), dto.manager().email());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(InstitutionDTO.fromModel(service.create(dto.toModel())));
+                .body(InstitutionDTO.fromModel(saved));
     }
 
     /**
@@ -143,14 +146,15 @@ public class InstitutionController {
         return ResponseEntity.noContent().build();
     }
 
-
-        // histórico de alterações da instituição, só para admin
+    // histórico de alterações da instituição, só para admin
     // mostra quem mudou, quando e como estava antes
     @GetMapping("/{id}/history")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<InstitutionChangeDTO>> findHistory(
             @PathVariable UUID id, @RequestParam(defaultValue = "50") int limit) {
         return ResponseEntity.ok(historyService.findHistory(id, limit));
+    }
+
     /**
      * Busca por usuários membros de uma instituição
      * 
@@ -158,7 +162,7 @@ public class InstitutionController {
      * status HTTP 200 (OK)
      */
     @GetMapping("/{id}/users")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN') and @guard.isInstituicaoUsuario(#id)")
     public ResponseEntity<Page<UserDTO>> findUsersByInstitution(
             @PathVariable("id") UUID id,
             @RequestParam("page") Integer page,
@@ -174,7 +178,7 @@ public class InstitutionController {
      * status HTTP 200 (OK)
      */
     @GetMapping("/{id}/users/search")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN') and @guard.isInstituicaoUsuario(#id)")
     public ResponseEntity<Page<UserDTO>> findUsersByNameInInstitution(
             @PathVariable("id") UUID id,
             @RequestParam("name") String name,

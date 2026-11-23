@@ -37,6 +37,8 @@ public class AuditLogProtector {
     private static final String TABLE = "audit_log";
     private static final String TRIGGER_UPDATE = "audit_log_no_update";
     private static final String TRIGGER_DELETE = "audit_log_no_delete";
+    /** texto único do gatilho de exclusão com piso de retenção; identifica a versão instalada */
+    private static final String DELETE_TRIGGER_MARKER = "Registros de auditoria nao podem ser deletados antes do prazo de retencao";
 
     private final JdbcTemplate jdbc;
     private final DataSource dataSource;
@@ -57,15 +59,20 @@ public class AuditLogProtector {
         }
 
         try {
-            ensureTrigger(schema, TRIGGER_UPDATE,
+            ensureTrigger(schema, TRIGGER_UPDATE, null,
                     "BEFORE UPDATE ON " + TABLE + " FOR EACH ROW "
                             + "SIGNAL SQLSTATE '45000' "
                             + "SET MESSAGE_TEXT = 'Registros de auditoria nao podem ser modificados'");
 
-            ensureTrigger(schema, TRIGGER_DELETE,
+            ensureTrigger(schema, TRIGGER_DELETE, DELETE_TRIGGER_MARKER,
                     "BEFORE DELETE ON " + TABLE + " FOR EACH ROW "
+                            + "BEGIN "
+                            + "IF OLD.`timestamp` >= (UTC_TIMESTAMP() - INTERVAL "
+                            + AuditRetentionService.AUDIT_LOG_MIN_DAYS + " DAY) THEN "
                             + "SIGNAL SQLSTATE '45000' "
-                            + "SET MESSAGE_TEXT = 'Registros de auditoria nao podem ser deletados'");
+                            + "SET MESSAGE_TEXT = '" + DELETE_TRIGGER_MARKER + "'; "
+                            + "END IF; "
+                            + "END");
 
             log.info("Gatilhos de proteção do AuditLog verificados (schema={}).", schema);
         } catch (SuperPrivilegeException e) {
@@ -120,7 +127,7 @@ public class AuditLogProtector {
      * (duas réplicas subindo juntas), o MySQL reclama com "already exists"
      * — tratamos como sucesso, porque o resultado final é o mesmo.
      */
-    private void ensureTrigger(String schema, String triggerName, String body) {
+    private void ensureTrigger(String schema, String triggerName, String versionMarker, String body) {
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.TRIGGERS "
                         + "WHERE TRIGGER_NAME = ? AND TRIGGER_SCHEMA = ?",
@@ -128,8 +135,14 @@ public class AuditLogProtector {
                 triggerName, schema);
 
         if (count != null && count > 0) {
-            log.debug("Gatilho {} já existe no schema {}.", triggerName, schema);
-            return;
+            if (versionMarker == null || triggerHasMarker(schema, triggerName, versionMarker)) {
+                log.debug("Gatilho {} já existe no schema {}.", triggerName, schema);
+                return;
+            }
+
+            // gatilho de uma versão anterior (sem o piso de retenção): troca pelo atual
+            jdbc.execute("DROP TRIGGER " + triggerName);
+            log.info("Gatilho {} substituído pela versão com piso de retenção (schema={})", triggerName, schema);
         }
 
         try {
@@ -148,6 +161,15 @@ public class AuditLogProtector {
             }
             throw e;
         }
+    }
+
+    private boolean triggerHasMarker(String schema, String triggerName, String marker) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.TRIGGERS "
+                        + "WHERE TRIGGER_NAME = ? AND TRIGGER_SCHEMA = ? AND ACTION_STATEMENT LIKE ?",
+                Integer.class,
+                triggerName, schema, "%" + marker + "%");
+        return count != null && count > 0;
     }
 
     private boolean isAlreadyExists(Exception e) {

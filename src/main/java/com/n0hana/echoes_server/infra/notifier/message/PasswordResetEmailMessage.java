@@ -21,7 +21,7 @@ public class PasswordResetEmailMessage implements EmailMessage<PasswordResetData
     private PasswordResetData data;
 
     @Override
-    public PasswordResetData getDate() {
+    public PasswordResetData getData() {
         return this.data;
     }
 

@@ -1,14 +1,19 @@
 package com.n0hana.echoes_server.auth;
 
+import java.security.Principal;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import com.n0hana.echoes_server.auth.session.SessionCookie;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.auth.AuthDTO.ChangePasswordRequest;
 import com.n0hana.echoes_server.auth.AuthDTO.LoginRequest;
 import com.n0hana.echoes_server.auth.AuthDTO.MfaRequest;
-import com.n0hana.echoes_server.auth.AuthDTO.MfaResponse;
 import com.n0hana.echoes_server.infra.security.SecurityConfig;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,9 +33,11 @@ import jakarta.validation.Valid;
 public class AuthController {
     
     private final AuthService service;
+    private final SessionCookie sessionCookie;
 
-    AuthController(AuthService service) {
+    AuthController(AuthService service, SessionCookie sessionCookie) {
         this.service = service;
+        this.sessionCookie = sessionCookie;
     }
 
     /**
@@ -52,9 +59,27 @@ public class AuthController {
      * @return {@link ResponseEntity} com token JWT de autenticação e com o código HTTP 200 (OK)
      */
     @PostMapping("/mfa")
-    public ResponseEntity<MfaResponse> verifyTwoFactor(@RequestBody @Valid MfaRequest dto) {
+    public ResponseEntity<Void> verifyTwoFactor(@RequestBody @Valid MfaRequest dto) {
         String token = service.verifyMfaCode(dto.email(), dto.code());
-        return ResponseEntity.ok(new MfaResponse(token));
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie.issue(token).toString())
+                .build();
+    }
+
+    /**
+     * Altera a senha do usuário autenticado.
+     * 
+     * @param dto Objeto com a senha atual e a nova senha para validação
+     * @param principal Identificação do usuário autenticado
+     * @return {@link ResponseEntity} com o código HTTP 200 (OK)
+     */
+    @PatchMapping("/password/change")
+    public ResponseEntity<Void> changePassword(@RequestBody @Valid ChangePasswordRequest dto, Principal principal) {
+        service.changePassword(principal.getName(), dto.currentPassword(), dto.newPassword());
+        // a troca revoga as sessões anteriores: limpa também o cookie no cliente
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie.clear().toString())
+                .build();
     }
 
     /**
@@ -65,8 +90,15 @@ public class AuthController {
     @PostMapping("/logout")
     @SecurityRequirement(name = SecurityConfig.SECURITY)
     public ResponseEntity<Void> logout(HttpServletRequest request) {
-        service.logout(request.getHeader("Authorization"));
-        return ResponseEntity.noContent().build();
+        String header = request.getHeader("Authorization");
+        if (header == null) {
+            header = SessionCookie.read(request).map(token -> "Bearer " + token).orElse(null);
+        }
+
+        service.logout(header);
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie.clear().toString())
+                .build();
     }
     
 }

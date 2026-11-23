@@ -1,7 +1,10 @@
 package com.n0hana.echoes_server.auth;
 
+import com.n0hana.echoes_server.auth.password.PasswordPolicy;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -29,8 +32,8 @@ public class AuthDTO {
      * DTO para verificação de código multifator
      */
     public record MfaRequest(
-        @Email String email,
-        @Size(min = 6, max = 6) String code
+        @NotBlank @Email String email,
+        @NotBlank @Size(min = 6, max = 6) String code
     ) {
     }
 
@@ -41,6 +44,18 @@ public class AuthDTO {
      */
     public record MfaResponse(
         String token
+    ) {
+    }
+
+    /**
+     * DTO para alteração de senha do usuário autenticado
+     * 
+     * @param currentPassword Senha atual do usuário
+     * @param newPassword     Nova senha do usuário
+     */
+    public record ChangePasswordRequest(
+        @NotBlank String currentPassword,
+        @NotBlank @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE) String newPassword
     ) {
     }
 }

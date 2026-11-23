@@ -3,11 +3,15 @@ package com.n0hana.echoes_server.scenario;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -57,7 +61,7 @@ public class ScenarioController {
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(encoding = @Encoding(name = "dto", contentType = MediaType.APPLICATION_JSON_VALUE)))
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<ScenarioInfo> newScenario(@RequestPart("dto") ScenarioRegister dto,
+  public ResponseEntity<ScenarioInfo> newScenario(@Valid @RequestPart("dto") ScenarioRegister dto,
       @RequestPart("file") MultipartFile file) {
     ScenarioInfo responseDto = ScenarioInfo
         .from(scenarioService.create(dto.toModel(), file));
@@ -100,6 +104,22 @@ public class ScenarioController {
         .map(ScenarioInfo::from)
         .toList();
     return ResponseEntity.ok(list);
+  }
+
+  /**
+   * Baixa o arquivo de áudio de um cenário. Exclusivo do dispositivo, que só
+   * acessa cenários do animal associado a ele.
+   *
+   * @param id Identificador do cenário
+   * @return {@link ResponseEntity} com o áudio e o código HTTP 200 (OK)
+   */
+  @GetMapping("/{id}/audio")
+  @PreAuthorize("hasRole('DEVICE')")
+  public ResponseEntity<Resource> downloadAudio(@PathVariable("id") UUID id,
+      @AuthenticationPrincipal DeviceModel device) {
+    Resource audio = new FileSystemResource(scenarioService.findAudioPath(id, device));
+    MediaType type = MediaTypeFactory.getMediaType(audio).orElse(MediaType.APPLICATION_OCTET_STREAM);
+    return ResponseEntity.ok().contentType(type).body(audio);
   }
 
   /**
@@ -150,7 +170,7 @@ public class ScenarioController {
    */
   @PatchMapping("/{id}")
   @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<ScenarioInfo> updateScenario(@PathVariable("id") UUID id, @RequestBody ScenarioUpdate dto) {
+  public ResponseEntity<ScenarioInfo> updateScenario(@PathVariable("id") UUID id, @Valid @RequestBody ScenarioUpdate dto) {
     ScenarioInfo responseDTO = ScenarioInfo.from(
         scenarioService.updateScenario(id, dto.toModel()));
     return ResponseEntity.ok(responseDTO);
@@ -171,7 +191,33 @@ public class ScenarioController {
   }
 
   /**
-   * Deleta um cenário cadastrado no sistema.
+   * Desativa um cenário: ele deixa de poder ser escolhido em novas
+   * configurações de dispositivo.
+   *
+   * @param id Identificador do cenário
+   * @return {@link ResponseEntity} com o cenário atualizado e código HTTP 200 (OK)
+   */
+  @PatchMapping("/{id}/deactivate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ScenarioInfo> deactivateScenario(@PathVariable("id") UUID id) {
+    return ResponseEntity.ok(ScenarioInfo.from(scenarioService.deactivateScenario(id)));
+  }
+
+  /**
+   * Reativa um cenário desativado.
+   *
+   * @param id Identificador do cenário
+   * @return {@link ResponseEntity} com o cenário atualizado e código HTTP 200 (OK)
+   */
+  @PatchMapping("/{id}/activate")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ScenarioInfo> activateScenario(@PathVariable("id") UUID id) {
+    return ResponseEntity.ok(ScenarioInfo.from(scenarioService.activateScenario(id)));
+  }
+
+  /**
+   * Deleta um cenário cadastrado no sistema. Cenário configurado em algum
+   * dispositivo responde 409 e só pode ser desativado.
    * 
    * @param id Identificador do cenário
    * @return {@link ResponseEntity} com código HTTP 204  (NO CONTENT)

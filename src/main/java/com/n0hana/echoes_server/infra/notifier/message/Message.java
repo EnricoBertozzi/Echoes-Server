@@ -17,5 +17,5 @@ public interface Message<T extends MessageData> {
      * @return Objeto que estende {@link MessageData} com dados para envio da
      *         notificação
      */
-    T getDate();
+    T getData();
 }

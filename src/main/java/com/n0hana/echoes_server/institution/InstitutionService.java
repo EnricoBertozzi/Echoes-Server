@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.institution;
 
+import com.n0hana.echoes_server.infra.web.PageLimits;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -17,6 +19,7 @@ import com.n0hana.echoes_server.cnpj.CnpjService;
 import com.n0hana.echoes_server.cnpj.CnpjValidator;
 import com.n0hana.echoes_server.cnpj.exception.CnpjProviderIndisponivelException;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryService;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
 import com.n0hana.echoes_server.institution.exception.InstitutionNotFoundException;
 import com.n0hana.echoes_server.institution.exception.InstitutionPendingVerificationException;
@@ -45,6 +48,7 @@ public class InstitutionService {
     private final NotifierService notifier;
     private final ApplicationEventPublisher eventPublisher;
     private final UserInfoService userInfoService;
+    private final DeletionRecoveryService recovery;
 
     /**
      * Salva uma nova instituição no banco de dados.
@@ -62,7 +66,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} cadastrado no banco de dados.
      */
     @Transactional
-    @Auditable(action = "CREATE", entity = "Institution")
+    @Auditable(action = "CREATE", entity = "Institution", entityName = "#result.name")
     public InstitutionModel create(InstitutionModel model) {
         String cleanCnpj = CnpjValidator.normalizar(model.getCnpj());
         model.setCnpj(cleanCnpj);
@@ -140,7 +144,7 @@ public class InstitutionService {
     @Transactional(readOnly = true)
     public Page<InstitutionModel> findAll(String name, int size, int pageNumber, String sort) {
         Sort sortSpec = this.parseSort(sort);
-        Pageable pageable = PageRequest.of(pageNumber, size, sortSpec);
+        Pageable pageable = PageRequest.of(PageLimits.clampPage(pageNumber), PageLimits.clamp(size), sortSpec);
 
         if (name != null && !name.isBlank()) {
             return repository.findByNameContainingIgnoreCase(name, pageable);
@@ -167,7 +171,7 @@ public class InstitutionService {
      * @return {@link InstitutionModel} atualizado com novos dados,
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Institution", entityId = "#id", institutionId = "#id")
+    @Auditable(action = "UPDATE", entity = "Institution", entityId = "#id", entityName = "#result.name", institutionId = "#id")
     public InstitutionModel update(UUID id, InstitutionModel model) {
         InstitutionModel savedModel = getInstitutionOrThrow(id);
 
@@ -211,6 +215,7 @@ public class InstitutionService {
     @Auditable(action = "DELETE", entity = "Institution", entityId = "#id", institutionId = "#id")
     public void delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
+        recovery.recordInstitutionDeletion(model);
         model.setDeleted(true);
         model.setDeleteToken(UUID.randomUUID().toString());
 

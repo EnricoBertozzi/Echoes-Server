@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
+import com.n0hana.echoes_server.classroom.ClassroomModel;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 
 import jakarta.validation.constraints.NotNull;
@@ -24,17 +25,20 @@ public class DeviceDTO {
       String institutionName,
       UUID animalId,
       String animalName,
+      UUID classroomId,
       LocalDateTime createdAt,
       LocalDateTime lastSeenAt) {
 
     public static DeviceInfo from(DeviceModel device) {
       AnimalModel animal = device.getAnimal();
       InstitutionModel institution = device.getInstitution();
+      ClassroomModel classroom = device.getClassroom();
 
       UUID animalId = animal != null ? animal.getId() : null;
       String animalName = animal != null ? animal.getName() : null;
       UUID institutionId = institution != null ? institution.getId() : null;
       String institutionName = institution != null ? institution.getName() : null;
+      UUID classroomId = classroom != null ? classroom.getId() : null;
 
       return new DeviceInfo(
           device.getId(),
@@ -45,6 +49,7 @@ public class DeviceDTO {
           institutionName,
           animalId,
           animalName,
+          classroomId,
           device.getCreatedAt(),
           device.getLastSeenAt());
     }

@@ -3,6 +3,9 @@ package com.n0hana.echoes_server.infra.notifier.message;
 import com.n0hana.echoes_server.infra.notifier.data.RegisterInviteData;
 
 import lombok.AllArgsConstructor;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,9 +22,10 @@ import lombok.Setter;
 @NoArgsConstructor
 public class RegisterInviteMessage implements EmailMessage<RegisterInviteData> {
     private RegisterInviteData data;
+    private String frontendUrl = "http://localhost:5173";
 
     @Override
-    public RegisterInviteData getDate() {
+    public RegisterInviteData getData() {
         return this.data;
     }
 
@@ -36,12 +40,15 @@ public class RegisterInviteMessage implements EmailMessage<RegisterInviteData> {
             <html>
                 <body>
                     <h1>Bem-vindo ao echoes!</h1>
-                    <p>Para continuar o registro, clique <a href="http://localhost:5173/register?code=%s&email=%s">aqui</a></p>
-                    <strong>Lembre-se, o link é válido por 5 minutos</strong>
+                    <p>Para continuar o registro, clique <a href="%s/register?code=%s&email=%s">aqui</a></p>
+                    <strong>Lembre-se, o link é válido por 7 dias</strong>
                 </body>
             </html>
             """
-            .formatted(data.getCode(), data.getEmail());
+            .formatted(
+                frontendUrl,
+                URLEncoder.encode(data.getCode(), StandardCharsets.UTF_8),
+                URLEncoder.encode(data.getEmail(), StandardCharsets.UTF_8));
     }
 
 }

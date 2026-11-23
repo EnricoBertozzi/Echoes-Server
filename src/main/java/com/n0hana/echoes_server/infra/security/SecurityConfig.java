@@ -17,6 +17,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import com.n0hana.echoes_server.device.port.DeviceAccessPolicy;
 import com.n0hana.echoes_server.device.port.DeviceCredentialVerifier;
+import com.n0hana.echoes_server.term.TermService;
+
+import tools.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
@@ -35,9 +38,12 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
-            DeviceCredentialVerifier deviceCredentialVerifier, DeviceAccessPolicy deviceAccessPolicy)
+            DeviceCredentialVerifier deviceCredentialVerifier, DeviceAccessPolicy deviceAccessPolicy,
+            TermService termService, ObjectMapper objectMapper)
             throws Exception {
         DeviceJwtFilter deviceJwtFilter = new DeviceJwtFilter(deviceCredentialVerifier, deviceAccessPolicy);
+        TermsAcceptanceFilter termsAcceptanceFilter = new TermsAcceptanceFilter(termService, objectMapper);
+        PasswordChangeRequiredFilter passwordChangeRequiredFilter = new PasswordChangeRequiredFilter(objectMapper);
 
         return httpSecurity
                 .cors(Customizer.withDefaults())
@@ -54,11 +60,15 @@ public class SecurityConfig {
                         // termos são lidos antes do cadastro
                         .requestMatchers(HttpMethod.GET, "/terms/{type}", "/terms/{type}/json").permitAll()
                         .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        // health para sonda de liveness/readiness; as demais rotas do actuator (ex.: prometheus) exigem login
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
 
                         // o resto pede token
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(deviceJwtFilter, JwtFilter.class)
+                .addFilterAfter(passwordChangeRequiredFilter, JwtFilter.class)
+                .addFilterAfter(termsAcceptanceFilter, PasswordChangeRequiredFilter.class)
                 .build();
     }
 

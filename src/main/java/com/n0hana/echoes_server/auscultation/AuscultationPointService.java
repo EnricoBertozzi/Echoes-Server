@@ -1,5 +1,10 @@
 package com.n0hana.echoes_server.auscultation;
 
+import com.n0hana.echoes_server.auscultation.exception.AuscultationPointInUseException;
+import com.n0hana.echoes_server.device.DeviceRepository;
+import com.n0hana.echoes_server.device.DeviceScenarioRepository;
+import com.n0hana.echoes_server.infra.web.PageLimits;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -11,7 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
 import com.n0hana.echoes_server.animal.AnimalService;
-import com.n0hana.echoes_server.auscultation.exception.AuscultationPotionNotFound;
+import com.n0hana.echoes_server.auscultation.exception.AuscultationPointNotFound;
 import com.n0hana.echoes_server.device.DeviceModel;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 
@@ -26,13 +31,15 @@ public class AuscultationPointService {
 
     private final AnimalService animalService;
 
+    private final DeviceRepository deviceRepository;
+
+    private final DeviceScenarioRepository deviceScenarioRepository;
+
     public List<AuscultationPointModel> findAllPointsByAnimal(int page, int size, UUID animalId) {
         return pointRepository
                 .findAuscultationPointsByAnimalId(
                         animalId,
-                        PageRequest.of(
-                                page,
-                                size,
+                        PageRequest.of(PageLimits.clampPage(page), PageLimits.clamp(size),
                                 Sort.by("position")))
                 .toList();
     }
@@ -50,7 +57,7 @@ public class AuscultationPointService {
 
     public AuscultationPointModel findPointById(UUID id) {
         return pointRepository.findById(id)
-                .orElseThrow(() -> new AuscultationPotionNotFound());
+                .orElseThrow(() -> new AuscultationPointNotFound());
     }
 
     /**
@@ -104,14 +111,50 @@ public class AuscultationPointService {
     public void deleteAuscultationPoint(UUID id, DeviceModel device) {
         AuscultationPointModel point = this.findPointById(id, device);
 
+        if (isInUse(point))
+            throw new AuscultationPointInUseException();
+
         pointRepository.delete(point);
+    }
+
+    @Transactional
+    @Auditable(action = "DEACTIVATE", entity = "Point", entityId = "#id")
+    public AuscultationPointModel deactivateAuscultationPoint(UUID id) {
+        return changeActive(id, false);
+    }
+
+    @Transactional
+    @Auditable(action = "ACTIVATE", entity = "Point", entityId = "#id")
+    public AuscultationPointModel activateAuscultationPoint(UUID id) {
+        return changeActive(id, true);
+    }
+
+    /**
+     * Indica se o ponto está associado a algum dispositivo: o dispositivo usa o
+     * animal do ponto ou tem um cenário configurado nele.
+     */
+    public boolean isInUse(AuscultationPointModel point) {
+        boolean animalInDevice = point.getAnimal() != null
+                && deviceRepository.existsByAnimalId(point.getAnimal().getId());
+
+        return animalInDevice || deviceScenarioRepository.existsByPointId(point.getId());
+    }
+
+    private AuscultationPointModel changeActive(UUID id, boolean active) {
+        AuscultationPointModel point = this.findPointById(id);
+
+        if (point.isActive() == active)
+            return point;
+
+        point.setActive(active);
+        return pointRepository.save(point);
     }
 
     // Métodos auxiliares
     public void auscultationPointExists(UUID id) {
         pointRepository
                 .findById(id)
-                .orElseThrow(() -> new AuscultationPotionNotFound());
+                .orElseThrow(() -> new AuscultationPointNotFound());
     }
 
     private void assertOwnedBy(AuscultationPointModel point, DeviceModel device) {

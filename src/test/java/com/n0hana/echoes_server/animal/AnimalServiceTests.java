@@ -1,9 +1,11 @@
 package com.n0hana.echoes_server.animal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,13 +25,22 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import com.n0hana.echoes_server.animal.exception.AnimalInUseException;
 import com.n0hana.echoes_server.animal.exception.AnimalNotFoundException;
+import com.n0hana.echoes_server.device.DeviceRepository;
+import com.n0hana.echoes_server.device.DeviceScenarioRepository;
 
 @ExtendWith(MockitoExtension.class)
 public class AnimalServiceTests {
 
     @Mock
     private AnimalRepository animalRepository;
+
+    @Mock
+    private DeviceRepository deviceRepository;
+
+    @Mock
+    private DeviceScenarioRepository deviceScenarioRepository;
 
     @InjectMocks
     private AnimalService animalService;
@@ -188,5 +199,70 @@ public class AnimalServiceTests {
         assertThrows(AnimalNotFoundException.class, () -> animalService.deleteAnimal(id));
 
         verify(animalRepository, never()).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("Animal associado a um dispositivo não pode ser removido")
+    void shouldNotDeleteAnimalLinkedToDevice() {
+        UUID id = UUID.randomUUID();
+        when(animalRepository.findById(id)).thenReturn(Optional.of(AnimalModel.builder().id(id).build()));
+        when(deviceRepository.existsByAnimalId(id)).thenReturn(true);
+
+        assertThrows(AnimalInUseException.class, () -> animalService.deleteAnimal(id));
+        verify(animalRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("Animal com cenário configurado em dispositivo não pode ser removido")
+    void shouldNotDeleteAnimalWithConfiguredScenario() {
+        UUID id = UUID.randomUUID();
+        when(animalRepository.findById(id)).thenReturn(Optional.of(AnimalModel.builder().id(id).build()));
+        when(deviceRepository.existsByAnimalId(id)).thenReturn(false);
+        when(deviceScenarioRepository.existsByPointAnimalId(id)).thenReturn(true);
+
+        assertThrows(AnimalInUseException.class, () -> animalService.deleteAnimal(id));
+        verify(animalRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("Animal sem dispositivos associados é removido")
+    void shouldDeleteAnimalWithoutDevices() {
+        UUID id = UUID.randomUUID();
+        when(animalRepository.findById(id)).thenReturn(Optional.of(AnimalModel.builder().id(id).build()));
+
+        animalService.deleteAnimal(id);
+
+        verify(animalRepository).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("Animal novo nasce ativo")
+    void newAnimalIsActive() {
+        assertTrue(AnimalModel.builder().name("Cachorro").build().isActive());
+    }
+
+    @Test
+    @DisplayName("Desativa e reativa um animal")
+    void shouldDeactivateAndActivateAnimal() {
+        UUID id = UUID.randomUUID();
+        AnimalModel animal = AnimalModel.builder().id(id).name("Cachorro").build();
+        when(animalRepository.findById(id)).thenReturn(Optional.of(animal));
+        when(animalRepository.save(animal)).thenReturn(animal);
+
+        assertFalse(animalService.deactivateAnimal(id).isActive());
+        assertTrue(animalService.activateAnimal(id).isActive());
+        verify(animalRepository, org.mockito.Mockito.times(2)).save(animal);
+    }
+
+    @Test
+    @DisplayName("Desativar um animal já inativo não grava de novo")
+    void deactivatingInactiveAnimalIsNoop() {
+        UUID id = UUID.randomUUID();
+        AnimalModel animal = AnimalModel.builder().id(id).build();
+        animal.setActive(false);
+        when(animalRepository.findById(id)).thenReturn(Optional.of(animal));
+
+        assertFalse(animalService.deactivateAnimal(id).isActive());
+        verify(animalRepository, never()).save(any());
     }
 }

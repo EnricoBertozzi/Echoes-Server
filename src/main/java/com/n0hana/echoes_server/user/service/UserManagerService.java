@@ -1,20 +1,32 @@
+
 package com.n0hana.echoes_server.user.service;
 
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
 import com.n0hana.echoes_server.infra.logs.Auditable;
+import com.n0hana.echoes_server.auth.device.KnownDeviceService;
+import com.n0hana.echoes_server.infra.javers.anonymization.JaversAnonymizationService;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.institution.InstitutionService;
 import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.UserUtils;
+
 import com.n0hana.echoes_server.user.dto.UpdateInstitutionUserDTO;
 import com.n0hana.echoes_server.user.dto.UpdateUserDTO;
 import com.n0hana.echoes_server.user.dto.UserDTO;
+
 import com.n0hana.echoes_server.user.exception.EmailAlreadyInUseException;
 import com.n0hana.echoes_server.user.exception.InvalidUserTypeException;
+import com.n0hana.echoes_server.user.exception.LastAdminException;
+import com.n0hana.echoes_server.user.exception.LastManagerException;
 import com.n0hana.echoes_server.user.exception.UserNotFoundException;
+
 import com.n0hana.echoes_server.user.model.Admin;
 import com.n0hana.echoes_server.user.model.Manager;
 import com.n0hana.echoes_server.user.model.Student;
@@ -23,158 +35,398 @@ import com.n0hana.echoes_server.user.model.User;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * Serviço para gerenciar alterações nos usuários do sistema
- * 
+ * Serviço para gerenciar alterações nos usuários do sistema.
+ *
  * @author Enrico Bertozzi
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserManagerService {
 
     private final UserRepository userRepository;
-
     private final InstitutionService institutionService;
+    private final ClassroomMemberRepository classroomMemberRepository;
+    private final JaversAnonymizationService javersAnonymization;
+    private final KnownDeviceService knownDevices;
 
     /**
-     * Método para alteração de usuários administradores
-     * 
-     * @param id  Identificador do usuário
-     * @param dto Objeto com dados para alteração
-     * @return Objeto com os dados alterados do usuário
+     * Atualiza um administrador.
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Admin")
-    public UserDTO updateAdmin(UUID id, UpdateUserDTO dto) {
-        Admin admin = findTyped(id, Admin.class);
-        applyCommonUpdate(admin, dto.name(), dto.email());
-        return UserUtils.toDTO(userRepository.save(admin));
+    @Auditable(
+        action = "UPDATE",
+        entity = "Admin",
+        entityId = "#id",
+        entityName = "#result.name()"
+    )
+    public UserDTO updateAdmin(
+            UUID id,
+            UpdateUserDTO dto
+    ) {
+        Admin admin = findTyped(
+            id,
+            Admin.class
+        );
+
+        applyCommonUpdate(
+            admin,
+            dto.name()
+        );
+
+        return UserUtils.toDTO(
+            userRepository.save(admin)
+        );
     }
 
     /**
-     * Método para alteração de usuários gestores
-     * 
-     * @param id  Identificador do usuário
-     * @param dto Objeto com dados para alteração
-     * @return Objeto com os dados alterados do usuário
+     * Atualiza um gestor.
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Manager")
-    public UserDTO updateManager(UUID id, UpdateInstitutionUserDTO dto) {
-        Manager manager = findTyped(id, Manager.class);
-        applyCommonUpdate(manager, dto.name(), dto.email());
+    @Auditable(
+        action = "UPDATE",
+        entity = "Manager",
+        entityId = "#id",
+        entityName = "#result.name()",
+        institutionId = "#result.institutionId()"
+    )
+    public UserDTO updateManager(
+            UUID id,
+            UpdateInstitutionUserDTO dto
+    ) {
+        Manager manager = findTyped(
+            id,
+            Manager.class
+        );
+
+        applyCommonUpdate(
+            manager,
+            dto.name()
+        );
+
         if (dto.institutionId() != null) {
-            InstitutionModel institutionModel = institutionService.findById(dto.institutionId());
-            manager.setInstitution(institutionModel);
+            InstitutionModel institutionModel =
+                    institutionService.findById(
+                        dto.institutionId()
+                    );
+
+            // O último gestor não pode ser transferido.
+            if (
+                manager.getInstitution() != null &&
+                !Objects.equals(
+                    manager.getInstitution().getId(),
+                    institutionModel.getId()
+                )
+            ) {
+                assertNotLastManager(manager);
+            }
+
+            manager.setInstitution(
+                institutionModel
+            );
         }
-        return UserUtils.toDTO(userRepository.save(manager));
+
+        return UserUtils.toDTO(
+            userRepository.save(manager)
+        );
     }
 
     /**
-     * Método para alteração de usuários professores
-     * 
-     * @param id  Identificador do usuário
-     * @param dto Objeto com dados para alteração
-     * @return Objeto com os dados alterados do usuário
+     * Atualiza um professor.
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Teacher")
-    public UserDTO updateTeacher(UUID id, UpdateInstitutionUserDTO dto) {
-        Teacher teacher = findTyped(id, Teacher.class);
-        applyCommonUpdate(teacher, dto.name(), dto.email());
+    @Auditable(
+        action = "UPDATE",
+        entity = "Teacher",
+        entityId = "#id",
+        entityName = "#result.name()",
+        institutionId = "#result.institutionId()"
+    )
+    public UserDTO updateTeacher(
+            UUID id,
+            UpdateInstitutionUserDTO dto
+    ) {
+        Teacher teacher = findTyped(
+            id,
+            Teacher.class
+        );
+
+        applyCommonUpdate(
+            teacher,
+            dto.name()
+        );
+
         if (dto.institutionId() != null) {
-            InstitutionModel institutionModel = institutionService.findById(dto.institutionId());
-            teacher.setInstitution(institutionModel);
+            InstitutionModel institutionModel =
+                    institutionService.findById(
+                        dto.institutionId()
+                    );
+
+            teacher.setInstitution(
+                institutionModel
+            );
         }
-        return UserUtils.toDTO(userRepository.save(teacher));
+
+        return UserUtils.toDTO(
+            userRepository.save(teacher)
+        );
     }
 
     /**
-     * Método para alteração de usuários alunos
-     * 
-     * @param id  Identificador do usuário
-     * @param dto Objeto com dados para alteração
-     * @return Objeto com os dados alterados do usuário
+     * Atualiza um estudante.
      */
     @Transactional
-    @Auditable(action = "UPDATE", entity = "Student")
-    public UserDTO updateStudent(UUID id, UpdateInstitutionUserDTO dto) {
-        Student student = findTyped(id, Student.class);
-        applyCommonUpdate(student, dto.name(), dto.email());
+    @Auditable(
+        action = "UPDATE",
+        entity = "Student",
+        entityId = "#id",
+        entityName = "#result.name()",
+        institutionId = "#result.institutionId()"
+    )
+    public UserDTO updateStudent(
+            UUID id,
+            UpdateInstitutionUserDTO dto
+    ) {
+        Student student = findTyped(
+            id,
+            Student.class
+        );
+
+        applyCommonUpdate(
+            student,
+            dto.name()
+        );
+
         if (dto.institutionId() != null) {
-            InstitutionModel institutionModel = institutionService.findById(dto.institutionId());
-            student.setInstitution(institutionModel);
+            InstitutionModel institutionModel =
+                    institutionService.findById(
+                        dto.institutionId()
+                    );
+
+            student.setInstitution(
+                institutionModel
+            );
         }
-        return UserUtils.toDTO(userRepository.save(student));
+
+        return UserUtils.toDTO(
+            userRepository.save(student)
+        );
+    }
+
+    @Transactional
+    @Auditable(
+        action = "UPDATE",
+        entity = "User",
+        entityId = "#result.id()"
+    )
+    public UserDTO updateCurrentUser(
+            String email,
+            UpdateUserDTO dto
+    ) {
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        applyCommonUpdate(
+                user,
+                dto.name()
+        );
+
+        return UserUtils.toDTO(
+                userRepository.save(user)
+        );
+    }
+
+    @Transactional
+    @Auditable(
+        action = "DELETE",
+        entity = "User",
+        entityId = "#result"
+    )
+    public UUID deleteCurrentUser(
+            String email
+    ) {
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (user instanceof Manager manager) {
+            assertNotLastManager(manager);
+        }
+
+        if (user instanceof Admin admin) {
+            assertNotLastAdmin(admin);
+        }
+
+        UUID id = user.getId();
+        softDelete(user);
+        return id;
     }
 
     /**
-     * Método para exclusão lógica dos usuários administradores
-     * 
-     * @param id Identificador do usuário
+     * Exclusão lógica de administrador.
      */
     @Transactional
-    @Auditable(action = "DELETE", entity = "Admin")
+    @Auditable(
+        action = "DELETE",
+        entity = "Admin",
+        entityId = "#id"
+    )
     public void deleteAdmin(UUID id) {
-        softDelete(findTyped(id, Admin.class));
+        Admin admin = findTyped(id, Admin.class);
+        assertNotLastAdmin(admin);
+
+        softDelete(admin);
     }
 
     /**
-     * Método para exclusão lógica dos usuários gerentes
-     * 
-     * @param id Identificador do usuário
+     * Exclusão lógica de gestor.
      */
     @Transactional
-    @Auditable(action = "DELETE", entity = "Manager")
+    @Auditable(
+        action = "DELETE",
+        entity = "Manager",
+        entityId = "#id"
+    )
     public void deleteManager(UUID id) {
-        softDelete(findTyped(id, Manager.class));
+        Manager manager = findTyped(
+            id,
+            Manager.class
+        );
+
+        assertNotLastManager(manager);
+
+        softDelete(manager);
     }
 
     /**
-     * Método para exclusão lógica dos usuários professores
-     * 
-     * @param id Identificador do usuário
+     * Exclusão lógica de professor.
      */
     @Transactional
-    @Auditable(action = "DELETE", entity = "Teacher")
+    @Auditable(
+        action = "DELETE",
+        entity = "Teacher",
+        entityId = "#id"
+    )
     public void deleteTeacher(UUID id) {
-        softDelete(findTyped(id, Teacher.class));
+        softDelete(
+            findTyped(id, Teacher.class)
+        );
     }
 
     /**
-     * Método para exclusão lógica dos usuários alunos
-     * 
-     * @param id Identificador do usuário
+     * Exclusão lógica de estudante.
      */
     @Transactional
-    @Auditable(action = "DELETE", entity = "Student")
+    @Auditable(
+        action = "DELETE",
+        entity = "Student",
+        entityId = "#id"
+    )
     public void deleteStudent(UUID id) {
-        softDelete(findTyped(id, Student.class));
+        softDelete(
+            findTyped(id, Student.class)
+        );
     }
 
     /**
-     * Método para exclusão lógica dos usuários
-     * 
-     * @param id Identificador do usuário
+     * Exclusão lógica e liberação de vínculos com turmas.
      */
     private void softDelete(User user) {
         user.setActive(false);
+        anonymize(user);
+
         userRepository.save(user);
+
+        classroomMemberRepository.deleteByUserId(
+            user.getId()
+        );
+
+        UUID userId = user.getId();
+        afterCommit(() -> {
+            javersAnonymization.anonymizeAfterSoftDelete(userId);
+            try {
+                knownDevices.forget(userId);
+            } catch (RuntimeException e) {
+                log.warn("Não foi possível apagar os navegadores conhecidos do usuário {}: {}",
+                        userId, e.getClass().getSimpleName());
+            }
+        });
     }
 
     /**
-     * Método para conversão do tipo de usuário da superclasse para subclasses
-     * 
-     * @param <T>  Tipo de do usuário
-     * @param id   Identificador do usuário
-     * @param type Tipo do usuário
-     * @return O usuário especificado pelo tipo
+     * Executa a limpeza fora do banco (histórico do Javers, Redis) só depois que a
+     * exclusão foi confirmada: num rollback, a conta continua intacta.
      */
-    private <T extends User> T findTyped(UUID id, Class<T> type) {
-        User user = userRepository.findById(id)
-                .filter(u -> u.isActive())
-                .orElseThrow(UserNotFoundException::new);
+    private static void afterCommit(Runnable cleanup) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cleanup.run();
+                }
+            });
+        } else {
+            cleanup.run();
+        }
+    }
+
+    private void anonymize(User user) {
+        user.setName(null);
+        user.setEmail("deleted_user_" + UUID.randomUUID() + "@deleted.local");
+        user.setPassword(null);
+        user.setLoginAttempts(0);
+        user.setLockUntil(null);
+
+        if (user instanceof Manager manager) {
+            manager.setInstitution(null);
+        } else if (user instanceof Teacher teacher) {
+            teacher.setInstitution(null);
+        } else if (user instanceof Student student) {
+            student.setInstitution(null);
+        }
+    }
+
+    /**
+     * Impede que a instituição fique sem gestor.
+     */
+    private void assertNotLastAdmin(Admin admin) {
+        if (admin.isActive() && userRepository.countActiveAdmins() <= 1)
+            throw new LastAdminException();
+    }
+
+    private void assertNotLastManager(
+            Manager manager
+    ) {
+        InstitutionModel institution =
+                manager.getInstitution();
+
+        if (
+            institution != null &&
+            userRepository.countActiveManagers(
+                institution.getId()
+            ) <= 1
+        ) {
+            throw new LastManagerException();
+        }
+    }
+
+    /**
+     * Busca usuário ativo e verifica seu subtipo.
+     */
+    private <T extends User> T findTyped(
+            UUID id,
+            Class<T> type
+    ) {
+        User user = userRepository
+                .findById(id)
+                .filter(User::isActive)
+                .orElseThrow(
+                    UserNotFoundException::new
+                );
 
         if (!type.isInstance(user)) {
             throw new InvalidUserTypeException();
@@ -184,34 +436,26 @@ public class UserManagerService {
     }
 
     /**
-     * Atualiza os dados do usuário
-     * 
-     * @param user  Usuário a ser alterado
-     * @param name  Alteação no nome
-     * @param email Alteração no e-mail
+     * Atualiza dados comuns do usuário.
      */
-    private void applyCommonUpdate(User user, String name, String email) {
+    private void applyCommonUpdate(
+            User user,
+            String name
+    ) {
         if (name != null) {
             user.setName(name);
-        }
-        if (email != null) {
-            String normalized = UserUtils.normalizeEmail(email);
-            if (!normalized.equals(user.getEmail())) {
-                assertEmailAvailable(normalized);
-                user.setEmail(normalized);
-            }
         }
     }
 
     /**
-     * Verifica se o e-mail está disponível
-     * 
-     * @param email e-mail a ser verificado
+     * Verifica disponibilidade do email.
      */
-    public void assertEmailAvailable(String email) {
+    public void assertEmailAvailable(
+            String email
+    ) {
         if (userRepository.existsByEmail(email)) {
             throw new EmailAlreadyInUseException();
         }
     }
-
 }
+

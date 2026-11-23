@@ -14,4 +14,9 @@ public class ScenarioExceptionHandler {
     public ResponseEntity<Map<String, String>> handleNotFound(ScenarioNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(ScenarioInUseException.class)
+    public ResponseEntity<Map<String, String>> handleInUse(ScenarioInUseException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
 }

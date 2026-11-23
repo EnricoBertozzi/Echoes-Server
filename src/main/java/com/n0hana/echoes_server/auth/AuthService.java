@@ -1,12 +1,25 @@
 package com.n0hana.echoes_server.auth;
 
+import com.n0hana.echoes_server.user.UserUtils;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.n0hana.echoes_server.auth.attempt.AttemptScope;
+import com.n0hana.echoes_server.auth.attempt.AttemptService;
+import com.n0hana.echoes_server.auth.device.KnownDeviceService;
 import com.n0hana.echoes_server.auth.exception.AuthFailedException;
+import com.n0hana.echoes_server.infra.web.ClientIpResolver;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import jakarta.servlet.http.HttpServletRequest;
 import com.n0hana.echoes_server.auth.exception.InvalidMfaCodeException;
 import com.n0hana.echoes_server.auth.exception.LogoutFailedException;
 import com.n0hana.echoes_server.auth.exception.UserBlockedException;
+import com.n0hana.echoes_server.auth.exception.PasswordUnchangedException;
 import com.n0hana.echoes_server.auth.loginattempt.LoginAttemptService;
 import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.notifier.NotifierService;
@@ -38,6 +51,14 @@ public class AuthService {
     private final JwtTokenService jwtTokenService;
     private final AuthRepository authRepository;
     private final LoginAttemptService attemptService;
+    private final AttemptService mfaAttempts;
+    private final KnownDeviceService knownDevices;
+
+    @org.springframework.beans.factory.annotation.Value("${api.security.trust-forwarded-for:false}")
+    private boolean trustForwardedFor;
+
+    @org.springframework.beans.factory.annotation.Value("${api.security.trusted-proxies:}")
+    private String trustedProxies;
 
     /**
      * Realiza verificação do login do usuário
@@ -58,13 +79,17 @@ public class AuthService {
     @Transactional(dontRollbackOn = AuthFailedException.class)
     @Auditable(action = "LOGIN_ATTEMPT", entity = "User")
     public void login(String email, String password) {
-        // Verificação se o usuário existe
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(AuthFailedException::new);
+        email = UserUtils.normalizeEmail(email);
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            passwordEncoder.matches(password, dummyHash());
+            throw new AuthFailedException();
+        }
 
-        // Verifica se o usuário não foi bloqueado
-        if (!user.isAccountNonLocked() || !user.isEnabled())
-            throw new UserBlockedException();
+        if (!user.isAccountNonLocked() || !user.isEnabled()) {
+            passwordEncoder.matches(password, user.getPassword());
+            throw new AuthFailedException();
+        }
 
         // Guard Clause para verificação de senha
         if (!passwordEncoder.matches(password, user.getPassword())) {
@@ -86,13 +111,19 @@ public class AuthService {
      */
 
     @Transactional(dontRollbackOn = AuthFailedException.class)
-    @Auditable(action = "LOGIN_SUCCESS)", entity = "User")
+    @Auditable(action = "LOGIN_SUCCESS", entity = "User")
     public String verifyMfaCode(String email, String code) {
+        email = UserUtils.normalizeEmail(email);
+        mfaAttempts.assertNotBlocked(AttemptScope.MFA, email);
+
         String savedCode = authRepository.findByEmail(email)
                 .orElseThrow(AuthFailedException::new);
 
-        if (!savedCode.equals(code)) {
-            attemptService.registerFailedAttempt(email);
+        if (!sameCode(savedCode, code)) {
+            // ao estourar o limite o código morre: o usuário precisa logar de novo
+            if (mfaAttempts.register(AttemptScope.MFA, email)) {
+                authRepository.delete(email);
+            }
             throw new InvalidMfaCodeException();
         }
 
@@ -105,9 +136,81 @@ public class AuthService {
         }
 
         attemptService.resetLoginAttempt(user.getEmail());
+        mfaAttempts.clear(AttemptScope.MFA, email);
 
         authRepository.delete(email);
+        alertIfNewDevice(user);
         return jwtTokenService.generate(user);
+    }
+
+    private void alertIfNewDevice(User user) {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes))
+            return;
+
+        HttpServletRequest request = attributes.getRequest();
+        String userAgent = request.getHeader("User-Agent");
+
+        if (knownDevices.registerAndCheckNew(user.getId(), userAgent)) {
+            notifier.sendNewDeviceLogin(
+                    user.getEmail(),
+                    ClientIpResolver.resolve(request, trustForwardedFor, trustedProxies),
+                    userAgent,
+                    Instant.now());
+        }
+    }
+
+    /** hash de referência para equalizar o tempo de resposta quando a conta não existe */
+    private volatile String dummyHash;
+
+    private String dummyHash() {
+        if (dummyHash == null) {
+            dummyHash = passwordEncoder.encode("echoes-dummy-password");
+        }
+        return dummyHash;
+    }
+
+    private boolean sameCode(String saved, String received) {
+        return received != null && MessageDigest.isEqual(
+                saved.getBytes(StandardCharsets.UTF_8),
+                received.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Altera a senha do usuário autenticado
+     * 
+     * @param email       Email do usuário
+     * @param currentPassword Senha atual do usuário
+     * @param newPassword Nova senha do usuário
+     */
+    @Transactional
+    @Auditable(action = "PASSWORD_CHANGE", entity = "User")
+    public void changePassword(
+            String email,
+            String currentPassword,
+            String newPassword
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (!user.isAccountNonLocked() || !user.isEnabled()) {
+            throw new UserBlockedException();
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new AuthFailedException();
+        }
+
+        // no primeiro acesso a "troca" para a mesma senha anularia o objetivo da flag
+        if (user.isMustChangePassword() && passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new PasswordUnchangedException();
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChangedAt(Instant.now());
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+
+        attemptService.resetLoginAttempt(user.getEmail());
     }
 
     /**

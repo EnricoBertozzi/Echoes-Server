@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.auscultation;
 
+import org.javers.core.metamodel.annotation.DiffIgnore;
+import org.javers.core.metamodel.annotation.ShallowReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -8,6 +10,7 @@ import com.n0hana.echoes_server.animal.AnimalModel;
 import com.n0hana.echoes_server.scenario.ScenarioModel;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,10 +34,15 @@ public class AuscultationPointModel {
 
   private String position;
 
+  @Column(name = "active", nullable = false, columnDefinition = "boolean default true")
+  private boolean active = true;
+
+  @ShallowReference
   @ManyToOne
   @JoinColumn(name = "animal")
   private AnimalModel animal;
 
+  @DiffIgnore
   @OneToMany(mappedBy = "auscultationPoint", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ScenarioModel> scenarios = new ArrayList<>();
 

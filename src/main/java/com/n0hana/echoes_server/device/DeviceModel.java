@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.device;
 
+import org.javers.core.metamodel.annotation.ShallowReference;
+import org.javers.core.metamodel.annotation.DiffIgnore;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -10,6 +12,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import com.n0hana.echoes_server.animal.AnimalModel;
+import com.n0hana.echoes_server.classroom.ClassroomModel;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 
 import jakarta.persistence.Column;
@@ -65,14 +68,27 @@ public class DeviceModel {
    * de acesso trata "sem instituição" como "não pode operar".
    */
   @NotFound(action = NotFoundAction.IGNORE)
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
   @JoinColumn(name = "institution_id", nullable = true)
   private InstitutionModel institution;
 
+  @ShallowReference
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
   @JoinColumn(name = "animal", nullable = true)
   @OnDelete(action = OnDeleteAction.SET_NULL)
   private AnimalModel animal;
+
+  /**
+   * Turma do dispositivo: uma só por vez, e uma turma pode ter vários
+   * dispositivos. Turma excluída (soft delete) deixa de ser visível; IGNORE
+   * devolve null em vez de lançar.
+   */
+  @NotFound(action = NotFoundAction.IGNORE)
+  @ShallowReference
+  @ManyToOne(fetch = FetchType.LAZY, optional = true)
+  @JoinColumn(name = "classroom_id", nullable = true)
+  private ClassroomModel classroom;
 
   @Column(name = "approved_by")
   private UUID approvedBy;
@@ -81,6 +97,7 @@ public class DeviceModel {
   private LocalDateTime approvedAt;
 
   @Column(name = "last_seen_at")
+  @DiffIgnore
   private LocalDateTime lastSeenAt;
 
   @CreationTimestamp

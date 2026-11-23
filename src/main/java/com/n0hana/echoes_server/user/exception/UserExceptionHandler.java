@@ -24,6 +24,11 @@ public class UserExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
     }
 
+    @ExceptionHandler(LastManagerException.class)
+    public ResponseEntity<Map<String, String>> handleLastManager(LastManagerException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(message(ex));
+    }
+
     @ExceptionHandler(RegistrationAlreadyCompletedException.class)
     public ResponseEntity<Map<String, String>> handleRegistrationAlreadyCompleted(
             RegistrationAlreadyCompletedException ex) {

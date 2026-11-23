@@ -1,6 +1,7 @@
 package com.n0hana.echoes_server.user;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,7 +44,7 @@ import com.n0hana.echoes_server.user.service.UserRegisterService;
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @WithMockUser(roles = { "ADMIN", "MANAGER" })
-@EnabledIf("redisReachable")
+@EnabledIf("com.n0hana.echoes_server.support.RedisAvailability#redisReachable")
 class RegistrationFlowIntegrationTest {
 
     private static final String STRONG_PASSWORD = "SenhaForte123!";
@@ -71,7 +72,29 @@ class RegistrationFlowIntegrationTest {
     @Autowired
     private UserTermAcceptanceRepository userTermAcceptanceRepository;
 
+    /**
+     * Redis utilizável para o teste: responde PING sem autenticação, ou há
+     * REDIS_PASSWORD no ambiente (o perfil de teste usa essa senha). Só a porta
+     * aberta não basta: um Redis com senha fazia o teste rodar e falhar.
+     */
     static boolean redisReachable() {
+        if (System.getenv("REDIS_PASSWORD") != null && !System.getenv("REDIS_PASSWORD").isBlank()) {
+            return isOpen();
+        }
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress("localhost", 6379), 500);
+            socket.setSoTimeout(500);
+            socket.getOutputStream().write("PING\r\n".getBytes());
+            socket.getOutputStream().flush();
+            byte[] buf = new byte[32];
+            int n = socket.getInputStream().read(buf);
+            return n > 0 && new String(buf, 0, n).startsWith("+PONG");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isOpen() {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("localhost", 6379), 500);
             return true;
@@ -146,6 +169,8 @@ class RegistrationFlowIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Código inválido"));
 
         mockMvc.perform(post("/api/v1/users/2fa")
+                .with(req -> { req.setRemoteAddr("203.0.113.7"); return req; })
+                .header("User-Agent", "EchoesTest/1.0")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + STRONG_PASSWORD
                         + "\",\"code\":\"" + code + "\"," + TERMS_JSON + "}"))
@@ -158,6 +183,14 @@ class RegistrationFlowIntegrationTest {
         assertTrue(pendingRegistrationRepository.findByEmail(email).isEmpty(),
                 "convite deve ser consumido após a confirmação");
         assertTrue(userRepository.existsByEmail(email));
+
+        var acceptances = userTermAcceptanceRepository.findAllByUserId(
+                userRepository.findByEmail(email).orElseThrow().getId());
+        assertEquals(3, acceptances.size());
+        acceptances.forEach(a -> {
+            assertEquals("203.0.113.7", a.getIpAddress());
+            assertEquals("EchoesTest/1.0", a.getUserAgent());
+        });
 
         mockMvc.perform(get("/api/v1/users/student"))
                 .andExpect(status().isOk())
