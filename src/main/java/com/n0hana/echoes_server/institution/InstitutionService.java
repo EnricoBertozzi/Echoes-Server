@@ -196,13 +196,15 @@ public class InstitutionService {
      * @param id Id da instituição a ser alterada.
      */
     @Transactional
-    @Auditable(action = "TOGGLE_STATUS", entity = "Institution", entityId = "#id", institutionId = "#id")
-    public void toggleStatus(UUID id) {
+    @Auditable(action = "TOGGLE_STATUS", entity = "Institution", entityId = "#id",
+            entityName = "#result", institutionId = "#id")
+    public String toggleStatus(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         model.setActive(!model.isActive());
 
         repository.save(model);
         eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), false));
+        return model.getName();
     }
 
     /**
@@ -212,8 +214,9 @@ public class InstitutionService {
      */
 
     @Transactional
-    @Auditable(action = "DELETE", entity = "Institution", entityId = "#id", institutionId = "#id")
-    public void delete(UUID id) {
+    @Auditable(action = "DELETE", entity = "Institution", entityId = "#id",
+            entityName = "#result", institutionId = "#id")
+    public String delete(UUID id) {
         InstitutionModel model = getInstitutionOrThrow(id);
         recovery.recordInstitutionDeletion(model);
         model.setDeleted(true);
@@ -221,6 +224,7 @@ public class InstitutionService {
 
         repository.save(model);
         eventPublisher.publishEvent(new InstitutionStatusChanged(id, model.isActive(), true));
+        return model.getName();
     }
 
     /**

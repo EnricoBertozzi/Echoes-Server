@@ -47,6 +47,7 @@ import lombok.RequiredArgsConstructor;
 public class AuditLogController {
 
     private final AuditLogService service;
+    private final AuditInstitutionNames institutionNames;
 
     /**
      * GET /api/v1/audit-logs
@@ -92,21 +93,10 @@ public class AuditLogController {
             )
             Pageable pageable
     ) {
-        Page<AuditLogDTO> page = service
-                .getLogs(
-                    user,
-                    institutionId,
-                    entity,
-                    action,
-                    status,
-                    pageable
-                )
-                .map(log -> AuditLogDTO.from(
-                    log,
-                    user.getUserRole() == UserRole.ADMIN
-                ));
-
-        return ResponseEntity.ok(page);
+        Page<AuditLog> page = service.getLogs(user, institutionId, entity, action, status, pageable);
+        var displayName = institutionNames.resolve(page.getContent());
+        boolean includeIp = user.getUserRole() == UserRole.ADMIN;
+        return ResponseEntity.ok(page.map(log -> AuditLogDTO.from(log, includeIp, displayName.apply(log))));
     }
 }
 

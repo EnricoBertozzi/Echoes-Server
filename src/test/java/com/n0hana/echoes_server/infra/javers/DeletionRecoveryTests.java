@@ -1,5 +1,7 @@
 package com.n0hana.echoes_server.infra.javers;
 
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -33,6 +37,9 @@ import com.n0hana.echoes_server.classroom.ClassroomMemberRepository;
 import com.n0hana.echoes_server.classroom.ClassroomModel;
 import com.n0hana.echoes_server.classroom.ClassroomRepository;
 import com.n0hana.echoes_server.classroom.ClassroomService;
+import com.n0hana.echoes_server.infra.logs.AuditLog;
+import com.n0hana.echoes_server.infra.logs.AuditLogRepository;
+import com.n0hana.echoes_server.infra.logs.AuditSigner;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.institution.InstitutionRepository;
 import com.n0hana.echoes_server.institution.InstitutionService;
@@ -60,6 +67,8 @@ class DeletionRecoveryTests {
     @Autowired private ClassroomService classroomService;
     @Autowired private ClassroomMemberRepository members;
     @Autowired private UserRepository users;
+    @Autowired private AuditLogRepository auditLogs;
+    @Autowired private AuditSigner auditSigner;
     @MockitoBean private TermService terms;
 
     private final Admin requester = admin();
@@ -137,6 +146,67 @@ class DeletionRecoveryTests {
                 .getTotalElements());
         for (var user : List.of(manager, teacher, student))
             assertTrue(users.findById(user.getId()).isPresent());
+    }
+
+    @Test
+    void displaysInstitutionNamesBeforeAndAfterRestoration() throws Exception {
+        var institution = institution();
+        var manager = manager(institution);
+        UUID id = institution.getId();
+        String originalName = institution.getName();
+        String url = BASE + "/INSTITUTION/" + id;
+        String auditUrl = "/api/v1/audit-logs";
+
+        institutionService.toggleStatus(id);
+        institutionService.delete(id);
+        assertTrue(institutions.findById(id).isEmpty());
+        awaitInstitutionAuditName(id, "TOGGLE_STATUS", originalName);
+        awaitInstitutionAuditName(id, "DELETE", originalName);
+
+        saveHistoricalLog(AuditLog.builder().action("UPDATE").entity("Institution")
+                .entityId(id.toString()).institutionId(id.toString()).status("FAILED").build());
+        saveHistoricalLog(AuditLog.builder().action("DELETION_RESTORE_REQUESTED").entity("DeletionRecovery")
+                .entityId(id.toString()).status("SUCCESS").build());
+        mvc.perform(get(auditUrl).param("action", "UPDATE").param("institutionId", id.toString())
+                        .with(as(requester)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].institutionName").value(originalName));
+        mvc.perform(get(auditUrl).param("action", "DELETION_RESTORE_REQUESTED").with(as(requester)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[?(@.entityId == '" + id + "')].institutionName",
+                        hasItem(originalName)));
+
+        requestAndApprove(url);
+        mvc.perform(post(url + "/execute").with(as(reviewer)).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetName").doesNotExist());
+        for (String action : List.of("DELETION_RESTORE_REQUESTED", "DELETION_RESTORE_APPROVED", "DELETION_RESTORED")) {
+            awaitInstitutionAuditName(id, action, originalName);
+        }
+        mvc.perform(get(auditUrl).param("entity", "DeletionRecovery").with(as(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty());
+
+        institution.setName("Instituição renomeada");
+        institutionService.update(id, institution);
+        awaitInstitutionAuditName(id, "UPDATE", institution.getName());
+        awaitInstitutionAuditName(id, "DELETE", originalName);
+        awaitInstitutionAuditName(id, "DELETION_RESTORED", originalName);
+    }
+
+    private void awaitInstitutionAuditName(UUID id, String action, String name) {
+        await().atMost(Duration.ofSeconds(8)).untilAsserted(() ->
+                mvc.perform(get("/api/v1/audit-logs").param("institutionId", id.toString())
+                                .param("action", action).param("status", "SUCCESS").with(as(requester)))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.content[0].entityName").value(name))
+                        .andExpect(jsonPath("$.content[0].institutionName").value(name)));
+    }
+
+    private void saveHistoricalLog(AuditLog log) {
+        log.setTimestamp(Instant.parse("2026-01-01T00:00:00Z"));
+        log.setSignature(auditSigner.sign(log));
+        auditLogs.save(log);
     }
 
     @Test

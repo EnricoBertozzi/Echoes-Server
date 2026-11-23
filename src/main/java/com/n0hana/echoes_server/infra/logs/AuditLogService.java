@@ -212,6 +212,12 @@ public class AuditLogService {
                         );
                     }
 
+                    if (user.getUserRole() == UserRole.MANAGER) {
+                        // O fluxo de restaurações é reservado aos administradores.
+                        predicates.add(builder.or(root.get("entity").isNull(),
+                                builder.notEqual(root.get("entity"), "DeletionRecovery")));
+                    }
+
                     if (selectedEntity != null) {
                         predicates.add(
                             builder.equal(
