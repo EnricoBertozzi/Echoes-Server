@@ -1,6 +1,7 @@
 package com.n0hana.echoes_server.infra.mqtt;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,14 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
 
   private final Object lifecycleMonitor = new Object();
 
+  /**
+   * Client id desta instância: o configurado mais um sufixo aleatório. O broker
+   * derruba a sessão anterior quando outro cliente conecta com o mesmo id; com
+   * um id fixo, duas instâncias (ex.: máquina local e servidor implantado)
+   * ficariam se derrubando em loop.
+   */
+  private volatile String instanceClientId;
+
   private volatile MqttClient client;
   private volatile ScheduledExecutorService executor;
   private volatile boolean running;
@@ -74,7 +83,14 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
 
     try {
       connect();
+    } catch (MqttException exception) {
+      log.warn("MQTT falha ao conectar em {} (código {}): {}. Nova tentativa em {}s",
+          properties.getBrokerUrl(), exception.getReasonCode(), rootMessage(exception),
+          properties.getReconnectDelaySeconds());
+      scheduleReconnect();
     } catch (Exception exception) {
+      log.warn("MQTT falha ao conectar em {}: {}. Nova tentativa em {}s",
+          properties.getBrokerUrl(), rootMessage(exception), properties.getReconnectDelaySeconds());
       scheduleReconnect();
     }
   }
@@ -84,9 +100,10 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
       return;
 
     if (client == null) {
+      instanceClientId = instanceClientId(properties.getClientId());
       client = new MqttClient(
           properties.getBrokerUrl(),
-          properties.getClientId(),
+          instanceClientId,
           new MemoryPersistence());
       client.setCallback(callback());
     }
@@ -98,7 +115,9 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
   private MqttConnectOptions connectOptions() {
     MqttConnectOptions options = new MqttConnectOptions();
 
-    options.setAutomaticReconnect(true);
+    // a reconexão fica com o executor desta classe: assim o stop() a interrompe
+    // e nenhum cliente antigo continua tentando conectar depois de um restart
+    options.setAutomaticReconnect(false);
     options.setCleanSession(properties.isCleanSession());
     options.setConnectionTimeout(properties.getConnectionTimeoutSeconds());
     options.setKeepAliveInterval(properties.getKeepAliveSeconds());
@@ -118,13 +137,19 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
 
       @Override
       public void connectComplete(boolean reconnect, String serverURI) {
-        log.info("MQTT conectado como {} ao broker {}", properties.getClientId(), properties.getBrokerUrl());
+        log.info("MQTT {} como {} ao broker {}", reconnect ? "reconectado" : "conectado",
+            instanceClientId, properties.getBrokerUrl());
         subscribe();
       }
 
       @Override
       public void connectionLost(Throwable cause) {
-        log.warn("MQTT conexão perdida: {}", cause == null ? "desconhecida" : cause.getMessage());
+        if (cause instanceof MqttException mqttException)
+          log.warn("MQTT conexão perdida (código {}): {}", mqttException.getReasonCode(), rootMessage(cause));
+        else
+          log.warn("MQTT conexão perdida: {}", rootMessage(cause));
+
+        scheduleReconnect();
       }
 
       @Override
@@ -172,6 +197,7 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
 
       current.publish(topic, message);
     } catch (Exception exception) {
+      log.warn("MQTT falha ao publicar a resposta de cadastro de {}: {}", result.hardwareId(), rootMessage(exception));
     }
   }
 
@@ -205,6 +231,11 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
         .replace("{hardware_id}", segment)
         .replace("{hardwareId}", segment)
         .replace("{mac}", segment);
+  }
+
+  static String instanceClientId(String configured) {
+    String base = configured == null || configured.isBlank() ? "echoes-server" : configured.trim();
+    return base + "-" + UUID.randomUUID().toString().substring(0, 8);
   }
 
   static String topicSegment(String hardwareId) {
@@ -270,12 +301,17 @@ public class DeviceRegistrationMqttClient implements SmartLifecycle {
     try {
       if (current.isConnected())
         current.disconnect(1000);
+      else
+        current.disconnectForcibly(0, 1000, false);
     } catch (MqttException exception) {
+      log.debug("MQTT falha ao desconectar {}: {}", instanceClientId, rootMessage(exception));
     }
 
     try {
-      current.close();
+      // force: fecha mesmo com uma conexão em andamento
+      current.close(true);
     } catch (MqttException exception) {
+      log.warn("MQTT falha ao encerrar o cliente {}: {}", instanceClientId, rootMessage(exception));
     }
   }
 
