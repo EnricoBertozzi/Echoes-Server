@@ -75,11 +75,11 @@ class TeacherControllerTest {
     @DisplayName("POST /api/v1/users/teacher com dados válidos → 202 + pendência com institutionId, sem id e sem código")
     void createValidReturns202PendingRegistration() throws Exception {
         when(userRegisterService.createTeacher(any(CreateInstitutionUserDTO.class)))
-                .thenReturn(new PendingRegistrationDTO("Professor", "professor@example.com", UserRole.TEACHER, institutionId));
+                .thenReturn(new PendingRegistrationDTO("Professor", "Silva", "professor@example.com", UserRole.TEACHER, institutionId));
 
         mockMvc.perform(post("/api/v1/users/teacher")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Professor\",\"email\":\"professor@example.com\","
+                        .content("{\"name\":\"Professor\",\"surname\":\"Silva\",\"email\":\"professor@example.com\","
                                 + "\"institutionId\":\"" + institutionId + "\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.id").doesNotExist())
@@ -101,7 +101,7 @@ class TeacherControllerTest {
     @DisplayName("GET /api/v1/users/teacher/{id} → 200 + UserDTO sem senha")
     void findByIdReturns200WithoutPassword() throws Exception {
         when(userInfoService.findTeacherById(id))
-                .thenReturn(new UserDTO(id, "Professor", "professor@example.com", institutionId, UserRole.TEACHER));
+                .thenReturn(new UserDTO(id, "Professor", "Silva", "professor@example.com", institutionId, UserRole.TEACHER));
 
         mockMvc.perform(get("/api/v1/users/teacher/{id}", id))
                 .andExpect(status().isOk())
@@ -126,7 +126,7 @@ class TeacherControllerTest {
     void findAllWithInstitutionIdFilter() throws Exception {
         when(userInfoService.findTeachers(eq(institutionId), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new UserDTO(id, "Professor", "professor@example.com", institutionId, UserRole.TEACHER)),
+                        List.of(new UserDTO(id, "Professor", "Silva", "professor@example.com", institutionId, UserRole.TEACHER)),
                         PageRequest.of(0, 20),
                         1));
 
@@ -145,7 +145,7 @@ class TeacherControllerTest {
     void findAllWithoutInstitutionIdFilter() throws Exception {
         when(userInfoService.findTeachers(isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new UserDTO(id, "Professor", "professor@example.com", institutionId, UserRole.TEACHER)),
+                        List.of(new UserDTO(id, "Professor", "Silva", "professor@example.com", institutionId, UserRole.TEACHER)),
                         PageRequest.of(0, 20),
                         1));
 
@@ -162,7 +162,7 @@ class TeacherControllerTest {
     @DisplayName("PATCH /api/v1/users/teacher/{id} válido → 200 + UserDTO sem senha")
     void updateValidReturns200WithoutPassword() throws Exception {
         when(userManagerService.updateTeacher(eq(id), any(UpdateInstitutionUserDTO.class)))
-                .thenReturn(new UserDTO(id, "Professor Silva", "professor@example.com", institutionId, UserRole.TEACHER));
+                .thenReturn(new UserDTO(id, "Professor Silva", "Silva", "professor@example.com", institutionId, UserRole.TEACHER));
 
         mockMvc.perform(patch("/api/v1/users/teacher/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)

@@ -84,7 +84,7 @@ public class CurrentUserControllerTests {
         UUID institutionId = UUID.randomUUID();
         UserRole role = UserRole.MANAGER;
 
-        UserDTO userDTO = new UserDTO(id, name, email, institutionId, role);
+        UserDTO userDTO = new UserDTO(id, name, "Silva", email, institutionId, role);
 
         when(userInfoService.findUserByEmail(email)).thenReturn(userDTO);
 
@@ -128,8 +128,8 @@ public class CurrentUserControllerTests {
     void updateCurrentUser() throws Exception {
         // Arrange
         String email = "usuario@email.com";
-        UserDTO userDTO = new UserDTO(UUID.randomUUID(), "Novo Nome", "novo@email.com", UUID.randomUUID(), UserRole.STUDENT);
-        UpdateUserDTO updateUserDTO = new UpdateUserDTO("Novo Nome");
+        UserDTO userDTO = new UserDTO(UUID.randomUUID(), "Novo Nome", "Silva", "novo@email.com", UUID.randomUUID(), UserRole.STUDENT);
+        UpdateUserDTO updateUserDTO = new UpdateUserDTO("Novo Nome", null);
 
         when(userManagerService.updateCurrentUser(email, updateUserDTO)).thenReturn(userDTO);
 

@@ -90,7 +90,7 @@ public class InstitutionControllerTests {
         UUID uuid = UUID.randomUUID();
         InstitutionModel model = createTestModel(uuid);
 
-        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString()))
+        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString(), anyString()))
                 .thenReturn(model);
 
         String payload = """
@@ -103,7 +103,7 @@ public class InstitutionControllerTests {
                         "phone": "11901234567",
                         "address": "Rua nova"
                     },
-                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
+                    "manager": { "name": "Gestor", "surname": "Teste", "email": "gestor@teste.com" }
                 }
                 """.formatted(CNPJ_VALIDO);
 
@@ -129,7 +129,7 @@ public class InstitutionControllerTests {
                         "phone": "11901234567",
                         "address": "Rua nova"
                     },
-                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
+                    "manager": { "name": "Gestor", "surname": "Teste", "email": "gestor@teste.com" }
                 }
                 """;
 
@@ -172,11 +172,11 @@ public class InstitutionControllerTests {
                         "cnpj": "%s",
                         "email": "contato@teste.com"
                     },
-                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
+                    "manager": { "name": "Gestor", "surname": "Teste", "email": "gestor@teste.com" }
                 }
                 """.formatted(CNPJ_VALIDO);
 
-        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString()))
+        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString(), anyString()))
                 .thenThrow(new EmailAlreadyInUseException());
 
         mockMvc.perform(post("/api/v1/institutions")
@@ -198,11 +198,11 @@ public class InstitutionControllerTests {
                         "phone": "11901234567",
                         "address": "Rua nova"
                     },
-                    "manager": { "name": "Gestor Teste", "email": "gestor@teste.com" }
+                    "manager": { "name": "Gestor", "surname": "Teste", "email": "gestor@teste.com" }
                 }
                 """.formatted(CNPJ_VALIDO);
 
-        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString()))
+        when(registrationService.create(any(InstitutionModel.class), anyString(), anyString(), anyString()))
                 .thenThrow(new InstitutionAlreadyExistsException(
                         "Instituição já cadastrada com este CNPJ ou E-mail."));
 
@@ -376,8 +376,8 @@ public class InstitutionControllerTests {
         Integer size = 2;
 
         List<UserDTO> list = List.of(
-                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
-                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+                new UserDTO(UUID.randomUUID(), "manager", "Silva", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "Silva", "student@teste.com", id, UserRole.STUDENT));
 
         Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 2);
 
@@ -419,8 +419,8 @@ public class InstitutionControllerTests {
         String name = "example";
 
         List<UserDTO> list = List.of(
-                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
-                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+                new UserDTO(UUID.randomUUID(), "manager", "Silva", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "Silva", "student@teste.com", id, UserRole.STUDENT));
 
         Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 2);
 

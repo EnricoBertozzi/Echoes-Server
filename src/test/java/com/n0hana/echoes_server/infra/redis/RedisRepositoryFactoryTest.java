@@ -123,8 +123,7 @@ class RedisRepositoryFactoryTest {
     void typedRepositoryRoundTrip() {
         RedisRepository<PendingRegistration> repo =
                 factory.typed(ObjectType.PENDING_REGISTRATION, PendingRegistration.class);
-        PendingRegistration original = new PendingRegistration(
-                "João", "joao@example.com", "STUDENT", UUID.randomUUID(),
+        PendingRegistration original = new PendingRegistration("João", "Silva", "joao@example.com", "STUDENT", UUID.randomUUID(),
                 "123456", Instant.now().plusSeconds(300), 3, Instant.now());
 
         repo.save(original.email(), original);

@@ -388,8 +388,8 @@ public class InstitutionServiceTests {
         Integer pageNumber = 0;
 
         List<UserDTO> list = List.of(
-                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
-                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+                new UserDTO(UUID.randomUUID(), "manager", "Silva", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "Silva", "student@teste.com", id, UserRole.STUDENT));
 
         Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 1);
 
@@ -429,8 +429,8 @@ public class InstitutionServiceTests {
         Integer pageNumber = 0;
 
         List<UserDTO> list = List.of(
-                new UserDTO(UUID.randomUUID(), "manager", "manager@teste.com", id, UserRole.MANAGER),
-                new UserDTO(UUID.randomUUID(), "student", "student@teste.com", id, UserRole.STUDENT));
+                new UserDTO(UUID.randomUUID(), "manager", "Silva", "manager@teste.com", id, UserRole.MANAGER),
+                new UserDTO(UUID.randomUUID(), "student", "Silva", "student@teste.com", id, UserRole.STUDENT));
 
         Page<UserDTO> page = new PageImpl<>(list, PageRequest.of(pageNumber, size), 1);
 

@@ -148,7 +148,7 @@ class RegistrationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/v1/users/student")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Aluno\",\"email\":\"" + email + "\","
+                .content("{\"name\":\"Aluno\",\"surname\":\"Silva\",\"email\":\"" + email + "\","
                         + "\"institutionId\":\"" + institution.getId().toString() + "\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.id").doesNotExist())
@@ -211,7 +211,7 @@ class RegistrationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/v1/users/admin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Novo Admin\",\"email\":\"" + email + "\"}"))
+                .content("{\"name\":\"Novo Admin\",\"surname\":\"Silva\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isAccepted());
 
         for (int i = 0; i < UserRegisterService.MAX_VERIFICATION_ATTEMPTS; i++) {
@@ -233,7 +233,7 @@ class RegistrationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/v1/users/admin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Novo Admin\",\"email\":\"" + email + "\"}"))
+                .content("{\"name\":\"Novo Admin\",\"surname\":\"Silva\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isAccepted());
 
         assertTrue(pendingRegistrationRepository.findByEmail(email).isPresent(),
@@ -250,7 +250,7 @@ class RegistrationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/v1/users/manager")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Gestor\",\"email\":\"" + email + "\"}"))
+                .content("{\"name\":\"Gestor\",\"surname\":\"Silva\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isAccepted());
 
         String code = pendingRegistrationRepository.findByEmail(email).orElseThrow().code();

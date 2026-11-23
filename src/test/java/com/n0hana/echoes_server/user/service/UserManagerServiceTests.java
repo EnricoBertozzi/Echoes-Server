@@ -69,7 +69,7 @@ public class UserManagerServiceTests {
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO("João Silva"));
+        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO("João Silva", null));
 
         assertEquals("João Silva", dto.name());
         assertEquals("joao@example.com", dto.email());
@@ -93,7 +93,7 @@ public class UserManagerServiceTests {
         // a instituição de origem tem outro gestor, então ele pode sair
         when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(2L);
         UserDTO dto = userService.updateManager(manager.getId(),
-                new UpdateInstitutionUserDTO(null, newInstitutionId));
+                new UpdateInstitutionUserDTO(null, null, newInstitutionId));
 
         assertEquals(newInstitutionId, dto.institutionId());
         assertEquals("Gestor", dto.name());
@@ -107,7 +107,7 @@ public class UserManagerServiceTests {
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(userRepository.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO(null));
+        UserDTO dto = userService.updateAdmin(admin.getId(), new UpdateUserDTO(null, null));
 
         assertEquals("João", dto.name());
         assertEquals("joao@example.com", dto.email());
@@ -160,7 +160,7 @@ public class UserManagerServiceTests {
         when(userRepository.countActiveManagers(manager.getInstitution().getId())).thenReturn(1L);
 
         assertThrows(LastManagerException.class, () -> userService.updateManager(manager.getId(),
-                new UpdateInstitutionUserDTO(null, newInstitutionId)));
+                new UpdateInstitutionUserDTO(null, null, newInstitutionId)));
 
         verify(userRepository, never()).save(any());
     }
@@ -176,7 +176,7 @@ public class UserManagerServiceTests {
         when(userRepository.save(any(Manager.class))).thenAnswer(inv -> inv.getArgument(0));
         when(institutionService.findById(institutionId)).thenReturn(sameInstitution);
 
-        userService.updateManager(manager.getId(), new UpdateInstitutionUserDTO(null, institutionId));
+        userService.updateManager(manager.getId(), new UpdateInstitutionUserDTO(null, null, institutionId));
 
         verify(userRepository, never()).countActiveManagers(any());
     }
@@ -191,7 +191,7 @@ public class UserManagerServiceTests {
 
         // Act
         UserDTO dto = userService.updateCurrentUser("joao@example.com",
-                new UpdateUserDTO("João Silva"));
+                new UpdateUserDTO("João Silva", null));
 
         // Assert
         assertEquals("João Silva", dto.name());
