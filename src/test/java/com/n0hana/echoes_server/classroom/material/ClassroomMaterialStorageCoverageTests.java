@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import com.n0hana.echoes_server.infra.file.FileStorageProperties;
+import com.n0hana.echoes_server.infra.file.UploadFileCopy;
 
 class ClassroomMaterialStorageCoverageTests {
 
@@ -92,7 +93,7 @@ class ClassroomMaterialStorageCoverageTests {
     void rejectsDeclaredOversize() {
         MultipartFile big = Mockito.mock(MultipartFile.class);
         Mockito.when(big.isEmpty()).thenReturn(false);
-        Mockito.when(big.getSize()).thenReturn(ClassroomMaterialStorage.MAX_BYTES + 1);
+        Mockito.when(big.getSize()).thenReturn(UploadFileCopy.MAX_BYTES + 1);
 
         assertEquals("O limite é de 50 MB", message(() -> storage().store(big)));
     }
@@ -128,7 +129,7 @@ class ClassroomMaterialStorageCoverageTests {
         Mockito.when(liar.getSize()).thenReturn(10L);
         Mockito.when(liar.getOriginalFilename()).thenReturn("a.pdf");
         Mockito.when(liar.getInputStream()).thenReturn(new InputStream() {
-            long left = ClassroomMaterialStorage.MAX_BYTES + 1;
+            long left = UploadFileCopy.MAX_BYTES + 1;
             @Override public int read() { return left-- > 0 ? 'a' : -1; }
             @Override public int read(byte[] b, int off, int len) {
                 if (left <= 0) return -1;

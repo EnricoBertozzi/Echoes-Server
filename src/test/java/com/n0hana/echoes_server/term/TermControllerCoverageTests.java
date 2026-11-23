@@ -26,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.n0hana.echoes_server.auth.session.SessionCookie;
 import com.n0hana.echoes_server.term.dto.AcceptTermRequestDTO;
 import com.n0hana.echoes_server.term.dto.CreateTermRequestDTO;
 import com.n0hana.echoes_server.term.dto.TermResponseDTO;
@@ -51,6 +52,9 @@ class TermControllerCoverageTests {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private SessionCookie sessionCookie;
 
     @InjectMocks
     private TermController controller;
@@ -222,6 +226,7 @@ class TermControllerCoverageTests {
     @DisplayName("revokeConsent chama o serviço com o usuário e responde 204")
     void revokeConsent() {
         User user = existingUser();
+        when(sessionCookie.clear()).thenReturn(org.springframework.http.ResponseCookie.from("session", "").maxAge(0).build());
 
         ResponseEntity<Void> response = controller.revokeConsent(principal());
 

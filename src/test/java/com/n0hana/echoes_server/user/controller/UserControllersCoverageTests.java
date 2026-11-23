@@ -49,7 +49,7 @@ class UserControllersCoverageTests {
     private UserManagerService userManagerService;
 
     private static UserDTO dto(UUID id) {
-        return new UserDTO(id, "Admin", "a***@x.com", null, UserRole.ADMIN, false);
+        return new UserDTO(id, "Admin", "Silva", "a***@x.com", null, UserRole.ADMIN, false);
     }
 
     // ------------------------------------------------------------ AdminController
@@ -58,7 +58,7 @@ class UserControllersCoverageTests {
     @DisplayName("AdminController.create envia o convite e responde 202 sem corpo")
     void adminCreate() {
         AdminController controller = new AdminController(userInfoService, userRegisterService, userManagerService);
-        CreateUserDTO body = new CreateUserDTO("Ana", "ana@example.com");
+        CreateUserDTO body = new CreateUserDTO("Ana", "Silva", "ana@example.com");
 
         ResponseEntity<Void> response = controller.create(body);
 
@@ -98,7 +98,7 @@ class UserControllersCoverageTests {
     void adminUpdateAndDelete() {
         AdminController controller = new AdminController(userInfoService, userRegisterService, userManagerService);
         UUID id = UUID.randomUUID();
-        UpdateUserDTO body = new UpdateUserDTO("Novo");
+        UpdateUserDTO body = new UpdateUserDTO("Novo", null);
         when(userManagerService.updateAdmin(id, body)).thenReturn(dto(id));
 
         ResponseEntity<UserDTO> updated = controller.update(id, body);
@@ -119,7 +119,7 @@ class UserControllersCoverageTests {
         UUID institutionId = UUID.randomUUID();
         Principal principal = mock(Principal.class);
         when(principal.getName()).thenReturn("gestor@example.com");
-        PendingInvitationDTO invite = new PendingInvitationDTO("Beto", "beto@example.com", UserRole.STUDENT,
+        PendingInvitationDTO invite = new PendingInvitationDTO("Beto", "Souza", "beto@example.com", UserRole.STUDENT,
             institutionId, Instant.parse("2025-01-01T00:00:00Z"), Instant.parse("2025-01-08T00:00:00Z"));
         when(userRegisterService.listPending("gestor@example.com", institutionId)).thenReturn(List.of(invite));
         when(userRegisterService.listPending("gestor@example.com", null)).thenReturn(List.of());

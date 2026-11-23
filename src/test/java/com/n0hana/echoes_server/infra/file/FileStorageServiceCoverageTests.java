@@ -107,6 +107,7 @@ class FileStorageServiceCoverageTests {
         MultipartFile f = mock(MultipartFile.class);
         org.mockito.Mockito.when(f.getOriginalFilename()).thenReturn("a.txt");
         doThrow(new IOException("x")).when(f).transferTo(org.mockito.ArgumentMatchers.any(Path.class));
+        org.mockito.Mockito.when(f.getInputStream()).thenThrow(new IOException("x"));
 
         assertThrows(StorageSaveFileException.class, () -> service.store(f, "x"));
         assertThrows(StorageSaveFileException.class, () -> service.storeAudio(f, "x"));

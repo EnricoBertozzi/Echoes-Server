@@ -79,7 +79,7 @@ class UserRegisterServiceCoverageTests {
     private UserRegisterService service;
 
     private static PendingRegistration pending(String email, UserRole role, UUID institutionId) {
-        return new PendingRegistration("Fulano", email, role.getName(), institutionId, "123456",
+        return new PendingRegistration("Fulano", "Silva", email, role.getName(), institutionId, "123456",
             Instant.now().plusSeconds(600), 0, Instant.now().minusSeconds(60));
     }
 
@@ -224,7 +224,7 @@ class UserRegisterServiceCoverageTests {
     void createAdminInvite() {
         when(mfaService.generateCode()).thenReturn("654321");
 
-        PendingRegistrationDTO dto = service.createAdmin(new CreateUserDTO("Ana", "  ANA@Example.COM "));
+        PendingRegistrationDTO dto = service.createAdmin(new CreateUserDTO("Ana", "Silva", "  ANA@Example.COM "));
 
         assertEquals("ana@example.com", dto.email());
         assertEquals(UserRole.ADMIN, dto.role());
@@ -240,7 +240,7 @@ class UserRegisterServiceCoverageTests {
     void createInstitutionInvites() {
         UUID instId = UUID.randomUUID();
         when(mfaService.generateCode()).thenReturn("111111");
-        CreateInstitutionUserDTO dto = new CreateInstitutionUserDTO("Beto", "beto@example.com", instId);
+        CreateInstitutionUserDTO dto = new CreateInstitutionUserDTO("Beto", "Souza", "beto@example.com", instId);
 
         assertEquals(UserRole.MANAGER, service.createManager(dto).role());
         assertEquals(UserRole.TEACHER, service.createTeacher(dto).role());
@@ -282,7 +282,7 @@ class UserRegisterServiceCoverageTests {
         List<PendingInvitationDTO> result = service.listPending("admin@example.com", null);
 
         assertEquals(2, result.size());
-        assertEquals(new PendingInvitationDTO("Fulano", "a@example.com", UserRole.STUDENT, inst,
+        assertEquals(new PendingInvitationDTO("Fulano", "Silva", "a@example.com", UserRole.STUDENT, inst,
             a.createdAt(), a.expiresAt()), result.get(0));
         assertEquals(UserRole.ADMIN, result.get(1).role());
         assertNull(result.get(1).institutionId());

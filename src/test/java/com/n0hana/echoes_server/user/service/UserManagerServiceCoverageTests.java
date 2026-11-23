@@ -90,7 +90,7 @@ class UserManagerServiceCoverageTests {
     void updateManagerFirstInstitution() {
         Manager manager = stored(new Manager(), "Gestor");
         InstitutionModel target = institution();
-        UpdateInstitutionUserDTO dto = new UpdateInstitutionUserDTO("Novo Nome", target.getId());
+        UpdateInstitutionUserDTO dto = new UpdateInstitutionUserDTO("Novo Nome", null, target.getId());
         when(institutionService.findById(target.getId())).thenReturn(target);
         saveReturnsArgument();
 
@@ -110,7 +110,7 @@ class UserManagerServiceCoverageTests {
         manager.setInstitution(own);
         saveReturnsArgument();
 
-        UserDTO result = service.updateManager(manager.getId(), new UpdateInstitutionUserDTO("Outro", null));
+        UserDTO result = service.updateManager(manager.getId(), new UpdateInstitutionUserDTO("Outro", null, null));
 
         assertEquals("Outro", result.name());
         assertSame(own, manager.getInstitution());
@@ -128,7 +128,7 @@ class UserManagerServiceCoverageTests {
         when(userRepository.countActiveManagers(own.getId())).thenReturn(2L);
         saveReturnsArgument();
 
-        UserDTO result = service.updateManager(manager.getId(), new UpdateInstitutionUserDTO(null, target.getId()));
+        UserDTO result = service.updateManager(manager.getId(), new UpdateInstitutionUserDTO(null, null, target.getId()));
 
         assertEquals(target.getId(), result.institutionId());
         assertEquals("Gestor", result.name());
@@ -142,7 +142,7 @@ class UserManagerServiceCoverageTests {
         when(institutionService.findById(target.getId())).thenReturn(target);
         saveReturnsArgument();
 
-        UserDTO result = service.updateTeacher(teacher.getId(), new UpdateInstitutionUserDTO("Prof Novo", target.getId()));
+        UserDTO result = service.updateTeacher(teacher.getId(), new UpdateInstitutionUserDTO("Prof Novo", null, target.getId()));
 
         assertEquals("Prof Novo", result.name());
         assertEquals(target.getId(), result.institutionId());
@@ -155,7 +155,7 @@ class UserManagerServiceCoverageTests {
         Teacher teacher = stored(new Teacher(), "Prof");
         saveReturnsArgument();
 
-        UserDTO result = service.updateTeacher(teacher.getId(), new UpdateInstitutionUserDTO(null, null));
+        UserDTO result = service.updateTeacher(teacher.getId(), new UpdateInstitutionUserDTO(null, null, null));
 
         assertEquals("Prof", result.name());
         assertNull(result.institutionId());
@@ -170,7 +170,7 @@ class UserManagerServiceCoverageTests {
         when(institutionService.findById(target.getId())).thenReturn(target);
         saveReturnsArgument();
 
-        UserDTO result = service.updateStudent(student.getId(), new UpdateInstitutionUserDTO("Aluno Novo", target.getId()));
+        UserDTO result = service.updateStudent(student.getId(), new UpdateInstitutionUserDTO("Aluno Novo", null, target.getId()));
 
         assertEquals("Aluno Novo", result.name());
         assertEquals(target.getId(), result.institutionId());
@@ -182,7 +182,7 @@ class UserManagerServiceCoverageTests {
         Student student = stored(new Student(), "Aluno");
         saveReturnsArgument();
 
-        UserDTO result = service.updateStudent(student.getId(), new UpdateInstitutionUserDTO("X", null));
+        UserDTO result = service.updateStudent(student.getId(), new UpdateInstitutionUserDTO("X", null, null));
 
         assertEquals("X", result.name());
         verify(institutionService, never()).findById(any());
@@ -196,9 +196,9 @@ class UserManagerServiceCoverageTests {
         Student inactive = stored(new Student(), "Inativo");
         inactive.setActive(false);
 
-        assertThrows(UserNotFoundException.class, () -> service.updateAdmin(missing, new UpdateUserDTO("x")));
+        assertThrows(UserNotFoundException.class, () -> service.updateAdmin(missing, new UpdateUserDTO("x", null)));
         assertThrows(UserNotFoundException.class,
-            () -> service.updateStudent(inactive.getId(), new UpdateInstitutionUserDTO("x", null)));
+            () -> service.updateStudent(inactive.getId(), new UpdateInstitutionUserDTO("x", null, null)));
         verify(userRepository, never()).save(any());
     }
 
@@ -207,11 +207,11 @@ class UserManagerServiceCoverageTests {
     void updatesWrongType() {
         Student student = stored(new Student(), "Aluno");
 
-        assertThrows(InvalidUserTypeException.class, () -> service.updateAdmin(student.getId(), new UpdateUserDTO("x")));
+        assertThrows(InvalidUserTypeException.class, () -> service.updateAdmin(student.getId(), new UpdateUserDTO("x", null)));
         assertThrows(InvalidUserTypeException.class,
-            () -> service.updateManager(student.getId(), new UpdateInstitutionUserDTO("x", null)));
+            () -> service.updateManager(student.getId(), new UpdateInstitutionUserDTO("x", null, null)));
         assertThrows(InvalidUserTypeException.class,
-            () -> service.updateTeacher(student.getId(), new UpdateInstitutionUserDTO("x", null)));
+            () -> service.updateTeacher(student.getId(), new UpdateInstitutionUserDTO("x", null, null)));
         verify(userRepository, never()).save(any());
     }
 
@@ -221,7 +221,7 @@ class UserManagerServiceCoverageTests {
         when(userRepository.findByEmail("ninguem@example.com")).thenReturn(Optional.empty());
 
         assertThrows(UserNotFoundException.class,
-            () -> service.updateCurrentUser("ninguem@example.com", new UpdateUserDTO("x")));
+            () -> service.updateCurrentUser("ninguem@example.com", new UpdateUserDTO("x", null)));
     }
 
     @Test
@@ -234,7 +234,7 @@ class UserManagerServiceCoverageTests {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
         saveReturnsArgument();
 
-        UserDTO result = service.updateCurrentUser("admin@example.com", new UpdateUserDTO(null));
+        UserDTO result = service.updateCurrentUser("admin@example.com", new UpdateUserDTO(null, null));
 
         assertEquals("Admin", result.name());
     }
