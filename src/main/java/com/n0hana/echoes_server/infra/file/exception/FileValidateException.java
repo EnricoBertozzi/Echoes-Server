@@ -4,4 +4,8 @@ public class FileValidateException extends RuntimeException {
   public FileValidateException() {
     super("Arquivo Inválido");
   }
+
+  public FileValidateException(String message) {
+    super(message);
+  }
 }

@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -67,6 +70,38 @@ class FileStorageServiceTests {
         assertThrows(FileValidateException.class, () -> service.store(file, "Aula 1", SUB_DIR, EXTENSIONS));
 
         assertFalse(Files.exists(tempDir.resolve(SUB_DIR)));
+    }
+
+    @Test
+    void audioCopyRejectsStreamsOverTheLimitAndRemovesPartialFile() throws Exception {
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getOriginalFilename()).thenReturn("cenario.mp3");
+        when(file.getInputStream()).thenReturn(new InputStream() {
+            private long remaining = UploadFileCopy.MAX_BYTES + 1;
+
+            @Override
+            public int read() {
+                if (remaining == 0) return -1;
+                remaining--;
+                return 0;
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) {
+                if (remaining == 0) return -1;
+                int count = (int) Math.min(remaining, length);
+                java.util.Arrays.fill(buffer, offset, offset + count, (byte) 0);
+                remaining -= count;
+                return count;
+            }
+        });
+
+        var error = assertThrows(FileValidateException.class, () -> service.storeAudio(file, "Cenário"));
+
+        assertEquals(UploadFileCopy.SIZE_LIMIT_MESSAGE, error.getMessage());
+        try (var files = Files.list(tempDir)) {
+            assertEquals(0, files.count());
+        }
     }
 
     @Test

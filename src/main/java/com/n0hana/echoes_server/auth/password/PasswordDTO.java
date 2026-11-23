@@ -1,5 +1,8 @@
 package com.n0hana.echoes_server.auth.password;
 
+import com.n0hana.echoes_server.mfa.TwoFactorService;
+import com.n0hana.echoes_server.user.UserUtils;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -22,7 +25,7 @@ public class PasswordDTO {
      * @param email Email do usuário
      */
     public record RequestForgot(
-            @NotBlank @Email String email) {
+            @NotBlank @Email @Size(max = UserUtils.EMAIL_MAX_LENGTH) String email) {
     }
 
     /**
@@ -33,9 +36,10 @@ public class PasswordDTO {
      * @param newPassword Nova senha do usuário
      */
     public record RequestReset(
-            @NotBlank @Email String email,
+            @NotBlank @Email @Size(max = UserUtils.EMAIL_MAX_LENGTH) String email,
             @NotBlank String token,
-            @NotBlank @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE) String newPassword) {
+            @NotBlank @PasswordByteLength
+            @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE) String newPassword) {
     }
 
     /**
@@ -44,8 +48,8 @@ public class PasswordDTO {
      * @param code Código de redefinição
      */
     public record ValidadeCodeRequest(
-            @NotBlank @Email String email,
-            @NotEmpty @Size(min = 6, max = 6) String code) {
+            @NotBlank @Email @Size(max = UserUtils.EMAIL_MAX_LENGTH) String email,
+            @NotEmpty @Pattern(regexp = TwoFactorService.CODE_PATTERN, message = TwoFactorService.CODE_FORMAT_MESSAGE) String code) {
     }
 
     /**

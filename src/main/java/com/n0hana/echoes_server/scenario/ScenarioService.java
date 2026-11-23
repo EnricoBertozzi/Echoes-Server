@@ -61,12 +61,11 @@ public class ScenarioService {
   @Transactional
   @Auditable(action = "CREATE", entity = "Scenario", entityId = "#result.id", entityName = "#result.name")
   public ScenarioModel create(ScenarioModel model, MultipartFile file) {
+    AuscultationPointModel point = auscultationPointService.findPointById(model.getAuscultationPoint().getId());
     String audioPath = fileService.storeAudio(file, model.getName());
+    deleteFileIfRollback(audioPath);
 
     model.setAudioUrl(audioPath);
-
-    AuscultationPointModel point = auscultationPointService.findPointById(model.getAuscultationPoint().getId());
-
     model.setAuscultationPoint(point);
     return scenarioRepository.save(model);
   }
@@ -288,11 +287,11 @@ public class ScenarioService {
     String oldAudioUrl = model.getAudioUrl();
 
     String newAudioUrl = fileService.storeAudio(file, model.getName());
+    deleteFileIfRollback(newAudioUrl);
     model.setAudioUrl(newAudioUrl);
     scenarioRepository.save(model);
 
     deleteFileAfterCommit(oldAudioUrl);
-    deleteFileIfRollback(newAudioUrl);
   }
 
   /** renomeia o arquivo só depois que a transação comitou; em rollback ele fica como estava */

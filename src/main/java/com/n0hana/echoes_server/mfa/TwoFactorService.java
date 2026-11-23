@@ -7,6 +7,9 @@ import java.security.SecureRandom;
 @Service
 public class TwoFactorService {
 
+    public static final String CODE_PATTERN = "[0-9]{6}";
+    public static final String CODE_FORMAT_MESSAGE = "Informe um código de 6 dígitos";
+
     private final SecureRandom random = new SecureRandom();
 
     /**==================================
