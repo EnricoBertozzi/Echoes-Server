@@ -78,6 +78,7 @@ public class UserRegisterService {
     ) {
         return invite(
             dto.name(),
+            dto.surname(),
             dto.email(),
             UserRole.ADMIN,
             null
@@ -98,6 +99,7 @@ public class UserRegisterService {
     ) {
         return invite(
             dto.name(),
+            dto.surname(),
             dto.email(),
             UserRole.MANAGER,
             dto.institutionId()
@@ -118,6 +120,7 @@ public class UserRegisterService {
     ) {
         return invite(
             dto.name(),
+            dto.surname(),
             dto.email(),
             UserRole.TEACHER,
             dto.institutionId()
@@ -138,6 +141,7 @@ public class UserRegisterService {
     ) {
         return invite(
             dto.name(),
+            dto.surname(),
             dto.email(),
             UserRole.STUDENT,
             dto.institutionId()
@@ -225,6 +229,7 @@ public class UserRegisterService {
      */
     private PendingRegistrationDTO invite(
             String name,
+            String surname,
             String rawEmail,
             UserRole role,
             UUID institutionId
@@ -238,6 +243,7 @@ public class UserRegisterService {
         PendingRegistration pending =
                 new PendingRegistration(
                     name,
+                    surname,
                     email,
                     role.getName(),
                     institutionId,
@@ -260,6 +266,7 @@ public class UserRegisterService {
 
         return new PendingRegistrationDTO(
             name,
+            surname,
             email,
             role,
             institutionId
@@ -315,6 +322,7 @@ public class UserRegisterService {
         pendingRepository.savePreservingTtl(
             new PendingRegistration(
                 pending.name(),
+                pending.surname(),
                 pending.email(),
                 pending.role(),
                 pending.institutionId(),
@@ -343,6 +351,7 @@ public class UserRegisterService {
         };
 
         user.setName(pending.name());
+        user.setSurname(pending.surname());
         user.setEmail(pending.email());
         user.setPassword(encodedPassword);
 
@@ -406,6 +415,7 @@ public class UserRegisterService {
                 .filter(p -> filter == null || filter.equals(p.institutionId()))
                 .map(p -> new PendingInvitationDTO(
                         p.name(),
+                        p.surname(),
                         p.email(),
                         UserRole.valueOf(p.role()),
                         p.institutionId(),

@@ -4,5 +4,8 @@ import jakarta.validation.constraints.Size;
 
 public record UpdateUserDTO(
     @Size(min = 1, message = "O nome não pode ficar em branco")
-    String name
+    String name,
+
+    @Size(min = 1, message = "O sobrenome não pode ficar em branco")
+    String surname
 ) {}

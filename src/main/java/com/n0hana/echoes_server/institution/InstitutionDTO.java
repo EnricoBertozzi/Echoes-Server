@@ -79,6 +79,7 @@ public record InstitutionDTO(
 
     public record ManagerRequest(
             @NotBlank(message = "O nome do gestor é obrigatório") String name,
+            @NotBlank(message = "O sobrenome do gestor é obrigatório") String surname,
             @NotBlank(message = "O e-mail do gestor é obrigatório") @Email(message = "E-mail do gestor inválido") String email) {
     }
     }

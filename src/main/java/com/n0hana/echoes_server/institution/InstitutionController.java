@@ -56,7 +56,7 @@ public class InstitutionController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<InstitutionDTO> create(@RequestBody @Valid InstitutionDTO.CreateRequest dto) {
         InstitutionModel saved = registrationService.create(
-                dto.institution().toModel(), dto.manager().name(), dto.manager().email());
+                dto.institution().toModel(), dto.manager().name(), dto.manager().surname(), dto.manager().email());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(InstitutionDTO.fromModel(saved));

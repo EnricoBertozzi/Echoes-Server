@@ -44,6 +44,7 @@ public class UserUtils {
         return new UserDTO(
                 user.getId(),
                 user.getName(),
+                user.getSurname(),
                 user.getEmail(),
                 institutionId,
                 user.getUserRole(),
@@ -63,6 +64,7 @@ public class UserUtils {
         return new UserDTO(
                 dto.id(),
                 dto.name(),
+                dto.surname(),
                 maskEmail(dto.email()),
                 dto.institutionId(),
                 dto.role(),

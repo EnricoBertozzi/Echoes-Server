@@ -12,6 +12,7 @@ import com.n0hana.echoes_server.user.model.UserRole;
  */
 public record PendingInvitationDTO(
         String name,
+        String surname,
         String email,
         UserRole role,
         UUID institutionId,
