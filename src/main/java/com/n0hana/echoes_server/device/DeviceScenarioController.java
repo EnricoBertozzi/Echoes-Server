@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -109,6 +110,17 @@ public class DeviceScenarioController {
         @AuthenticationPrincipal User user
     ) {
         return ResponseEntity.ok(service.listPresets(user, deviceId));
+    }
+
+    @DeleteMapping("/{deviceId}/scenario-presets/{presetId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TEACHER')")
+    public ResponseEntity<Void> deletePreset(
+        @PathVariable UUID deviceId,
+        @PathVariable UUID presetId,
+        @AuthenticationPrincipal User user
+    ) {
+        service.deletePreset(user, deviceId, presetId);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{deviceId}/scenario-presets/{presetId}/activate")

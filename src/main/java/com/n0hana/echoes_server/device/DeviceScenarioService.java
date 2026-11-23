@@ -168,6 +168,22 @@ public class DeviceScenarioService {
         .stream().map(DeviceScenarioService::toPresetInfo).toList();
   }
 
+  /** Remove um caso clinico salvo. A configuracao atual dos aparelhos nao muda. */
+  @Transactional
+  @Auditable(action = "DELETE", entity = "ClinicalPreset", entityId = "#presetId")
+  public void deletePreset(User user, UUID deviceId, UUID presetId) {
+    DeviceModel device = findDevice(deviceId);
+    assertCanManage(user, device);
+    if (device.getAnimal() == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Caso clinico nao encontrado");
+    }
+
+    ClinicalScenarioPresetModel preset = presetRepository
+        .findByIdAndAnimalId(presetId, device.getAnimal().getId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Caso clinico nao encontrado"));
+    presetRepository.delete(preset);
+  }
+
   /** Troca TODOS os pontos em uma transacao; o manifesto do ESP nao muda de formato. */
   @Transactional
   @Auditable(action = "UPDATE", entity = "DeviceScenario",

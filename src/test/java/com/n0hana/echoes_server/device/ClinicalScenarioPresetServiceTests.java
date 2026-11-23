@@ -223,4 +223,37 @@ class ClinicalScenarioPresetServiceTests {
         () -> service.activatePreset(user, device.getId(), UUID.randomUUID()));
     verify(selections, never()).saveAll(any());
   }
+
+  @Test
+  void deletesPresetOfTheDeviceAnimal() {
+    allow();
+    ClinicalScenarioPresetModel preset = new ClinicalScenarioPresetModel();
+    preset.setId(UUID.randomUUID());
+    when(presets.findByIdAndAnimalId(preset.getId(), device.getAnimal().getId()))
+        .thenReturn(java.util.Optional.of(preset));
+
+    service.deletePreset(user, device.getId(), preset.getId());
+
+    verify(presets).delete(preset);
+    verify(selections, never()).saveAll(any());
+  }
+
+  @Test
+  void deleteRejectsPresetOfAnotherAnimal() {
+    allow();
+    when(presets.findByIdAndAnimalId(any(), any())).thenReturn(java.util.Optional.empty());
+
+    assertThrows(org.springframework.web.server.ResponseStatusException.class,
+        () -> service.deletePreset(user, device.getId(), UUID.randomUUID()));
+    verify(presets, never()).delete(any());
+  }
+
+  @Test
+  void teacherOfAnotherInstitutionCannotDeletePreset() {
+    otherInstitutionTeacher();
+
+    assertThrows(org.springframework.security.access.AccessDeniedException.class,
+        () -> service.deletePreset(user, device.getId(), UUID.randomUUID()));
+    verify(presets, never()).delete(any());
+  }
 }
