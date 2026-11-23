@@ -57,6 +57,9 @@ public class AuthService {
     @org.springframework.beans.factory.annotation.Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
+    @org.springframework.beans.factory.annotation.Value("${api.security.trusted-proxies:}")
+    private String trustedProxies;
+
     /**
      * Realiza verificação do login do usuário
      * 
@@ -150,7 +153,7 @@ public class AuthService {
         if (knownDevices.registerAndCheckNew(user.getId(), userAgent)) {
             notifier.sendNewDeviceLogin(
                     user.getEmail(),
-                    ClientIpResolver.resolve(request, trustForwardedFor),
+                    ClientIpResolver.resolve(request, trustForwardedFor, trustedProxies),
                     userAgent,
                     Instant.now());
         }

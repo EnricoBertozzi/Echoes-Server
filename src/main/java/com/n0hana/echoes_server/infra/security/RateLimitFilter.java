@@ -32,6 +32,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
+    @Value("${api.security.trusted-proxies:}")
+    private String trustedProxies;
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !enabled || !"POST".equalsIgnoreCase(request.getMethod()) || scopeOf(request) == null;
@@ -41,7 +44,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String scope = scopeOf(request);
-        String key = scope + ":" + ClientIpResolver.resolve(request, trustForwardedFor);
+        String key = scope + ":" + ClientIpResolver.resolve(request, trustForwardedFor, trustedProxies);
 
         Bucket bucket = buckets.computeIfAbsent(key, k -> newBucket());
 

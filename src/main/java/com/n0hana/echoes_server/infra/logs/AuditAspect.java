@@ -47,6 +47,9 @@ public class AuditAspect {
     @Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
+    @Value("${api.security.trusted-proxies:}")
+    private String trustedProxies;
+
     private static final int MAX_DETAILS = 255;
 
     private final ExpressionParser parser =
@@ -392,7 +395,7 @@ public class AuditAspect {
 
     private String getClientIp() {
         try {
-            return ClientIpResolver.resolve(request, trustForwardedFor);
+            return ClientIpResolver.resolve(request, trustForwardedFor, trustedProxies);
         } catch (IllegalStateException e) {
             // sem requisição HTTP (scheduler, @Async): o evento fica sem IP
             return null;

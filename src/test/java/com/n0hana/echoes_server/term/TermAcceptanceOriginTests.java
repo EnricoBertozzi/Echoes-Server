@@ -103,6 +103,7 @@ class TermAcceptanceOriginTests {
     @DisplayName("Usa X-Forwarded-For atrás de proxy confiável")
     void usesForwardedForBehindTrustedProxy() {
         ReflectionTestUtils.setField(termService, "trustForwardedFor", true);
+        ReflectionTestUtils.setField(termService, "trustedProxies", "203.0.113.10,10.0.0.0/8");
         MockHttpServletRequest request = bindRequest();
         request.addHeader("X-Forwarded-For", "198.51.100.99, 10.0.0.1");
 

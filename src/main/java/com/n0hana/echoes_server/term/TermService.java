@@ -59,6 +59,9 @@ public class TermService {
     @Value("${api.security.trust-forwarded-for:false}")
     private boolean trustForwardedFor;
 
+    @Value("${api.security.trusted-proxies:}")
+    private String trustedProxies;
+
     // ------------------------------------------------------------------ consultas
 
     public TermModel getActiveTerms(DocumentType type) {
@@ -160,7 +163,7 @@ public class TermService {
         if (request == null) {
             return null;
         }
-        return truncate(ClientIpResolver.resolve(request, trustForwardedFor), UserTermAcceptance.IP_MAX_LENGTH);
+        return truncate(ClientIpResolver.resolve(request, trustForwardedFor, trustedProxies), UserTermAcceptance.IP_MAX_LENGTH);
     }
 
     private static String userAgent(HttpServletRequest request) {
