@@ -21,9 +21,9 @@ public class InstitutionRegistrationService {
 
     // se o convite falhar (e-mail em uso, por exemplo), a instituição também não é criada
     @Transactional
-    public InstitutionModel create(InstitutionModel model, String managerName, String managerEmail) {
+    public InstitutionModel create(InstitutionModel model, String managerName, String managerSurname, String managerEmail) {
         InstitutionModel saved = institutionService.create(model);
-        userRegisterService.createManager(new CreateInstitutionUserDTO(managerName, managerEmail, saved.getId()));
+        userRegisterService.createManager(new CreateInstitutionUserDTO(managerName, managerSurname, managerEmail, saved.getId()));
         return saved;
     }
 }

@@ -5,12 +5,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.n0hana.echoes_server.infra.file.exception.FileValidateException;
 import com.n0hana.echoes_server.infra.file.exception.StorageDeleteFileException;
 import com.n0hana.echoes_server.infra.file.exception.StorageFileNotFoundException;
 import com.n0hana.echoes_server.infra.file.exception.StorageSaveFileException;
@@ -70,7 +72,29 @@ public class FileStorageService {
 
     public String storeAudio(MultipartFile file, String newName) {
         fileValidator.validateAudio(file);
-        return saveToRoot(file, newName);
+        String fileName = generateNewName(file.getOriginalFilename(), newName);
+        Path target = fileStorageLocation.resolve(fileName);
+        if (!fileStorageLocation.equals(target.getParent()))
+            throw new FileValidateException("Nome de arquivo inválido");
+
+        boolean created = false;
+        try (var input = file.getInputStream()) {
+            try (var output = Files.newOutputStream(target, StandardOpenOption.CREATE_NEW)) {
+                created = true;
+                UploadFileCopy.copy(input, output);
+            }
+        } catch (IOException | RuntimeException ex) {
+            if (created) {
+                try {
+                    Files.deleteIfExists(target);
+                } catch (IOException cleanup) {
+                    ex.addSuppressed(cleanup);
+                }
+            }
+            if (ex instanceof RuntimeException runtime) throw runtime;
+            throw new StorageSaveFileException();
+        }
+        return fileName;
     }
 
     private String saveToRoot(MultipartFile file, String newName) {

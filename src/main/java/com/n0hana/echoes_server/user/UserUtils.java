@@ -16,6 +16,8 @@ import com.n0hana.echoes_server.user.model.User;
  */
 public class UserUtils {
 
+    public static final int EMAIL_MAX_LENGTH = 255;
+
     /**
      * Normaliza o e-mail enviado para manter sem espaços extras ou maiusculas
      * 
@@ -42,6 +44,7 @@ public class UserUtils {
         return new UserDTO(
                 user.getId(),
                 user.getName(),
+                user.getSurname(),
                 user.getEmail(),
                 institutionId,
                 user.getUserRole(),
@@ -61,6 +64,7 @@ public class UserUtils {
         return new UserDTO(
                 dto.id(),
                 dto.name(),
+                dto.surname(),
                 maskEmail(dto.email()),
                 dto.institutionId(),
                 dto.role(),

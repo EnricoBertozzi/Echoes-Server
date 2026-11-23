@@ -23,7 +23,6 @@ import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecovery.Type;
 import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryService.Detail;
 import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryService.Result;
 import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryTargets.Summary;
-import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.infra.web.PageLimits;
 import com.n0hana.echoes_server.user.model.User;
 
@@ -50,23 +49,18 @@ public class DeletionRecoveryController {
     }
 
     @PostMapping("/{type}/{id}/request")
-    @Auditable(action = "DELETION_RESTORE_REQUESTED", entity = "DeletionRecovery", entityId = "#id")
     public ResponseEntity<Void> request(@PathVariable Type type, @PathVariable UUID id, @AuthenticationPrincipal User admin) {
         service.request(type, id, admin.getId());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{type}/{id}/approve")
-    @Auditable(action = "DELETION_RESTORE_APPROVED", entity = "DeletionRecovery", entityId = "#id")
     public ResponseEntity<Void> approve(@PathVariable Type type, @PathVariable UUID id, @AuthenticationPrincipal User admin) {
         service.approve(type, id, admin.getId());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{type}/{id}/execute")
-    @Auditable(action = "DELETION_RESTORED", entity = "DeletionRecovery", entityId = "#id",
-            details = "'Tipo: ' + #type + '; vínculos recuperados: ' + #result.recoveredMembers()"
-                    + " + '; vínculos ignorados: ' + #result.skippedMembers().size()")
     public Result execute(@PathVariable Type type, @PathVariable UUID id) {
         return service.execute(type, id);
     }

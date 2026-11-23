@@ -29,6 +29,7 @@ public record AuditLogDTO(
         String ip,
         String entityId,
         String institutionId,
+        String institutionName,
         Instant timestamp) {
 
     /**
@@ -51,6 +52,10 @@ public record AuditLogDTO(
      * @return {@link AuditLogDTO} com os campos expostos na API.
      */
     public static AuditLogDTO from(AuditLog log, boolean includeIp) {
+        return from(log, includeIp, null);
+    }
+
+    public static AuditLogDTO from(AuditLog log, boolean includeIp, String institutionName) {
         return new AuditLogDTO(
                 log.getId(),
                 log.getUserId(),
@@ -65,6 +70,7 @@ public record AuditLogDTO(
                 includeIp ? log.getIp() : null,
                 log.getEntityId(),
                 log.getInstitutionId(),
+                institutionName,
                 log.getTimestamp());
     }
 }

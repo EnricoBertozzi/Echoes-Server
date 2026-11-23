@@ -41,6 +41,8 @@ public abstract class User implements UserDetails {
 
     private String name;
 
+    private String surname;
+
     @Column(nullable = false, unique = true)
     private String email;
 

@@ -232,11 +232,13 @@ class AuditLogServiceTests {
 
         Root<AuditLog> root = mock(Root.class);
         Path<String> path = mock(Path.class);
+        Path<String> entityPath = mock(Path.class);
         CriteriaBuilder builder = mock(CriteriaBuilder.class);
         CriteriaQuery<?> query = mock(CriteriaQuery.class);
 
         when(root.<String>get("institutionId"))
                 .thenReturn(path);
+        when(root.<String>get("entity")).thenReturn(entityPath);
 
         captor.getValue().toPredicate(
             root,
@@ -248,6 +250,7 @@ class AuditLogServiceTests {
             path,
             institutionId.toString()
         );
+        verify(builder).notEqual(entityPath, "DeletionRecovery");
     }
 
     private Manager manager(

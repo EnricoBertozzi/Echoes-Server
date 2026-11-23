@@ -65,7 +65,7 @@ public class TermsAcceptanceFilter extends OncePerRequestFilter {
             return false;
         }
 
-        String path = request.getServletPath();
+        String path = request.getRequestURI().substring(request.getContextPath().length());
         return !(path.startsWith("/terms")
                 || path.startsWith("/api/v1/auth")
                 || path.startsWith("/api/v1/password")

@@ -74,7 +74,8 @@ public class UserManagerService {
 
         applyCommonUpdate(
             admin,
-            dto.name()
+            dto.name(),
+            dto.surname()
         );
 
         return UserUtils.toDTO(
@@ -104,7 +105,8 @@ public class UserManagerService {
 
         applyCommonUpdate(
             manager,
-            dto.name()
+            dto.name(),
+            dto.surname()
         );
 
         if (dto.institutionId() != null) {
@@ -156,7 +158,8 @@ public class UserManagerService {
 
         applyCommonUpdate(
             teacher,
-            dto.name()
+            dto.name(),
+            dto.surname()
         );
 
         if (dto.institutionId() != null) {
@@ -197,7 +200,8 @@ public class UserManagerService {
 
         applyCommonUpdate(
             student,
-            dto.name()
+            dto.name(),
+            dto.surname()
         );
 
         if (dto.institutionId() != null) {
@@ -232,7 +236,8 @@ public class UserManagerService {
 
         applyCommonUpdate(
                 user,
-                dto.name()
+                dto.name(),
+            dto.surname()
         );
 
         return UserUtils.toDTO(
@@ -440,10 +445,14 @@ public class UserManagerService {
      */
     private void applyCommonUpdate(
             User user,
-            String name
+            String name,
+            String surname
     ) {
         if (name != null) {
             user.setName(name);
+        }
+        if (surname != null) {
+            user.setSurname(surname);
         }
     }
 

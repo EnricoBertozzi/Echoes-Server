@@ -41,7 +41,7 @@ class InstitutionRegistrationServiceTests {
         InstitutionModel saved = InstitutionModel.builder().id(UUID.randomUUID()).build();
         when(institutionService.create(model)).thenReturn(saved);
 
-        InstitutionModel result = service.create(model, "Gestor", "gestor@teste.com");
+        InstitutionModel result = service.create(model, "Gestor", "Silva", "gestor@teste.com");
 
         assertSame(saved, result);
         ArgumentCaptor<CreateInstitutionUserDTO> captor = ArgumentCaptor.forClass(CreateInstitutionUserDTO.class);
@@ -58,7 +58,7 @@ class InstitutionRegistrationServiceTests {
         when(institutionService.create(model)).thenThrow(new InstitutionAlreadyExistsException("Já cadastrada"));
 
         assertThrows(InstitutionAlreadyExistsException.class,
-                () -> service.create(model, "Gestor", "gestor@teste.com"));
+                () -> service.create(model, "Gestor", "Silva", "gestor@teste.com"));
 
         verifyNoInteractions(userRegisterService);
     }
@@ -73,6 +73,6 @@ class InstitutionRegistrationServiceTests {
                 .thenThrow(new EmailAlreadyInUseException());
 
         assertThrows(EmailAlreadyInUseException.class,
-                () -> service.create(model, "Gestor", "gestor@teste.com"));
+                () -> service.create(model, "Gestor", "Silva", "gestor@teste.com"));
     }
 }

@@ -2,6 +2,7 @@ package com.n0hana.echoes_server.term;
 
 import java.util.List;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.n0hana.echoes_server.auth.session.SessionCookie;
 import com.n0hana.echoes_server.term.dto.AcceptTermRequestDTO;
 import com.n0hana.echoes_server.term.dto.CreateTermRequestDTO;
 import com.n0hana.echoes_server.term.dto.TermResponseDTO;
@@ -40,6 +42,7 @@ public class TermController {
 
     private final TermService termsService;
     private final UserRepository userRepository;
+    private final SessionCookie sessionCookie;
 
     /**
      * Lista o histórico completo de termos para a administração.
@@ -110,7 +113,9 @@ public class TermController {
             .orElseThrow(UserNotFoundException::new);
 
         termsService.revoke(user);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.noContent()
+            .header(HttpHeaders.SET_COOKIE, sessionCookie.clear().toString())
+            .build();
     }
 
     @PostMapping

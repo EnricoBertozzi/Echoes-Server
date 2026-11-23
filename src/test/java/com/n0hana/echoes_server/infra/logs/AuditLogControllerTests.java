@@ -22,7 +22,8 @@ import com.n0hana.echoes_server.user.model.UserRole;
 class AuditLogControllerTests {
 
     private final AuditLogService service = mock(AuditLogService.class);
-    private final AuditLogController controller = new AuditLogController(service);
+    private final AuditInstitutionNames institutionNames = mock(AuditInstitutionNames.class);
+    private final AuditLogController controller = new AuditLogController(service, institutionNames);
 
     private AuditLog log() {
         AuditLog log = AuditLog.builder().action("CREATE").entity("Classroom").entityName("Turma 1")
@@ -35,6 +36,7 @@ class AuditLogControllerTests {
         when(user.getUserRole()).thenReturn(role);
         when(service.getLogs(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(log())));
+        when(institutionNames.resolve(any())).thenReturn(log -> "Instituição de exemplo");
         return controller.list(user, null, null, null, null, PageRequest.of(0, 20));
     }
 
@@ -45,6 +47,7 @@ class AuditLogControllerTests {
         var body = (org.springframework.data.domain.Page<AuditLogDTO>) list(UserRole.ADMIN).getBody();
         assertEquals("203.0.113.7", body.getContent().get(0).ip());
         assertEquals("Turma 1", body.getContent().get(0).entityName());
+        assertEquals("Instituição de exemplo", body.getContent().get(0).institutionName());
     }
 
     @Test

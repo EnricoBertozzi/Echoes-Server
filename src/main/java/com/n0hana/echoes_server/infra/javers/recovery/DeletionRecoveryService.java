@@ -29,6 +29,7 @@ import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecovery.Status;
 import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecovery.Type;
 import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryTargets.Summary;
 import com.n0hana.echoes_server.infra.javers.recovery.DeletionRecoveryTargets.Target;
+import com.n0hana.echoes_server.infra.logs.Auditable;
 import com.n0hana.echoes_server.institution.InstitutionModel;
 import com.n0hana.echoes_server.institution.InstitutionRepository;
 import com.n0hana.echoes_server.institution.InstitutionStatusChanged;
@@ -36,6 +37,8 @@ import com.n0hana.echoes_server.user.UserRepository;
 import com.n0hana.echoes_server.user.model.Student;
 import com.n0hana.echoes_server.user.model.Teacher;
 import com.n0hana.echoes_server.user.model.User;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.RequiredArgsConstructor;
 
@@ -46,7 +49,10 @@ public class DeletionRecoveryService {
     public record SkippedMember(UUID membershipId, String reason) {}
     public record Detail(Summary target, boolean canApprove, boolean canExecute, String blockedReason,
             int recoverableMembers, List<SkippedMember> skippedMembers, Instant restoredAt) {}
-    public record Result(Instant restoredAt, int recoveredMembers, List<SkippedMember> skippedMembers) {}
+    public record Result(Instant restoredAt, int recoveredMembers, List<SkippedMember> skippedMembers,
+            @JsonIgnore String targetName) {}
+
+    private static final String INSTITUTION_ID = "#type.name() == 'INSTITUTION' ? #id : null";
 
     private record Roster(List<User> users, List<SkippedMember> skipped) {}
 
@@ -103,17 +109,22 @@ public class DeletionRecoveryService {
     }
 
     @Transactional
-    public void request(Type type, UUID id, UUID adminId) {
-        requireCurrentTarget(type, id, true);
+    @Auditable(action = "DELETION_RESTORE_REQUESTED", entity = "DeletionRecovery", entityId = "#id",
+            entityName = "#result", institutionId = INSTITUTION_ID)
+    public String request(Type type, UUID id, UUID adminId) {
+        Target target = requireCurrentTarget(type, id, true);
         var recovery = findCase(type, id);
         requireStatus(recovery, Status.AVAILABLE, "Este registro já tem uma solicitação de restauração");
         recovery.setStatus(Status.PENDING_APPROVAL);
         recovery.setRequestedBy(adminId);
         cases.save(recovery);
+        return target.name();
     }
 
     @Transactional
-    public void approve(Type type, UUID id, UUID adminId) {
+    @Auditable(action = "DELETION_RESTORE_APPROVED", entity = "DeletionRecovery", entityId = "#id",
+            entityName = "#result", institutionId = INSTITUTION_ID)
+    public String approve(Type type, UUID id, UUID adminId) {
         Target target = requireCurrentTarget(type, id, true);
         var recovery = findCase(type, id);
         requireStatus(recovery, Status.PENDING_APPROVAL, "A restauração não está aguardando aprovação");
@@ -122,9 +133,14 @@ public class DeletionRecoveryService {
         requireUnblocked(target);
         recovery.setStatus(Status.APPROVED);
         recovery.setApprovedBy(adminId);
+        return target.name();
     }
 
     @Transactional
+    @Auditable(action = "DELETION_RESTORED", entity = "DeletionRecovery", entityId = "#id",
+            entityName = "#result.targetName()", institutionId = INSTITUTION_ID,
+            details = "'Tipo: ' + #type + '; vínculos recuperados: ' + #result.recoveredMembers()"
+                    + " + '; vínculos ignorados: ' + #result.skippedMembers().size()")
     public Result execute(Type type, UUID id) {
         Target target = requireCurrentTarget(type, id, true);
         var recovery = findCase(type, id);
@@ -156,7 +172,7 @@ public class DeletionRecoveryService {
         }
         recovery.setStatus(Status.EXECUTED);
         recovery.setRestoredAt(Instant.now());
-        return new Result(recovery.getRestoredAt(), recoveredMembers, roster.skipped());
+        return new Result(recovery.getRestoredAt(), recoveredMembers, roster.skipped(), target.name());
     }
 
     private Detail describe(Target target, DeletionRecovery recovery, UUID adminId) {

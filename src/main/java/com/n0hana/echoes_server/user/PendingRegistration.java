@@ -10,6 +10,7 @@ import java.util.UUID;
  */
 public record PendingRegistration(
     String name,
+    String surname,
     String email,
     String role,
     UUID institutionId,

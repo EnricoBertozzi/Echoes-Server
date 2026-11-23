@@ -72,12 +72,12 @@ class AdminControllerTest {
     @DisplayName("POST api/v1/users/admin com dados válidos → 202 + pendência sem id e sem código")
     void createValidReturns202PendingRegistration() throws Exception {
         when(userRegisterService.createAdmin(any(CreateUserDTO.class)))
-                .thenReturn(new PendingRegistrationDTO("Joao", "joao@example.com", UserRole.ADMIN,
+                .thenReturn(new PendingRegistrationDTO("Joao", "Silva", "joao@example.com", UserRole.ADMIN,
                         null));
 
         mockMvc.perform(post("/api/v1/users/admin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Joao\",\"email\":\"joao@example.com\"}"))
+                .content("{\"name\":\"Joao\",\"surname\":\"Silva\",\"email\":\"joao@example.com\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.code").doesNotExist());
@@ -98,7 +98,7 @@ class AdminControllerTest {
     @DisplayName("GET /api/v1/users/admin/{id} → 200 + UserDTO sem senha")
     void findByIdReturns200WithoutPassword() throws Exception {
         when(userInfoService.findAdminById(id))
-                .thenReturn(new UserDTO(id, "Joao", "joao@example.com", null, UserRole.ADMIN));
+                .thenReturn(new UserDTO(id, "Joao", "Silva", "joao@example.com", null, UserRole.ADMIN));
 
         mockMvc.perform(get("/api/v1/users/admin/{id}", id))
                 .andExpect(status().isOk())
@@ -123,7 +123,7 @@ class AdminControllerTest {
     void findAllReturns200WithPageContent() throws Exception {
         when(userInfoService.findAdmins(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new UserDTO(id, "Joao", "joao@example.com", null,
+                        List.of(new UserDTO(id, "Joao", "Silva", "joao@example.com", null,
                                 UserRole.ADMIN)),
                         PageRequest.of(0, 20),
                         1));
@@ -143,7 +143,7 @@ class AdminControllerTest {
     @DisplayName("PATCH /api/v1/users/admin/{id} válido → 200 + UserDTO sem senha")
     void updateValidReturns200WithoutPassword() throws Exception {
         when(userManagerService.updateAdmin(eq(id), any(UpdateUserDTO.class)))
-                .thenReturn(new UserDTO(id, "Joao Silva", "joao@example.com", null, UserRole.ADMIN));
+                .thenReturn(new UserDTO(id, "Joao Silva", "Silva", "joao@example.com", null, UserRole.ADMIN));
 
         mockMvc.perform(patch("/api/v1/users/admin/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)

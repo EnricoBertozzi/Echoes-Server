@@ -49,7 +49,7 @@ class PendingRegistrationRepositoryTest {
     }
 
     private static PendingRegistration pending(Instant createdAt) {
-        return new PendingRegistration("João", "joao@example.com", "STUDENT", UUID.randomUUID(),
+        return new PendingRegistration("João", "Silva", "joao@example.com", "STUDENT", UUID.randomUUID(),
                 "123456", createdAt.plusSeconds(300), 0, createdAt);
     }
 

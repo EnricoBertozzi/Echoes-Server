@@ -97,7 +97,7 @@ class UserRegisterServiceTests {
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
 
         PendingRegistrationDTO dto = userService.createAdmin(
-                new CreateUserDTO("João", "  JOAO@EXAMPLE.COM  "));
+                new CreateUserDTO("João", "Silva", "  JOAO@EXAMPLE.COM  "));
 
         verify(userRepository, never()).save(any());
         PendingRegistration pending = captureSavedPending();
@@ -124,7 +124,7 @@ class UserRegisterServiceTests {
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
 
         PendingRegistrationDTO dto = userService.createManager(
-                new CreateInstitutionUserDTO("Gestor", "gestor@example.com", institutionId));
+                new CreateInstitutionUserDTO("Gestor", "Silva", "gestor@example.com", institutionId));
 
         verify(userRepository, never()).save(any());
         PendingRegistration pending = captureSavedPending();
@@ -145,7 +145,7 @@ class UserRegisterServiceTests {
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
 
         PendingRegistrationDTO dto = userService.createTeacher(
-                new CreateInstitutionUserDTO("Professor", "professor@example.com", institutionId));
+                new CreateInstitutionUserDTO("Professor", "Silva", "professor@example.com", institutionId));
 
         verify(userRepository, never()).save(any());
         PendingRegistration pending = captureSavedPending();
@@ -165,7 +165,7 @@ class UserRegisterServiceTests {
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
 
         PendingRegistrationDTO dto = userService.createStudent(
-                new CreateInstitutionUserDTO("Aluno", "aluno@example.com", institutionId));
+                new CreateInstitutionUserDTO("Aluno", "Silva", "aluno@example.com", institutionId));
 
         verify(userRepository, never()).save(any());
         PendingRegistration pending = captureSavedPending();
@@ -183,7 +183,7 @@ class UserRegisterServiceTests {
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(true);
 
         assertThrows(EmailAlreadyInUseException.class, () -> userService.createAdmin(
-                new CreateUserDTO("João", "JOAO@example.com")));
+                new CreateUserDTO("João", "Silva", "JOAO@example.com")));
 
         verify(pendingRegistrationRepository, never()).save(any());
         verify(notifier, never()).sendRegisterInvite(anyString(), anyString(), anyString());
@@ -195,8 +195,8 @@ class UserRegisterServiceTests {
         when(userRepository.existsByEmail("joao@example.com")).thenReturn(false);
         when(twoFactorService.generateCode()).thenReturn(GENERATED_CODE);
 
-        userService.createAdmin(new CreateUserDTO("João", "joao@example.com"));
-        userService.createAdmin(new CreateUserDTO("João Silva", "joao@example.com"));
+        userService.createAdmin(new CreateUserDTO("João", "Silva", "joao@example.com"));
+        userService.createAdmin(new CreateUserDTO("João Silva", "Silva", "joao@example.com"));
 
         verify(pendingRegistrationRepository, times(2)).save(any(PendingRegistration.class));
         verify(notifier, times(2)).sendRegisterInvite(anyString(), anyString(), anyString());
@@ -311,7 +311,7 @@ class UserRegisterServiceTests {
     @Test
     @DisplayName("Código correto porém expirado → ExpiredTwoFactorCodeException")
     void expiredCodeThrowsExpiredException() {
-        PendingRegistration expired = new PendingRegistration("João", "joao@example.com", "STUDENT", null,
+        PendingRegistration expired = new PendingRegistration("João", "Silva", "joao@example.com", "STUDENT", null,
                 GENERATED_CODE, Instant.now().minusSeconds(60), 0, Instant.now().minusSeconds(360));
         when(pendingRegistrationRepository.findByEmail("joao@example.com")).thenReturn(Optional.of(expired));
 
@@ -336,7 +336,7 @@ class UserRegisterServiceTests {
     }
 
     private PendingRegistration pendingFor(String email, String role, UUID institutionId, int attempts) {
-        return new PendingRegistration("João", email, role, institutionId,
+        return new PendingRegistration("João", "Silva", email, role, institutionId,
                 GENERATED_CODE, Instant.now().plusSeconds(300), attempts, Instant.now());
     }
 

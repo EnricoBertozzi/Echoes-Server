@@ -20,12 +20,13 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import com.n0hana.echoes_server.infra.file.FileStorageProperties;
+import com.n0hana.echoes_server.infra.file.UploadFileCopy;
+import com.n0hana.echoes_server.infra.file.exception.FileValidateException;
 
 /** Pasta isolada: nunca expor como conteúdo estático do servidor. */
 @Component
 public class ClassroomMaterialStorage {
     private static final Logger log = LoggerFactory.getLogger(ClassroomMaterialStorage.class);
-    public static final long MAX_BYTES = 50L * 1024 * 1024;
     private final Path root;
     private final Set<String> allowedExtensions;
 
@@ -44,7 +45,7 @@ public class ClassroomMaterialStorage {
 
     public Stored store(MultipartFile file) {
         if (file == null || file.isEmpty()) throw MaterialException.invalid("Selecione um arquivo");
-        if (file.getSize() > MAX_BYTES) throw MaterialException.invalid("O limite é de 50 MB");
+        if (file.getSize() > UploadFileCopy.MAX_BYTES) throw MaterialException.invalid(UploadFileCopy.SIZE_LIMIT_MESSAGE);
         String original = file.getOriginalFilename();
         MaterialFileType type = MaterialFileType.fromFilename(original);
         // só os tipos configurados em MATERIAL_EXTENSIONS_ALLOWED são aceitos em upload
@@ -55,18 +56,12 @@ public class ClassroomMaterialStorage {
         try {
             Files.createDirectories(root);
             // Impede sobrescrita e limita bytes de verdade, não apenas o tamanho declarado no multipart.
+            long size;
             try (InputStream input = file.getInputStream(); var out = Files.newOutputStream(target, StandardOpenOption.CREATE_NEW)) {
-                byte[] buffer = new byte[65536];
-                long size = 0;
-                int count;
-                while ((count = input.read(buffer)) != -1) {
-                    size += count;
-                    if (size > MAX_BYTES) throw MaterialException.invalid("O limite é de 50 MB");
-                    out.write(buffer, 0, count);
-                }
+                size = UploadFileCopy.copy(input, out);
+            } catch (FileValidateException ex) {
+                throw MaterialException.invalid(ex.getMessage());
             }
-            long size = Files.size(target);
-            if (size == 0) throw MaterialException.invalid("Arquivo vazio");
             type.validateContent(target);
             removeIfTransactionRollsBack(storedName);
             return new Stored(storedName, original, type.contentType(), size);
